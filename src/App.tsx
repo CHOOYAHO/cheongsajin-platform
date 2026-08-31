@@ -64,9 +64,8 @@ function App() {
     <div className="welcome-page">
       <main className="welcome-shell">
         <section className="welcome-copy">
-        <div className="brand"><span className="brand-mark">청</span><span>청·사·진</span></div>
-        <div className="eyebrow">청소년의 사기진작 진로멘토링</div>
-        <h1>내 가능성을 발견하고,<br /><em>미래의 청사진</em>을 그려요.</h1>
+        <h1 className="program-title">청·사·진 <span>- 청소년의 사기진작 진로멘토링</span></h1>
+        <h2 className="welcome-title">내 가능성을 발견하고,<br /><em>미래의 청사진</em>을 그려요.</h2>
         <p className="welcome-description">좋아하는 것과 잘하는 것을 찾고, AI와 함께 희망 직업을 탐색해 나만의 진로 포트폴리오를 완성해요.</p>
         </section>
         <section className="entry-card">
