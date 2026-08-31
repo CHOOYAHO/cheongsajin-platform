@@ -23,10 +23,10 @@ function PartnerFooter() {
       <div className="partner-footer-inner">
         <p>함께하는 기관</p>
         <div className="partner-logos">
-          <img src={chungcheongnamdoLogo} alt="충청남도" />
-          <img src={educationOfficeLogo} alt="충청남도교육청" />
-          <img src={socialServiceLogo} alt="충남사회서비스원" />
-          <img src={youthCenterLogo} alt="예산군청소년수련관" />
+          <div className="partner-logo"><img src={chungcheongnamdoLogo} alt="충청남도" /></div>
+          <div className="partner-logo"><img src={educationOfficeLogo} alt="충청남도교육청" /></div>
+          <div className="partner-logo social-service-logo"><img src={socialServiceLogo} alt="충남사회서비스원" /></div>
+          <div className="partner-logo"><img src={youthCenterLogo} alt="예산군청소년수련관" /></div>
         </div>
       </div>
     </footer>
