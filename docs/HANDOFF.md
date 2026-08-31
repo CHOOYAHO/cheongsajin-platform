@@ -1,0 +1,109 @@
+# 청·사·진 플랫폼 인수인계
+
+마지막 정리일: 2026-09-01
+
+## 프로젝트 개요
+
+- 프로그램명: 청·사·진
+- 의미: 청소년의 사기진작 진로멘토링
+- 대상: 광시중학교 및 예산고등학교 청소년
+- 목적: 디지털 플랫폼에서 진로 탐색, 회기별 활동, 멘토 피드백, 포트폴리오를 운영하는 것
+- 기술: React 19, TypeScript, Vite, Firebase, GitHub Pages
+
+## 저장소와 배포
+
+- GitHub 저장소: https://github.com/CHOOYAHO/cheongsajin-platform
+- 배포 사이트: https://chooyaho.github.io/cheongsajin-platform/
+- 기본 브랜치: `main`
+- 배포 방식: `.github/workflows/deploy-pages.yml`의 GitHub Actions
+- `main`에 푸시하면 자동 빌드 및 GitHub Pages 배포
+
+## Firebase 상태
+
+- Firebase 프로젝트 ID: `cheongsajin-57ffc`
+- Firestore 위치: `asia-northeast3`(서울)
+- Firebase Authentication 익명 로그인을 활성화함
+- Cloud Firestore 데이터베이스를 생성함
+- `firestore.rules`를 Firebase Console에 게시함
+- GitHub Actions에 필요한 Firebase 환경변수 6개를 Repository Secrets로 등록함
+- 실제 설정값과 계정 정보는 이 문서에 기록하지 않음
+
+## 현재 구현된 기능
+
+- 인터넷에서 접속 가능한 반응형 랜딩 페이지
+- 참가코드와 PIN 입력 화면
+- 입력 후 Firebase 익명 인증 수행
+- 학생 활동실 예시 화면
+- 회기별 카드와 진행률 UI
+- 공통 하단 협력기관 영역
+  - 충청남도
+  - 충청남도교육청
+  - 충남사회서비스원
+  - 예산군청소년수련관
+- PC 및 모바일 반응형 배치
+
+## 아직 구현되지 않은 핵심 기능
+
+- 참가코드와 PIN의 실제 데이터베이스 검증
+- 학생·멘토·관리자 역할 및 권한 부여
+- 실제 참여자 명단 등록
+- 회기별 활동지 입력과 Firestore 저장
+- 임시저장 및 제출 기능
+- 멘토 피드백 작성과 학생별 열람
+- 관리자 화면
+- 학생별 진행률 계산
+- 결과물 및 포트폴리오 생성
+- 파일 업로드용 Firebase Storage 운영 연결
+
+현재 참가코드와 PIN은 빈칸 여부만 검사한다. 아무 값이나 입력해도 익명 인증 후 예시 활동실로 들어간다.
+
+## 주요 파일
+
+- `src/App.tsx`: 랜딩 페이지, 로그인 흐름, 예시 학생 활동실, 협력기관 푸터
+- `src/App.css`: 전체 화면과 모바일 스타일
+- `src/lib/firebase.ts`: 환경변수 기반 Firebase 초기화
+- `src/types/domain.ts`: 초기 도메인 타입
+- `firestore.rules`: Firestore 보안 규칙
+- `storage.rules`: Storage 보안 규칙 초안
+- `.github/workflows/deploy-pages.yml`: GitHub Pages 자동 배포
+- `.env.example`: 필요한 Firebase 환경변수 이름
+
+## 현재 화면 관련 결정사항
+
+- 랜딩 페이지 H1: `청·사·진 - 청소년의 사기진작 진로멘토링`
+- 랜딩 페이지 H2: `내 가능성을 발견하고, 미래의 청사진을 그려요.`
+- 예전에 있던 아이콘형 `청·사·진` 제목과 파란 소제목은 제거함
+- `선호·강점 → 진로역량 → AI 면접 → 청사진` 표시는 제거함
+- 협력기관 로고는 모든 화면 하단에 표시함
+- 충남사회서비스원 로고 원본에는 큰 흰 여백이 있어 CSS로 확대·위치 보정 중임
+- 로고 크기 및 위치는 현재 사용자 확인을 받은 상태
+
+## 개발 명령
+
+```bash
+pnpm install
+pnpm dev
+pnpm build
+pnpm lint
+```
+
+로컬 개발 주소는 보통 `http://127.0.0.1:5173/` 또는 Vite가 출력하는 주소다.
+
+## 권장 다음 작업
+
+가장 먼저 참가코드/PIN 인증 설계를 확정하는 것이 좋다.
+
+권장 흐름:
+
+1. 관리자가 참여자별 참가코드와 PIN을 발급한다.
+2. PIN 원문은 Firestore에 저장하지 않고 안전한 검증 방식을 사용한다.
+3. 검증 성공 시 Firebase 사용자와 참여자 레코드를 연결한다.
+4. 학생·멘토·관리자 권한을 분리한다.
+5. 테스트 계정으로 Firestore 규칙을 검증한다.
+
+청소년 개인정보가 포함되므로 실제 명단을 넣기 전에 데이터 항목, 보관 기간, 접근 권한을 사용자와 먼저 확정해야 한다.
+
+## 새 Codex에 전달할 첫 메시지 예시
+
+> GitHub의 `CHOOYAHO/cheongsajin-platform` 저장소를 이어서 작업하자. 먼저 루트의 `AGENTS.md`와 `docs/HANDOFF.md`를 전부 읽고, 현재 구현 상태를 확인한 뒤 나에게 짧게 요약해 줘. 기존 디자인과 협력기관 로고 배치는 유지해.
+
