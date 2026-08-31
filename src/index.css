@@ -1,0 +1,3 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700;800;900&display=swap');
+:root { font-family:'Noto Sans KR','Malgun Gothic',sans-serif; color:#203d55; background:#f8fbfd; font-synthesis:none; text-rendering:optimizeLegibility; -webkit-font-smoothing:antialiased; }
+body { margin:0; min-width:320px; min-height:100vh; }

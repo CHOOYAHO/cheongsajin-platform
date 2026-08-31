@@ -1,0 +1,11 @@
+node_modules
+dist
+.env
+.env.local
+.firebase
+*.log
+.scaffold
+tmp
+src/assets
+public/favicon.svg
+public/icons.svg
