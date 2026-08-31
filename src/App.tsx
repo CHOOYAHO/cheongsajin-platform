@@ -3,6 +3,10 @@ import type { FormEvent } from 'react'
 import { signInAnonymously, signOut } from 'firebase/auth'
 import './App.css'
 import { auth, isFirebaseConfigured } from './lib/firebase'
+import chungcheongnamdoLogo from './assets/chungcheongnamdo.png'
+import educationOfficeLogo from './assets/chungnam-education-office.png'
+import socialServiceLogo from './assets/chungnam-social-service.png'
+import youthCenterLogo from './assets/yesan-youth-center.png'
 
 type Session = { number: number; title: string; subtitle: string; status: 'done' | 'open' | 'locked'; icon: string }
 const sessions: Session[] = [
@@ -12,6 +16,22 @@ const sessions: Session[] = [
   { number: 4, title: '직업 탐색과 AI 면접', subtitle: 'AI 면접관과 미래의 나를 연습해요', status: 'locked', icon: '💬' },
   { number: 5, title: '나만의 청사진 만들기', subtitle: '활동을 모아 미래 포트폴리오를 완성해요', status: 'locked', icon: '🗺️' },
 ]
+
+function PartnerFooter() {
+  return (
+    <footer className="partner-footer">
+      <div className="partner-footer-inner">
+        <p>함께하는 기관</p>
+        <div className="partner-logos">
+          <img src={chungcheongnamdoLogo} alt="충청남도" />
+          <img src={educationOfficeLogo} alt="충청남도교육청" />
+          <img src={socialServiceLogo} alt="충남사회서비스원" />
+          <img src={youthCenterLogo} alt="예산군청소년수련관" />
+        </div>
+      </div>
+    </footer>
+  )
+}
 
 function App() {
   const [entered, setEntered] = useState(false)
@@ -41,15 +61,16 @@ function App() {
   }
 
   if (!entered) return (
-    <main className="welcome-shell">
-      <section className="welcome-copy">
+    <div className="welcome-page">
+      <main className="welcome-shell">
+        <section className="welcome-copy">
         <div className="brand"><span className="brand-mark">청</span><span>청·사·진</span></div>
         <div className="eyebrow">청소년의 사기진작 진로멘토링</div>
         <h1>내 가능성을 발견하고,<br /><em>미래의 청사진</em>을 그려요.</h1>
         <p className="welcome-description">좋아하는 것과 잘하는 것을 찾고, AI와 함께 희망 직업을 탐색해 나만의 진로 포트폴리오를 완성해요.</p>
         <div className="journey"><span>선호·강점</span><b>→</b><span>진로역량</span><b>→</b><span>AI 면접</span><b>→</b><span>청사진</span></div>
-      </section>
-      <section className="entry-card">
+        </section>
+        <section className="entry-card">
         <div className="entry-heading"><span className="entry-icon">↗</span><div><h2>활동 시작하기</h2><p>선생님께 받은 참가 정보를 입력해 주세요.</p></div></div>
         <form onSubmit={enter}>
           <label>참가코드<input value={code} onChange={(e) => setCode(e.target.value)} placeholder="예: BLUE-1204" autoComplete="username" /></label>
@@ -58,8 +79,10 @@ function App() {
           {entryError && <p className="entry-error" role="alert">{entryError}</p>}
         </form>
         <p className="privacy-note">🔒 이름과 연락처 없이 안전하게 활동해요.</p>
-      </section>
-    </main>
+        </section>
+      </main>
+      <PartnerFooter />
+    </div>
   )
 
   return (
@@ -85,6 +108,7 @@ function App() {
           ))}</div>
         </section>
       </main>
+      <PartnerFooter />
     </div>
   )
 }
