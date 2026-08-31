@@ -68,7 +68,6 @@ function App() {
         <div className="eyebrow">청소년의 사기진작 진로멘토링</div>
         <h1>내 가능성을 발견하고,<br /><em>미래의 청사진</em>을 그려요.</h1>
         <p className="welcome-description">좋아하는 것과 잘하는 것을 찾고, AI와 함께 희망 직업을 탐색해 나만의 진로 포트폴리오를 완성해요.</p>
-        <div className="journey"><span>선호·강점</span><b>→</b><span>진로역량</span><b>→</b><span>AI 면접</span><b>→</b><span>청사진</span></div>
         </section>
         <section className="entry-card">
         <div className="entry-heading"><span className="entry-icon">↗</span><div><h2>활동 시작하기</h2><p>선생님께 받은 참가 정보를 입력해 주세요.</p></div></div>
