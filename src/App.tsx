@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
+import { signInAnonymously, signOut } from 'firebase/auth'
 import './App.css'
+import { auth, isFirebaseConfigured } from './lib/firebase'
 
 type Session = { number: number; title: string; subtitle: string; status: 'done' | 'open' | 'locked'; icon: string }
 const sessions: Session[] = [
@@ -15,7 +17,28 @@ function App() {
   const [entered, setEntered] = useState(false)
   const [code, setCode] = useState('')
   const [pin, setPin] = useState('')
-  const enter = (event: FormEvent) => { event.preventDefault(); if (code.trim() && pin.trim()) setEntered(true) }
+  const [isEntering, setIsEntering] = useState(false)
+  const [entryError, setEntryError] = useState('')
+  const enter = async (event: FormEvent) => {
+    event.preventDefault()
+    if (!code.trim() || !pin.trim()) return
+    setIsEntering(true)
+    setEntryError('')
+    try {
+      if (!auth) throw new Error('Firebase configuration is missing')
+      await signInAnonymously(auth)
+      setEntered(true)
+    } catch (error) {
+      console.error(error)
+      setEntryError('연결에 실패했어요. 잠시 후 다시 시도해 주세요.')
+    } finally {
+      setIsEntering(false)
+    }
+  }
+  const leave = async () => {
+    if (auth?.currentUser) await signOut(auth)
+    setEntered(false)
+  }
 
   if (!entered) return (
     <main className="welcome-shell">
@@ -31,7 +54,8 @@ function App() {
         <form onSubmit={enter}>
           <label>참가코드<input value={code} onChange={(e) => setCode(e.target.value)} placeholder="예: BLUE-1204" autoComplete="username" /></label>
           <label>PIN 번호<input value={pin} onChange={(e) => setPin(e.target.value)} placeholder="숫자 4자리" inputMode="numeric" maxLength={4} type="password" autoComplete="current-password" /></label>
-          <button type="submit">나의 활동실로 들어가기 <span>→</span></button>
+          <button type="submit" disabled={isEntering || !isFirebaseConfigured}>{isEntering ? '안전하게 연결하는 중…' : '나의 활동실로 들어가기'} {!isEntering && <span>→</span>}</button>
+          {entryError && <p className="entry-error" role="alert">{entryError}</p>}
         </form>
         <p className="privacy-note">🔒 이름과 연락처 없이 안전하게 활동해요.</p>
       </section>
@@ -40,7 +64,7 @@ function App() {
 
   return (
     <div className="app-shell">
-      <header className="topbar"><div className="brand"><span className="brand-mark">청</span><span>청·사·진</span></div><div className="student-chip"><span>광시중학교</span><b>파랑 12</b><button onClick={() => setEntered(false)} aria-label="나가기">↗</button></div></header>
+      <header className="topbar"><div className="brand"><span className="brand-mark">청</span><span>청·사·진</span></div><div className="student-chip"><span>광시중학교</span><b>파랑 12</b><button onClick={leave} aria-label="나가기">↗</button></div></header>
       <main className="dashboard">
         <section className="dashboard-intro">
           <div><p className="eyebrow">나의 활동실</p><h1>안녕, <em>파랑 12</em>!</h1><p>오늘도 나만의 가능성을 하나씩 발견해 볼까요?</p></div>
