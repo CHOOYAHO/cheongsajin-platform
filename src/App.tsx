@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { signInAnonymously, signOut } from 'firebase/auth'
 import './App.css'
@@ -51,6 +51,36 @@ function App() {
   const [isEntering, setIsEntering] = useState(false)
   const [entryError, setEntryError] = useState('')
   const schoolName = school === 'yesan-high' ? '예산고등학교' : school === 'gwangsi-middle' ? '광시중학교' : ''
+
+  useEffect(() => {
+    window.history.replaceState({ cheongsajinView: 'login' }, '')
+    const handleBack = (event: PopStateEvent) => {
+      const view = typeof event.state?.cheongsajinView === 'string' ? event.state.cheongsajinView : 'login'
+      const sessionMatch = /^session-(\d+)$/.exec(view)
+      if ((view === 'dashboard' || sessionMatch) && !auth?.currentUser) {
+        setActiveSession(null)
+        setEntered(false)
+        window.history.replaceState({ cheongsajinView: 'login' }, '')
+        return
+      }
+      if (sessionMatch) {
+        setEntered(true)
+        setActiveSession(Number(sessionMatch[1]))
+        return
+      }
+      if (view === 'dashboard') {
+        setEntered(true)
+        setActiveSession(null)
+        return
+      }
+      setActiveSession(null)
+      setEntered(false)
+      if (auth?.currentUser) void signOut(auth)
+    }
+    window.addEventListener('popstate', handleBack)
+    return () => window.removeEventListener('popstate', handleBack)
+  }, [])
+
   const enter = async (event: FormEvent) => {
     event.preventDefault()
     if (!school) {
@@ -71,6 +101,7 @@ function App() {
       if (!auth) throw new Error('Firebase configuration is missing')
       await signInAnonymously(auth)
       setEntered(true)
+      window.history.pushState({ cheongsajinView: 'dashboard' }, '')
     } catch (error) {
       console.error(error)
       setEntryError('연결에 실패했어요. 잠시 후 다시 시도해 주세요.')
@@ -82,6 +113,11 @@ function App() {
     if (auth?.currentUser) await signOut(auth)
     setActiveSession(null)
     setEntered(false)
+    window.history.replaceState({ cheongsajinView: 'login' }, '')
+  }
+  const openSession = (sessionNumber: number) => {
+    setActiveSession(sessionNumber)
+    window.history.pushState({ cheongsajinView: `session-${sessionNumber}` }, '')
   }
 
   if (!entered) return (
@@ -116,7 +152,7 @@ function App() {
       <div className="app-shell">
         <header className="topbar"><div className="brand"><span className="brand-mark">청</span><span>청·사·진</span></div><div className="student-chip"><span>{schoolName}</span><b>{name.trim()}</b><button onClick={leave} aria-label="나가기">↗</button></div></header>
         <main className="session-review">
-          <button className="back-button" type="button" onClick={() => setActiveSession(null)}>← 나의 활동실로</button>
+          <button className="back-button" type="button" onClick={() => window.history.back()}>← 나의 활동실로</button>
           <section className="review-hero">
             <div>
               <span className="complete-badge">✓ 완료한 활동</span>
@@ -145,7 +181,7 @@ function App() {
           </section>
           <section className="next-session-card">
             <div><p>다음 활동</p><h2>선호와 강점 탐색</h2><span>좋아하는 것과 나만의 강점을 발견해요.</span></div>
-            <button type="button" onClick={() => setActiveSession(null)}>활동실에서 확인하기 →</button>
+            <button type="button" onClick={() => window.history.back()}>활동실에서 확인하기 →</button>
           </section>
         </main>
         <PartnerFooter />
@@ -171,7 +207,7 @@ function App() {
             <article className={`session-card ${session.status}`} key={session.number}>
               <div className="session-top"><span className="small-icon">{session.icon}</span><span className="status">{session.status === 'done' ? '완료' : session.status === 'open' ? '진행 중' : '잠김'}</span></div>
               <small>{session.number}회기</small><h3>{session.title}</h3><p>{session.subtitle}</p>
-              {session.status === 'done' ? <button type="button" className="card-action" onClick={() => setActiveSession(session.number)}>활동 다시 보기 <span>→</span></button> : <div className="card-action">{session.status === 'open' ? '활동하기' : '이전 활동을 완료하면 열려요'} <span>{session.status === 'locked' ? '🔒' : '→'}</span></div>}
+              {session.status === 'done' ? <button type="button" className="card-action" onClick={() => openSession(session.number)}>활동 다시 보기 <span>→</span></button> : <div className="card-action">{session.status === 'open' ? '활동하기' : '이전 활동을 완료하면 열려요'} <span>{session.status === 'locked' ? '🔒' : '→'}</span></div>}
             </article>
           ))}</div>
         </section>
