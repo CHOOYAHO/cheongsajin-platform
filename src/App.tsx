@@ -9,12 +9,13 @@ import socialServiceLogo from './assets/chungnam-social-service.png'
 import youthCenterLogo from './assets/yesan-youth-center.png'
 
 type Session = { number: number; title: string; subtitle: string; status: 'done' | 'open' | 'locked'; icon: string }
-const sessions: Session[] = [
-  { number: 1, title: '청사진을 위한 첫 만남', subtitle: '나와 멘토, 새로운 가능성을 만나요', status: 'done', icon: '👋' },
-  { number: 2, title: '선호와 강점 탐색', subtitle: '좋아하는 것과 나만의 강점을 발견해요', status: 'open', icon: '✨' },
-  { number: 3, title: '진로 역량 갖추기', subtitle: '희망 직업에 필요한 힘을 찾아봐요', status: 'locked', icon: '🧩' },
-  { number: 4, title: '직업 탐색과 AI 면접', subtitle: 'AI 면접관과 미래의 나를 연습해요', status: 'locked', icon: '💬' },
-  { number: 5, title: '나만의 청사진 만들기', subtitle: '활동을 모아 미래 포트폴리오를 완성해요', status: 'locked', icon: '🗺️' },
+type SessionTemplate = Omit<Session, 'status'>
+const sessionTemplates: SessionTemplate[] = [
+  { number: 1, title: '청사진을 위한 첫 만남', subtitle: '나와 멘토, 새로운 가능성을 만나요', icon: '👋' },
+  { number: 2, title: '선호와 강점 탐색', subtitle: '좋아하는 것과 나만의 강점을 발견해요', icon: '✨' },
+  { number: 3, title: '진로 역량 갖추기', subtitle: '희망 직업에 필요한 힘을 찾아봐요', icon: '🧩' },
+  { number: 4, title: '직업 탐색과 AI 면접', subtitle: 'AI 면접관과 미래의 나를 연습해요', icon: '💬' },
+  { number: 5, title: '나만의 청사진 만들기', subtitle: '활동을 모아 미래 포트폴리오를 완성해요', icon: '🗺️' },
 ]
 
 const firstSessionActivities = [
@@ -51,6 +52,13 @@ function App() {
   const [isEntering, setIsEntering] = useState(false)
   const [entryError, setEntryError] = useState('')
   const schoolName = school === 'yesan-high' ? '예산고등학교' : school === 'gwangsi-middle' ? '광시중학교' : ''
+  const completedSessionCount = school === 'yesan-high' ? 1 : 0
+  const sessions: Session[] = sessionTemplates.map((session) => ({
+    ...session,
+    status: session.number <= completedSessionCount ? 'done' : session.number === completedSessionCount + 1 ? 'open' : 'locked',
+  }))
+  const currentSession = sessions.find((session) => session.status === 'open') ?? sessions[sessions.length - 1]
+  const progress = completedSessionCount * 20
 
   useEffect(() => {
     window.history.replaceState({ cheongsajinView: 'login' }, '')
@@ -195,11 +203,11 @@ function App() {
       <main className="dashboard">
         <section className="dashboard-intro">
           <div><p className="eyebrow">나의 활동실</p><h1>안녕, <em>{name.trim()}</em>!</h1><p>오늘도 나만의 가능성을 하나씩 발견해 볼까요?</p></div>
-          <div className="progress-card"><div className="progress-label"><span>나의 여정</span><b>20%</b></div><div className="progress-track"><span /></div><small>5개 활동 중 1개 완료</small></div>
+          <div className="progress-card"><div className="progress-label"><span>나의 여정</span><b>{progress}%</b></div><div className="progress-track"><span style={{ width: `${progress}%` }} /></div><small>5개 활동 중 {completedSessionCount}개 완료</small></div>
         </section>
         <section className="current-session">
-          <div className="session-badge">지금 할 활동 · 2회기</div>
-          <div className="current-content"><div className="big-icon">✨</div><div><p>나를 알아가는 두 번째 시간</p><h2>선호와 강점 탐색</h2><span>좋아하는 것과 싫어하는 것을 표현하고, 나만의 강점을 발견해요.</span></div><button>활동 이어하기 <span>→</span></button></div>
+          <div className="session-badge">지금 할 활동 · {currentSession.number}회기</div>
+          <div className="current-content"><div className="big-icon">{currentSession.icon}</div><div><p>{currentSession.number === 1 ? '서로를 알아가는 첫 번째 시간' : '나를 알아가는 두 번째 시간'}</p><h2>{currentSession.title}</h2><span>{currentSession.subtitle}</span></div><button>{currentSession.number === 1 ? '활동 시작하기' : '활동 이어하기'} <span>→</span></button></div>
         </section>
         <section>
           <div className="section-title"><div><p className="eyebrow">전체 여정</p><h2>회기별 활동</h2></div><span>활동은 순서대로 열려요</span></div>
