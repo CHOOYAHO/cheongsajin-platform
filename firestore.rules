@@ -50,6 +50,24 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    match /studentProfiles/{userId} {
+      allow read: if isOwner(userId);
+      allow create, update: if isOwner(userId)
+        && request.resource.data.userId == request.auth.uid;
+      allow delete: if false;
+    }
+
+    match /mentorProfiles/{accountNumber} {
+      allow read: if signedIn();
+      allow create, update: if signedIn()
+        && exists(/databases/$(database)/documents/staffSessions/$(request.auth.uid))
+        && get(/databases/$(database)/documents/staffSessions/$(request.auth.uid)).data.role in ['mentor', 'admin']
+        && get(/databases/$(database)/documents/staffSessions/$(request.auth.uid)).data.accountNumber == accountNumber
+        && get(/databases/$(database)/documents/staffSessions/$(request.auth.uid)).data.expiresAt > request.time
+        && request.resource.data.accountNumber == accountNumber;
+      allow delete: if false;
+    }
+
     match /auctionRooms/{roomId} {
       allow create: if signedIn()
         && request.resource.data.hostId == request.auth.uid
