@@ -10,6 +10,8 @@ import youthCenterLogo from './assets/yesan-youth-center.png'
 
 type Session = { number: number; title: string; subtitle: string; status: 'done' | 'open' | 'locked'; icon: string }
 type SessionTemplate = Omit<Session, 'status'>
+type PreferenceChoice = 'like' | 'neutral' | 'dislike'
+type PreferenceArea = { id: string; tag: 'R' | 'I' | 'A' | 'S' | 'E' | 'C'; title: string; icon: string; guide: string; questions: string[] }
 const sessionTemplates: SessionTemplate[] = [
   { number: 1, title: '청사진을 위한 첫 만남', subtitle: '나와 멘토, 새로운 가능성을 만나요', icon: '👋' },
   { number: 2, title: '선호와 강점 탐색', subtitle: '좋아하는 것과 나만의 강점을 발견해요', icon: '✨' },
@@ -33,6 +35,15 @@ const testParticipants = [
   { school: 'staff', name: '1', pin: '1' },
 ]
 
+const preferenceAreas: PreferenceArea[] = [
+  { id: 'making', tag: 'R', title: '직접 해보기', icon: '🔧', guide: '직접 만들고, 움직이고, 다루는 활동에 대해 나는 어떻게 느끼나요?', questions: ['도구를 사용해서 무언가 직접 만들기', '기계나 장비를 직접 다루어 보기', '몸을 움직이며 활동하기', '고장 난 물건의 문제를 찾아 고쳐보기'] },
+  { id: 'exploring', tag: 'I', title: '알아보고 해결하기', icon: '🔎', guide: '궁금한 것을 알아보고 문제를 해결하는 활동에 대해 나는 어떻게 느끼나요?', questions: ['궁금한 것이 생기면 이유나 원인을 찾아보기', '어려운 문제의 해결방법을 생각해 보기', '관심 있는 주제의 정보를 찾아보기', '실험이나 관찰을 통해 결과를 확인하기'] },
+  { id: 'expressing', tag: 'A', title: '자유롭게 표현하기', icon: '🎨', guide: '내 생각과 아이디어를 자유롭게 표현하는 활동에 대해 나는 어떻게 느끼나요?', questions: ['그림이나 디자인으로 생각을 표현하기', '글이나 이야기를 만들어 보기', '사진이나 영상을 직접 만들어 보기', '정해진 방법보다 내 방식으로 새롭게 만들어 보기'] },
+  { id: 'together', tag: 'S', title: '함께하고 도와주기', icon: '🤝', guide: '다른 사람과 이야기하고 함께하는 활동에 대해 나는 어떻게 느끼나요?', questions: ['다른 사람의 고민이나 이야기를 들어주기', '내가 알고 있는 것을 다른 사람에게 알려주기', '친구들과 힘을 합쳐 함께 활동하기', '도움이 필요한 사람을 도와주기'] },
+  { id: 'challenging', tag: 'E', title: '도전하고 이끌기', icon: '🚀', guide: '새로운 일에 도전하고 사람들과 함께 목표를 이루는 활동에 대해 나는 어떻게 느끼나요?', questions: ['사람들 앞에서 내 생각을 이야기하기', '모둠이나 팀에서 사람들을 이끌어 보기', '다른 사람에게 내 생각을 설명하고 설득하기', '목표를 정하고 경쟁하거나 도전하기'] },
+  { id: 'organizing', tag: 'C', title: '계획하고 정리하기', icon: '🗂️', guide: '계획을 세우고 꼼꼼하게 정리하는 활동에 대해 나는 어떻게 느끼나요?', questions: ['해야 할 일을 순서대로 계획하기', '자료나 물건을 기준에 맞게 정리하기', '정해진 방법이나 순서에 따라 정확하게 진행하기', '실수한 부분이 없는지 꼼꼼하게 확인하기'] },
+]
+
 function PartnerFooter() {
   return (
     <footer className="partner-footer">
@@ -49,9 +60,63 @@ function PartnerFooter() {
   )
 }
 
+function SecondActivityDetail({ step, schoolName, studentName, onLeave }: { step: number; schoolName: string; studentName: string; onLeave: () => void }) {
+  const [gameStarted, setGameStarted] = useState(false)
+  const [areaIndex, setAreaIndex] = useState(0)
+  const [responses, setResponses] = useState<Record<string, PreferenceChoice>>({})
+  const area = preferenceAreas[areaIndex]
+  const isGameComplete = areaIndex >= preferenceAreas.length
+  const choiceLabels: Record<PreferenceChoice, string> = { like: '👍 좋아!', neutral: '😐 그저 그래', dislike: '👎 싫어!' }
+  const answeredInArea = area ? area.questions.filter((question) => responses[`${area.id}:${question}`]).length : 0
+  const selectedQuestions = (choice: PreferenceChoice) => preferenceAreas.flatMap((item) => item.questions.filter((question) => responses[`${item.id}:${question}`] === choice))
+
+  const detailContent = [
+    { eyebrow: 'STEP 1', title: '활동 안내', subtitle: '나의 선택에는 정답이 없어요', icon: '🧭', description: '선호와 비선호가 사람마다 다르다는 점을 이해하고, 오늘 진행할 네 가지 활동의 흐름을 확인해요.' },
+    { eyebrow: 'STEP 2', title: '나의 선호 탐색', subtitle: '좋아, 싫어!', icon: '👍', description: '여러 활동과 상황을 빠르게 살펴보며 지금 내 생각과 가장 가까운 답을 선택해요.' },
+    { eyebrow: 'STEP 3', title: '나의 강점 탐색', subtitle: '내 경험 속 강점 단서 찾기', icon: '✨', description: '내가 잘했거나 뿌듯했던 경험을 떠올리고, 그 안에서 반복해서 나타나는 나의 강점을 찾아요.' },
+    { eyebrow: 'STEP 4', title: '활동 마무리', subtitle: '오늘 발견한 나를 내 말로 정리하기', icon: '📝', description: '선호와 강점 활동에서 새롭게 알게 된 나의 모습을 짧은 문장으로 남겨요.' },
+  ][step - 1]
+
+  return (
+    <div className="app-shell">
+      <header className="topbar"><div className="brand"><span className="brand-mark">청</span><span>청·사·진</span></div><div className="student-chip"><span>{schoolName}</span><b>{studentName}</b><button onClick={onLeave} aria-label="나가기">↗</button></div></header>
+      <main className="session-review activity-detail-page">
+        <button className="back-button" type="button" onClick={() => window.history.back()}>← 2회기 활동 목록으로</button>
+        <section className="review-hero second-session-hero detail-hero">
+          <div><p className="eyebrow">{detailContent.eyebrow} · 2회기</p><h1>{detailContent.title}</h1><h2>{detailContent.subtitle}</h2><p>{detailContent.description}</p></div>
+          <div className="review-icon" aria-hidden="true">{detailContent.icon}</div>
+        </section>
+
+        {step === 1 && <section className="detail-panel">
+          <div className="detail-heading"><span>약 20~25분</span><h2>오늘은 이렇게 활동해요</h2><p>검사나 정답 찾기가 아니라, 내가 어떤 활동과 상황을 좋아하고 싫어하는지 알아보는 시간이에요.</p></div>
+          <div className="activity-roadmap"><article><b>1</b><h3>방법 알아보기</h3><p>솔직하고 빠르게 선택해요.</p></article><article><b>2</b><h3>좋아, 싫어!</h3><p>24가지 활동에 답해요.</p></article><article><b>3</b><h3>강점 찾기</h3><p>경험 속 나의 힘을 찾아요.</p></article><article><b>4</b><h3>내 말로 마무리</h3><p>새롭게 발견한 나를 적어요.</p></article></div>
+          <div className="mentor-note"><b>기억해요</b><p>활동 결과는 성격이나 직업을 판정하지 않아요. 선택한 이유와 경험을 편안하게 이야기해 주세요.</p></div>
+        </section>}
+
+        {step === 2 && <section className="detail-panel preference-game">
+          {!gameStarted && <div className="game-intro"><span className="game-symbol">👍 👎</span><h2>좋아! 싫어!</h2><p>우리는 좋아하는 것도, 싫어하는 것도 모두 달라요.<br />다음 활동과 상황을 보고 지금 내 생각과 가장 가까운 답을 선택해 보세요.</p><div className="game-rules"><span>정답은 없어요</span><span>너무 오래 고민하지 않아요</span><span>총 6개 영역 · 24문항</span></div><button type="button" onClick={() => setGameStarted(true)}>시작하기 →</button></div>}
+          {gameStarted && !isGameComplete && area && <div className="question-stage">
+            <div className="game-progress"><div><span>{areaIndex + 1} / {preferenceAreas.length}</span><b>{area.title}</b></div><div className="progress-dots">{preferenceAreas.map((item, index) => <i className={index <= areaIndex ? 'active' : ''} key={item.id} />)}</div></div>
+            <div className="area-heading"><span>{area.icon}</span><div><h2>{area.title}</h2><p>{area.guide}</p></div></div>
+            <div className="preference-questions">{area.questions.map((question) => { const key = `${area.id}:${question}`; return <article key={question}><h3>{question}</h3><div>{(['like', 'neutral', 'dislike'] as PreferenceChoice[]).map((choice) => <button type="button" className={responses[key] === choice ? `selected ${choice}` : ''} onClick={() => setResponses((current) => ({ ...current, [key]: choice }))} key={choice}>{choiceLabels[choice]}</button>)}</div></article> })}</div>
+            <div className="game-navigation"><button type="button" className="secondary" disabled={areaIndex === 0} onClick={() => setAreaIndex((current) => current - 1)}>← 이전</button><span>{answeredInArea} / 4 선택</span><button type="button" disabled={answeredInArea < 4} onClick={() => setAreaIndex((current) => current + 1)}>{areaIndex === preferenceAreas.length - 1 ? '결과 보기' : '다음'} →</button></div>
+          </div>}
+          {gameStarted && isGameComplete && <div className="preference-summary"><span className="complete-symbol">✓</span><h2>24개 선택을 모두 마쳤어요!</h2><p>좋아하거나 싫어한다고 선택한 활동을 한눈에 살펴보세요.</p><div className="summary-columns"><div><h3>👍 좋아!</h3>{selectedQuestions('like').length ? <ul>{selectedQuestions('like').map((question) => <li key={question}>{question}</li>)}</ul> : <p>선택한 항목이 없어요.</p>}</div><div><h3>👎 싫어!</h3>{selectedQuestions('dislike').length ? <ul>{selectedQuestions('dislike').map((question) => <li key={question}>{question}</li>)}</ul> : <p>선택한 항목이 없어요.</p>}</div></div><div className="next-build-note"><b>다음 개발 단계</b><p>각 목록에서 핵심 항목 최대 3개 고르기 → 자유입력 → 개인 결과 → 전체 워드클라우드 순서로 이어질 예정이에요.</p></div><button type="button" className="restart-button" onClick={() => { setResponses({}); setAreaIndex(0); setGameStarted(false) }}>처음부터 다시 하기</button></div>}
+        </section>}
+
+        {step === 3 && <section className="detail-panel"><div className="detail-heading"><span>활동 틀</span><h2>경험에서 강점의 단서를 찾아요</h2><p>세부 문항이 정해지면 이 흐름에 맞춰 입력·저장 기능을 연결할 예정이에요.</p></div><div className="strength-flow"><article><span>1</span><h3>기억 꺼내기</h3><p>최근에 잘했거나 뿌듯했던 경험을 떠올려요.</p></article><article><span>2</span><h3>내가 한 행동 찾기</h3><p>그때 내가 어떤 행동을 했는지 구체적으로 적어요.</p></article><article><span>3</span><h3>강점 이름 붙이기</h3><p>그 행동에서 드러난 나의 힘을 한 단어로 정리해요.</p></article></div><label className="draft-field">기억에 남는 경험<textarea placeholder="예: 친구들과 축제 준비를 하며 역할을 정리하고 일정을 맞췄다." /></label></section>}
+
+        {step === 4 && <section className="detail-panel"><div className="detail-heading"><span>활동 틀</span><h2>오늘 발견한 나를 정리해요</h2><p>완성된 문장은 이후 개인 결과 화면과 포트폴리오에 연결할 예정이에요.</p></div><div className="reflection-fields"><label>나는 <input placeholder="어떤 활동을" /> 할 때 즐겁다.</label><label>나는 <input placeholder="어떤 활동이나 상황을" /> 하는 것은 별로 좋아하지 않는다.</label><label>「좋아! 싫어!」를 통해 새롭게 발견한 나의 모습<textarea placeholder="오늘 새롭게 알게 된 점을 자유롭게 적어보세요." /></label></div><button type="button" className="disabled-save" disabled>저장 기능 준비 중</button></section>}
+      </main>
+      <PartnerFooter />
+    </div>
+  )
+}
+
 function App() {
   const [entered, setEntered] = useState(false)
   const [activeSession, setActiveSession] = useState<number | null>(null)
+  const [activeSecondActivity, setActiveSecondActivity] = useState<number | null>(null)
   const [sessionPageMode, setSessionPageMode] = useState<'activity' | 'review'>('review')
   const [school, setSchool] = useState('')
   const [name, setName] = useState('')
@@ -71,25 +136,37 @@ function App() {
     window.history.replaceState({ cheongsajinView: 'login' }, '', '#login')
     const handleBack = (event: PopStateEvent) => {
       const view = typeof event.state?.cheongsajinView === 'string' ? event.state.cheongsajinView : 'login'
+      const secondActivityMatch = /^activity-2-step-([1-4])$/.exec(view)
       const sessionMatch = /^(activity|session)-(\d+)$/.exec(view)
-      if ((view === 'dashboard' || sessionMatch) && !auth?.currentUser) {
+      if ((view === 'dashboard' || sessionMatch || secondActivityMatch) && !auth?.currentUser) {
         setActiveSession(null)
+        setActiveSecondActivity(null)
         setEntered(false)
         window.history.replaceState({ cheongsajinView: 'login' }, '', '#login')
+        return
+      }
+      if (secondActivityMatch) {
+        setEntered(true)
+        setSessionPageMode('activity')
+        setActiveSession(2)
+        setActiveSecondActivity(Number(secondActivityMatch[1]))
         return
       }
       if (sessionMatch) {
         setEntered(true)
         setSessionPageMode(sessionMatch[1] === 'activity' ? 'activity' : 'review')
         setActiveSession(Number(sessionMatch[2]))
+        setActiveSecondActivity(null)
         return
       }
       if (view === 'dashboard') {
         setEntered(true)
         setActiveSession(null)
+        setActiveSecondActivity(null)
         return
       }
       setActiveSession(null)
+      setActiveSecondActivity(null)
       setEntered(false)
       if (auth?.currentUser) void signOut(auth)
     }
@@ -133,6 +210,7 @@ function App() {
   const leave = async () => {
     if (auth?.currentUser) await signOut(auth)
     setActiveSession(null)
+    setActiveSecondActivity(null)
     setEntered(false)
     window.history.replaceState({ cheongsajinView: 'login' }, '', '#login')
   }
@@ -140,6 +218,11 @@ function App() {
     setSessionPageMode(mode)
     setActiveSession(sessionNumber)
     const view = mode === 'activity' ? `activity-${sessionNumber}` : `session-${sessionNumber}`
+    window.history.pushState({ cheongsajinView: view }, '', `#${view}`)
+  }
+  const openSecondActivity = (step: number) => {
+    setActiveSecondActivity(step)
+    const view = `activity-2-step-${step}`
     window.history.pushState({ cheongsajinView: view }, '', `#${view}`)
   }
 
@@ -212,6 +295,10 @@ function App() {
     )
   }
 
+  if (activeSession === 2 && sessionPageMode === 'activity' && activeSecondActivity) {
+    return <SecondActivityDetail step={activeSecondActivity} schoolName={schoolName} studentName={name.trim()} onLeave={leave} />
+  }
+
   if (activeSession === 2 && sessionPageMode === 'activity') {
     const sessionDate = school === 'yesan-high' ? '2026. 9. 4.(금)' : '2026. 9. 8.(화)'
     const sessionPlace = school === 'yesan-high' ? '예산고등학교 지정교실' : '광시중학교 1층 도서관'
@@ -239,15 +326,13 @@ function App() {
           <section className="review-section">
             <div className="review-section-heading"><div><p className="eyebrow">2회기 활동</p><h2>활동 내용이 여기에 들어가요</h2></div><span>내용 준비 중</span></div>
             <div className="placeholder-grid">
-              <article className="placeholder-card"><span>1</span><div><h3>활동 안내</h3><p>활동의 목적과 진행 방법을 안내하는 영역이에요.</p></div><b>준비 중</b></article>
-              <article className="placeholder-card"><span>2</span><div><h3>나의 선호 탐색</h3><p>좋아하는 것과 싫어하는 것을 표현하는 활동이 들어갈 영역이에요.</p></div><b>준비 중</b></article>
-              <article className="placeholder-card"><span>3</span><div><h3>나의 강점 탐색</h3><p>나의 강점을 발견하고 정리하는 활동이 들어갈 영역이에요.</p></div><b>준비 중</b></article>
-              <article className="placeholder-card"><span>4</span><div><h3>활동 마무리</h3><p>오늘 발견한 내용을 돌아보고 저장하는 영역이에요.</p></div><b>준비 중</b></article>
+              <button type="button" className="placeholder-card" onClick={() => openSecondActivity(1)}><span>1</span><div><h3>활동 안내</h3><p>활동의 목적과 진행 방법을 먼저 확인해요.</p></div><b>열기 →</b></button>
+              <button type="button" className="placeholder-card featured" onClick={() => openSecondActivity(2)}><span>2</span><div><h3>나의 선호 탐색</h3><strong>좋아, 싫어!</strong><p>24가지 활동과 상황에 대한 내 마음을 선택해요.</p></div><b>게임 시작 →</b></button>
+              <button type="button" className="placeholder-card" onClick={() => openSecondActivity(3)}><span>3</span><div><h3>나의 강점 탐색</h3><p>경험 속에서 나의 강점 단서를 발견해요.</p></div><b>열기 →</b></button>
+              <button type="button" className="placeholder-card" onClick={() => openSecondActivity(4)}><span>4</span><div><h3>활동 마무리</h3><p>오늘 새롭게 발견한 나의 모습을 정리해요.</p></div><b>열기 →</b></button>
             </div>
           </section>
-          <section className="empty-activity-note">
-            <div aria-hidden="true">🛠️</div><h2>2회기 활동을 준비하고 있어요</h2><p>세부 활동 내용과 자료가 정해지면 이 화면에 차례대로 추가할 예정이에요.</p>
-          </section>
+          <section className="empty-activity-note"><div aria-hidden="true">💡</div><h2>순서대로 활동해 주세요</h2><p>각 카드를 누르면 세부 활동 페이지로 이동해요. 응답 저장과 전체 워드클라우드는 다음 단계에서 연결할 예정이에요.</p></section>
         </main>
         <PartnerFooter />
       </div>
