@@ -442,7 +442,9 @@ function App() {
       setEntryError('PIN 번호를 입력해 주세요.')
       return
     }
-    const isStaff = school === 'staff'
+    const normalizedName = name.trim().replaceAll(' ', '')
+    const isSchoolTeacher = (school === 'yesan-high' && normalizedName === '예산고') || (school === 'gwangsi-middle' && normalizedName === '광시중')
+    const isStaff = school === 'staff' || isSchoolTeacher
     const isRegistered = testParticipants.some((participant) => participant.school === school && participant.name === name.trim() && participant.pin === pin.trim())
     if (!isStaff && !isRegistered) {
       setEntryError('등록된 정보와 일치하지 않습니다. 학교, 이름, PIN 번호를 확인해 주세요.')
@@ -524,7 +526,7 @@ function App() {
         <form onSubmit={enter}>
           <label>학교<select value={school} onChange={(e) => { setSchool(e.target.value); setEntryError('') }}><option value="">학교를 선택하세요</option><option value="yesan-high">예산고등학교</option><option value="gwangsi-middle">광시중학교</option><option value="staff">멘토/관리자</option></select></label>
           <label>이름<input value={name} onChange={(e) => { setName(e.target.value); setEntryError('') }} placeholder="이름을 입력해 주세요" autoComplete="name" /></label>
-          <label>PIN 번호<input value={pin} onChange={(e) => { setPin(e.target.value.replace(/\D/g, '')); setEntryError('') }} placeholder={school === 'staff' ? '6자리 PIN 번호' : 'PIN 번호를 입력해 주세요'} maxLength={school === 'staff' ? 6 : 4} inputMode="numeric" type="password" autoComplete="current-password" /></label>
+          <label>PIN 번호<input value={pin} onChange={(e) => { setPin(e.target.value.replace(/\D/g, '')); setEntryError('') }} placeholder={school === 'staff' ? '6자리 PIN 번호' : 'PIN 번호를 입력해 주세요'} maxLength={6} inputMode="numeric" type="password" autoComplete="current-password" /></label>
           <button type="submit" disabled={isEntering || !isFirebaseConfigured}>{isEntering ? '안전하게 연결하는 중…' : '나의 활동실로 들어가기'} {!isEntering && <span>→</span>}</button>
           {entryError && <p className="entry-error" role="alert">{entryError}</p>}
           {school === 'staff' && showMasterUnlock && <div className="master-unlock"><label>관리자 잠금 해제 코드<input value={masterCode} onChange={(event) => setMasterCode(event.target.value.replace(/\D/g, ''))} type="password" inputMode="numeric" maxLength={8} placeholder="관리자 코드" /></label><button type="button" onClick={unlockStaff} disabled={isUnlocking || !masterCode}>{isUnlocking ? '잠금 해제 중…' : '잠금 바로 해제하기'}</button></div>}
