@@ -16,7 +16,8 @@ type SessionTemplate = Omit<Session, 'status'>
 type PreferenceChoice = 'like' | 'neutral' | 'dislike' | 'unsure'
 type PreferenceArea = { id: string; tag: 'R' | 'I' | 'A' | 'S' | 'E' | 'C'; title: string; icon: string; guide: string; questions: string[] }
 type GuidePage = 'program' | 'profile' | 'mentors' | 'center'
-type MentorProfile = { id: string; displayName: string; major: string; university: string; introduction: string; careerStory: string }
+type ProfilePayload = { introduction: string; interests: string; hopeJob: string; schoolMajor: string; majorReason: string; careerInterests: string; campusLife: string; strengths: string; message: string }
+type MentorProfile = { id: string; displayName: string; schoolMajor?: string; interests?: string; majorReason?: string; careerInterests?: string; campusLife?: string; strengths?: string; message?: string; major?: string; university?: string; introduction?: string; careerStory?: string }
 const sessionTemplates: SessionTemplate[] = [
   { number: 1, title: '청사진을 위한 첫 만남', subtitle: '나와 멘토, 새로운 가능성을 만나요', icon: '👋' },
   { number: 2, title: '선호와 강점 탐색', subtitle: '좋아하는 것과 나만의 강점을 발견해요', icon: '✨' },
@@ -64,28 +65,34 @@ function PartnerFooter() {
   )
 }
 
-function ProfileEditor({ kind, displayName, schoolName, existing, onSave }: { kind: 'student' | 'mentor'; displayName: string; schoolName: string; existing?: MentorProfile; onSave: (profile: { introduction: string; interests: string; hopeJob: string; major: string; university: string; careerStory: string }) => Promise<void> }) {
+function ProfileEditor({ kind, displayName, schoolName, existing, onSave }: { kind: 'student' | 'mentor'; displayName: string; schoolName: string; existing?: MentorProfile; onSave: (profile: ProfilePayload) => Promise<void> }) {
   const [introduction, setIntroduction] = useState('')
   const [interests, setInterests] = useState('')
   const [hopeJob, setHopeJob] = useState('')
-  const [major, setMajor] = useState('')
-  const [university, setUniversity] = useState('')
-  const [careerStory, setCareerStory] = useState('')
+  const [schoolMajor, setSchoolMajor] = useState('')
+  const [majorReason, setMajorReason] = useState('')
+  const [careerInterests, setCareerInterests] = useState('')
+  const [campusLife, setCampusLife] = useState('')
+  const [strengths, setStrengths] = useState('')
+  const [message, setMessage] = useState('')
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
 
   useEffect(() => {
     if (!existing) return
-    setIntroduction(existing.introduction ?? '')
-    setMajor(existing.major ?? '')
-    setUniversity(existing.university ?? '')
-    setCareerStory(existing.careerStory ?? '')
+    setSchoolMajor(existing.schoolMajor ?? [existing.university, existing.major].filter(Boolean).join(' / '))
+    setInterests(existing.interests ?? '')
+    setMajorReason(existing.majorReason ?? '')
+    setCareerInterests(existing.careerInterests ?? '')
+    setCampusLife(existing.campusLife ?? existing.careerStory ?? '')
+    setStrengths(existing.strengths ?? '')
+    setMessage(existing.message ?? existing.introduction ?? '')
   }, [existing])
 
   const submit = async (event: FormEvent) => {
     event.preventDefault()
     setSaveState('saving')
     try {
-      await onSave({ introduction, interests, hopeJob, major, university, careerStory })
+      await onSave({ introduction, interests, hopeJob, schoolMajor, majorReason, careerInterests, campusLife, strengths, message })
       setSaveState('saved')
     } catch (error) {
       console.error(error)
@@ -95,7 +102,7 @@ function ProfileEditor({ kind, displayName, schoolName, existing, onSave }: { ki
 
   return <form className="profile-editor" onSubmit={submit}>
     <div className="profile-identity"><span>{kind === 'mentor' ? '🤝' : '👤'}</span><div><small>{kind === 'mentor' ? '멘토/관리자 프로필' : schoolName}</small><h2>{displayName}</h2></div></div>
-    {kind === 'mentor' ? <div className="profile-field-grid"><label>소속 대학<input value={university} onChange={(event) => setUniversity(event.target.value)} maxLength={40} placeholder="예: ○○대학교" /></label><label>전공<input value={major} onChange={(event) => setMajor(event.target.value)} maxLength={40} placeholder="예: 사회복지학과" /></label><label className="wide">나를 소개하는 한마디<textarea value={introduction} onChange={(event) => setIntroduction(event.target.value)} maxLength={240} placeholder="청소년들에게 전하고 싶은 소개를 적어 주세요." /></label><label className="wide">나의 진로 이야기<textarea value={careerStory} onChange={(event) => setCareerStory(event.target.value)} maxLength={400} placeholder="전공을 선택한 계기나 진로 경험을 적어 주세요." /></label></div> : <div className="profile-field-grid"><label className="wide">나를 소개하는 한마디<textarea value={introduction} onChange={(event) => setIntroduction(event.target.value)} maxLength={240} placeholder="내가 좋아하는 것과 나의 특징을 적어 보세요." /></label><label>관심 분야<input value={interests} onChange={(event) => setInterests(event.target.value)} maxLength={80} placeholder="예: 그림, 운동, 과학" /></label><label>희망 진로<input value={hopeJob} onChange={(event) => setHopeJob(event.target.value)} maxLength={80} placeholder="아직 없다면 관심 직업도 좋아요." /></label></div>}
+    {kind === 'mentor' ? <div className="profile-field-grid mentor-fields"><label className="wide">1. 학교 / 학과(전공)<input value={schoolMajor} onChange={(event) => setSchoolMajor(event.target.value)} maxLength={100} placeholder="예: ○○대학교 / 사회복지학과" /></label><label className="wide">2. 나의 관심 분야 <small>전공 외 관심사도 가능해요.</small><input value={interests} onChange={(event) => setInterests(event.target.value)} maxLength={120} placeholder="예: 청소년 활동, 사진, 여행" /></label><label className="wide">3. 내가 이 전공을 선택한 이유 <small>한두 문장으로 적어 주세요.</small><textarea value={majorReason} onChange={(event) => setMajorReason(event.target.value)} maxLength={300} placeholder="이 전공에 관심을 갖게 된 계기를 적어 주세요." /></label><label className="wide">4. 요즘 내가 관심 있는 진로·직업<input value={careerInterests} onChange={(event) => setCareerInterests(event.target.value)} maxLength={150} placeholder="현재 관심 있게 알아보는 진로나 직업" /></label><label className="wide">5. 나의 대학생활 <small>동아리, 대외활동, 아르바이트, 취미 등을 자유롭게 적어 주세요.</small><textarea value={campusLife} onChange={(event) => setCampusLife(event.target.value)} maxLength={500} placeholder="대학생활에서 경험하고 있는 다양한 이야기를 들려주세요." /></label><label className="wide">6. 나의 강점 <small>3~4개 정도를 쉼표로 구분해 주세요.</small><input value={strengths} onChange={(event) => setStrengths(event.target.value)} maxLength={120} placeholder="예: 경청, 책임감, 도전정신, 친화력" /></label><label className="wide">7. 청소년들에게 해주고 싶은 말<textarea value={message} onChange={(event) => setMessage(event.target.value)} maxLength={300} placeholder="청소년들에게 전하고 싶은 한마디를 적어 주세요." /></label></div> : <div className="profile-field-grid"><label className="wide">나를 소개하는 한마디<textarea value={introduction} onChange={(event) => setIntroduction(event.target.value)} maxLength={240} placeholder="내가 좋아하는 것과 나의 특징을 적어 보세요." /></label><label>관심 분야<input value={interests} onChange={(event) => setInterests(event.target.value)} maxLength={80} placeholder="예: 그림, 운동, 과학" /></label><label>희망 진로<input value={hopeJob} onChange={(event) => setHopeJob(event.target.value)} maxLength={80} placeholder="아직 없다면 관심 직업도 좋아요." /></label></div>}
     <div className="profile-save-row"><button type="submit" disabled={saveState === 'saving'}>{saveState === 'saving' ? '저장하는 중…' : '프로필 저장하기'}</button>{saveState === 'saved' && <p role="status">✓ 프로필이 저장됐어요.</p>}{saveState === 'error' && <p className="error" role="alert">저장하지 못했어요. 잠시 후 다시 시도해 주세요.</p>}</div>
   </form>
 }
@@ -576,13 +583,13 @@ function App() {
     setActiveGuide(guide)
     window.history.pushState({ cheongsajinView: `guide-${guide}` }, '', `#guide-${guide}`)
   }
-  const saveProfile = async (profile: { introduction: string; interests: string; hopeJob: string; major: string; university: string; careerStory: string }) => {
+  const saveProfile = async (profile: ProfilePayload) => {
     if (!db || !auth?.currentUser) throw new Error('Firebase 연결이 필요합니다.')
     if (school === 'staff') {
       const session = await getDoc(doc(db, 'staffSessions', auth.currentUser.uid))
       if (!session.exists()) throw new Error('멘토 권한 세션을 찾을 수 없습니다.')
       const accountNumber = String(session.data().accountNumber)
-      await setDoc(doc(db, 'mentorProfiles', accountNumber), { accountNumber, displayName: name.trim(), university: profile.university.trim(), major: profile.major.trim(), introduction: profile.introduction.trim(), careerStory: profile.careerStory.trim(), updatedAt: serverTimestamp() }, { merge: true })
+      await setDoc(doc(db, 'mentorProfiles', accountNumber), { accountNumber, displayName: name.trim(), schoolMajor: profile.schoolMajor.trim(), interests: profile.interests.trim(), majorReason: profile.majorReason.trim(), careerInterests: profile.careerInterests.trim(), campusLife: profile.campusLife.trim(), strengths: profile.strengths.trim(), message: profile.message.trim(), updatedAt: serverTimestamp() }, { merge: true })
     } else {
       await setDoc(doc(db, 'studentProfiles', auth.currentUser.uid), { userId: auth.currentUser.uid, displayName: name.trim(), school, introduction: profile.introduction.trim(), interests: profile.interests.trim(), hopeJob: profile.hopeJob.trim(), updatedAt: serverTimestamp() }, { merge: true })
     }
@@ -621,7 +628,7 @@ function App() {
         <button className="back-button" type="button" onClick={() => window.history.back()}>← 나의 활동실로</button>
         {activeGuide === 'program' && <><section className="guide-detail-hero blue"><span>🗺️</span><div><small>프로그램 안내</small><h1>청사진이란?</h1><p>청소년의 가능성을 발견하고 미래의 모습을 구체적으로 그려 가는 진로 멘토링 여정이에요.</p></div></section><section className="guide-content-card"><h2>청·사·진의 의미</h2><p><b>청소년의 사기진작 진로멘토링</b>의 줄임말로, 내가 좋아하는 것과 잘하는 것을 찾고 다양한 직업과 진로를 탐색하는 프로그램이에요.</p><div className="program-journey"><article><b>1</b><h3>서로 만나기</h3><p>멘토와 인사하고 진로의 의미를 알아봐요.</p></article><article><b>2</b><h3>나를 발견하기</h3><p>선호와 강점을 재미있는 활동으로 찾아봐요.</p></article><article><b>3</b><h3>역량 키우기</h3><p>희망 직업에 필요한 힘을 탐색해요.</p></article><article><b>4</b><h3>직업 연습하기</h3><p>직업 정보를 찾고 AI 면접을 경험해요.</p></article><article><b>5</b><h3>청사진 완성하기</h3><p>활동 결과를 모아 나만의 포트폴리오를 만들어요.</p></article></div></section></>}
         {activeGuide === 'profile' && <><section className="guide-detail-hero green"><span>👤</span><div><small>{school === 'staff' ? '멘토 정보' : '나의 정보'}</small><h1>{school === 'staff' ? '멘토 프로필 작성' : '학생 프로필 작성'}</h1><p>{school === 'staff' ? '작성한 내용은 멘토 소개 화면에 표시돼요.' : '관심 분야와 희망 진로를 기록하고 나의 변화를 쌓아 가요.'}</p></div></section><section className="guide-content-card"><ProfileEditor kind={school === 'staff' ? 'mentor' : 'student'} displayName={name.trim()} schoolName={schoolName} existing={school === 'staff' ? ownMentorProfile : undefined} onSave={saveProfile} /></section></>}
-        {activeGuide === 'mentors' && <><section className="guide-detail-hero orange"><span>🤝</span><div><small>함께하는 사람</small><h1>멘토 소개</h1><p>청·사·진의 여정을 함께할 멘토들의 전공과 진로 이야기를 만나 보세요.</p></div></section><section className="guide-content-card"><div className="mentor-page-heading"><div><h2>우리의 멘토</h2><p>멘토가 프로필을 저장하면 이곳에 바로 표시돼요.</p></div>{school === 'staff' && <button type="button" onClick={() => openGuide('profile')}>내 멘토 프로필 작성 →</button>}</div>{mentorProfiles.length ? <div className="mentor-profile-grid">{mentorProfiles.map((profile) => <article key={profile.id}><div className="mentor-avatar">{profile.displayName.slice(0, 1)}</div><small>{[profile.university, profile.major].filter(Boolean).join(' · ') || '소속과 전공을 준비 중이에요'}</small><h2>{profile.displayName} 멘토</h2><p>{profile.introduction || '소개를 준비하고 있어요.'}</p>{profile.careerStory && <div><b>나의 진로 이야기</b><span>{profile.careerStory}</span></div>}</article>)}</div> : <div className="empty-mentor-list"><span>🤝</span><h2>멘토 소개를 준비하고 있어요</h2><p>멘토가 프로필을 작성하면 이곳에서 확인할 수 있어요.</p></div>}</section></>}
+        {activeGuide === 'mentors' && <><section className="guide-detail-hero orange"><span>🤝</span><div><small>함께하는 사람</small><h1>멘토 소개</h1><p>청·사·진의 여정을 함께할 멘토들의 전공과 진로 이야기를 만나 보세요.</p></div></section><section className="guide-content-card"><div className="mentor-page-heading"><div><h2>우리의 멘토</h2><p>멘토가 프로필을 저장하면 이곳에 바로 표시돼요.</p></div>{school === 'staff' && <button type="button" onClick={() => openGuide('profile')}>내 멘토 프로필 작성 →</button>}</div>{mentorProfiles.length ? <div className="mentor-profile-grid">{mentorProfiles.map((profile) => { const schoolMajor = profile.schoolMajor || [profile.university, profile.major].filter(Boolean).join(' / '); const message = profile.message || profile.introduction; return <article key={profile.id}><div className="mentor-avatar">{profile.displayName.slice(0, 1)}</div><small>{schoolMajor || '학교와 전공을 준비 중이에요'}</small><h2>{profile.displayName} 멘토</h2><p>{message || '청소년들에게 전할 말을 준비하고 있어요.'}</p><dl className="mentor-profile-details">{profile.interests && <><dt>관심 분야</dt><dd>{profile.interests}</dd></>}{profile.majorReason && <><dt>전공 선택 이유</dt><dd>{profile.majorReason}</dd></>}{profile.careerInterests && <><dt>관심 진로·직업</dt><dd>{profile.careerInterests}</dd></>}{profile.campusLife && <><dt>대학생활</dt><dd>{profile.campusLife}</dd></>}{profile.strengths && <><dt>나의 강점</dt><dd>{profile.strengths}</dd></>}{!profile.campusLife && profile.careerStory && <><dt>나의 진로 이야기</dt><dd>{profile.careerStory}</dd></>}</dl></article> })}</div> : <div className="empty-mentor-list"><span>🤝</span><h2>멘토 소개를 준비하고 있어요</h2><p>멘토가 프로필을 작성하면 이곳에서 확인할 수 있어요.</p></div>}</section></>}
         {activeGuide === 'center' && <><section className="guide-detail-hero purple"><span>🏫</span><div><small>운영기관 안내</small><h1>예산군청소년수련관 소개</h1><p>청소년이 꿈을 발견하고 다양한 활동을 경험하도록 함께하는 지역 청소년 활동 공간이에요.</p></div></section><section className="guide-content-card center-intro"><div><h2>청소년의 오늘과 미래를 응원합니다</h2><p>예산군청소년수련관은 청소년이 안전하고 즐겁게 참여할 수 있는 문화·진로·자치·체험 활동을 운영하며, 청소년의 건강한 성장을 지원해요.</p></div><div className="center-values"><article><span>🌱</span><h3>성장</h3><p>새로운 경험을 통해 자신의 가능성을 발견해요.</p></article><article><span>🤲</span><h3>참여</h3><p>청소년이 직접 의견을 내고 활동의 주인이 돼요.</p></article><article><span>🎯</span><h3>진로</h3><p>다양한 직업과 삶의 모습을 탐색할 기회를 만들어요.</p></article></div><div className="center-contact"><b>청·사·진 운영</b><span>예산군청소년수련관</span></div></section></>}
       </main>
       <PartnerFooter />
