@@ -46,6 +46,7 @@ function PartnerFooter() {
 function App() {
   const [entered, setEntered] = useState(false)
   const [activeSession, setActiveSession] = useState<number | null>(null)
+  const [sessionPageMode, setSessionPageMode] = useState<'activity' | 'review'>('review')
   const [school, setSchool] = useState('')
   const [name, setName] = useState('')
   const [pin, setPin] = useState('')
@@ -64,7 +65,7 @@ function App() {
     window.history.replaceState({ cheongsajinView: 'login' }, '', '#login')
     const handleBack = (event: PopStateEvent) => {
       const view = typeof event.state?.cheongsajinView === 'string' ? event.state.cheongsajinView : 'login'
-      const sessionMatch = /^session-(\d+)$/.exec(view)
+      const sessionMatch = /^(activity|session)-(\d+)$/.exec(view)
       if ((view === 'dashboard' || sessionMatch) && !auth?.currentUser) {
         setActiveSession(null)
         setEntered(false)
@@ -73,7 +74,8 @@ function App() {
       }
       if (sessionMatch) {
         setEntered(true)
-        setActiveSession(Number(sessionMatch[1]))
+        setSessionPageMode(sessionMatch[1] === 'activity' ? 'activity' : 'review')
+        setActiveSession(Number(sessionMatch[2]))
         return
       }
       if (view === 'dashboard') {
@@ -123,9 +125,11 @@ function App() {
     setEntered(false)
     window.history.replaceState({ cheongsajinView: 'login' }, '', '#login')
   }
-  const openSession = (sessionNumber: number) => {
+  const openSession = (sessionNumber: number, mode: 'activity' | 'review') => {
+    setSessionPageMode(mode)
     setActiveSession(sessionNumber)
-    window.history.pushState({ cheongsajinView: `session-${sessionNumber}` }, '', `#session-${sessionNumber}`)
+    const view = mode === 'activity' ? `activity-${sessionNumber}` : `session-${sessionNumber}`
+    window.history.pushState({ cheongsajinView: view }, '', `#${view}`)
   }
 
   if (!entered) return (
@@ -152,7 +156,52 @@ function App() {
     </div>
   )
 
-  if (activeSession === 1) {
+  if (activeSession === 1 && sessionPageMode === 'activity') {
+    return (
+      <div className="app-shell">
+        <header className="topbar"><div className="brand"><span className="brand-mark">청</span><span>청·사·진</span></div><div className="student-chip"><span>{schoolName}</span><b>{name.trim()}</b><button onClick={leave} aria-label="나가기">↗</button></div></header>
+        <main className="session-review">
+          <button className="back-button" type="button" onClick={() => window.history.back()}>← 나의 활동실로</button>
+          <section className="review-hero activity-hero">
+            <div>
+              <span className="activity-badge">지금 할 활동 · 1회기</span>
+              <p className="eyebrow">광시중학교</p>
+              <h1>청사진을 위한 첫 만남</h1>
+              <p>멘토와 인사하고 서로의 관심사와 경험을 나누며 진로 탐색의 첫걸음을 시작해요.</p>
+            </div>
+            <div className="review-icon" aria-hidden="true">👋</div>
+          </section>
+          <section className="session-info" aria-label="활동 정보">
+            <div><small>참여 학교</small><b>광시중학교</b></div>
+            <div><small>활동 일자</small><b>2026. 9. 1.(화)</b></div>
+            <div><small>활동 장소</small><b>1층 도서관</b></div>
+            <div><small>활동 시간</small><b>총 100분</b></div>
+          </section>
+          <section className="activity-notice">
+            <span aria-hidden="true">💡</span><div><h2>활동을 시작하기 전에</h2><p>선생님과 멘토의 안내를 잘 듣고, 정답을 찾기보다 나의 생각과 경험을 편안하게 이야기해 주세요.</p></div>
+          </section>
+          <section className="review-section">
+            <div className="review-section-heading"><div><p className="eyebrow">오늘의 활동</p><h2>이 순서대로 함께해요</h2></div><span>6개 활동 · 100분</span></div>
+            <div className="activity-timeline activity-steps">
+              {firstSessionActivities.map((activity, index) => (
+                <article className="timeline-item" key={activity.title}>
+                  <div className="timeline-number">{index + 1}</div>
+                  <div><div className="timeline-title"><h3>{activity.title}</h3><span>{activity.duration}</span></div><p>{activity.description}</p></div>
+                </article>
+              ))}
+            </div>
+          </section>
+          <section className="activity-help">
+            <div><p>활동 중 도움이 필요한가요?</p><h2>혼자 고민하지 말고 멘토나 선생님에게 이야기해 주세요.</h2></div>
+            <button type="button" onClick={() => window.history.back()}>활동실로 돌아가기 →</button>
+          </section>
+        </main>
+        <PartnerFooter />
+      </div>
+    )
+  }
+
+  if (activeSession === 1 && sessionPageMode === 'review') {
     const sessionDate = school === 'yesan-high' ? '2026. 8. 28.(금)' : '2026. 9. 1.(화)'
     const sessionPlace = school === 'yesan-high' ? '예산고등학교 지정교실' : '광시중학교 1층 도서관'
 
@@ -207,7 +256,7 @@ function App() {
         </section>
         <section className="current-session">
           <div className="session-badge">지금 할 활동 · {currentSession.number}회기</div>
-          <div className="current-content"><div className="big-icon">{currentSession.icon}</div><div><p>{currentSession.number === 1 ? '서로를 알아가는 첫 번째 시간' : '나를 알아가는 두 번째 시간'}</p><h2>{currentSession.title}</h2><span>{currentSession.subtitle}</span></div><button>{currentSession.number === 1 ? '활동 시작하기' : '활동 이어하기'} <span>→</span></button></div>
+          <div className="current-content"><div className="big-icon">{currentSession.icon}</div><div><p>{currentSession.number === 1 ? '서로를 알아가는 첫 번째 시간' : '나를 알아가는 두 번째 시간'}</p><h2>{currentSession.title}</h2><span>{currentSession.subtitle}</span></div><button onClick={() => currentSession.number === 1 && openSession(1, 'activity')}>{currentSession.number === 1 ? '활동 시작하기' : '활동 이어하기'} <span>→</span></button></div>
         </section>
         <section>
           <div className="section-title"><div><p className="eyebrow">전체 여정</p><h2>회기별 활동</h2></div><span>활동은 순서대로 열려요</span></div>
@@ -215,7 +264,7 @@ function App() {
             <article className={`session-card ${session.status}`} key={session.number}>
               <div className="session-top"><span className="small-icon">{session.icon}</span><span className="status">{session.status === 'done' ? '완료' : session.status === 'open' ? '진행 중' : '잠김'}</span></div>
               <small>{session.number}회기</small><h3>{session.title}</h3><p>{session.subtitle}</p>
-              {session.status === 'done' ? <button type="button" className="card-action" onClick={() => openSession(session.number)}>활동 다시 보기 <span>→</span></button> : <div className="card-action">{session.status === 'open' ? '활동하기' : '이전 활동을 완료하면 열려요'} <span>{session.status === 'locked' ? '🔒' : '→'}</span></div>}
+              {session.status === 'done' ? <button type="button" className="card-action" onClick={() => openSession(session.number, 'review')}>활동 다시 보기 <span>→</span></button> : session.status === 'open' && session.number === 1 ? <button type="button" className="card-action" onClick={() => openSession(1, 'activity')}>활동하기 <span>→</span></button> : <div className="card-action">{session.status === 'open' ? '활동하기' : '이전 활동을 완료하면 열려요'} <span>{session.status === 'locked' ? '🔒' : '→'}</span></div>}
             </article>
           ))}</div>
         </section>
