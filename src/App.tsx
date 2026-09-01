@@ -35,13 +35,14 @@ function PartnerFooter() {
 
 function App() {
   const [entered, setEntered] = useState(false)
-  const [code, setCode] = useState('')
+  const [school, setSchool] = useState('')
+  const [name, setName] = useState('')
   const [pin, setPin] = useState('')
   const [isEntering, setIsEntering] = useState(false)
   const [entryError, setEntryError] = useState('')
   const enter = async (event: FormEvent) => {
     event.preventDefault()
-    if (!code.trim() || !pin.trim()) return
+    if (!school || !name.trim() || !pin.trim()) return
     setIsEntering(true)
     setEntryError('')
     try {
@@ -71,12 +72,13 @@ function App() {
         <section className="entry-card">
         <div className="entry-heading"><span className="entry-icon">↗</span><div><h2>활동 시작하기</h2><p>선생님께 받은 참가 정보를 입력해 주세요.</p></div></div>
         <form onSubmit={enter}>
-          <label>참가코드<input value={code} onChange={(e) => setCode(e.target.value)} placeholder="예: BLUE-1204" autoComplete="username" /></label>
+          <label>학교<select value={school} onChange={(e) => setSchool(e.target.value)}><option value="">학교를 선택하세요</option><option value="yesan-high">예산고등학교</option><option value="gwangsi-middle">광시중학교</option></select></label>
+          <label>이름<input value={name} onChange={(e) => setName(e.target.value)} placeholder="이름을 입력해 주세요" autoComplete="name" /></label>
           <label>PIN 번호<input value={pin} onChange={(e) => setPin(e.target.value)} placeholder="숫자 4자리" inputMode="numeric" maxLength={4} type="password" autoComplete="current-password" /></label>
           <button type="submit" disabled={isEntering || !isFirebaseConfigured}>{isEntering ? '안전하게 연결하는 중…' : '나의 활동실로 들어가기'} {!isEntering && <span>→</span>}</button>
           {entryError && <p className="entry-error" role="alert">{entryError}</p>}
         </form>
-        <p className="privacy-note">🔒 이름과 연락처 없이 안전하게 활동해요.</p>
+        <p className="privacy-note">🔒 입력한 정보는 활동 참여 확인에만 사용해요.</p>
         </section>
       </main>
       <PartnerFooter />
