@@ -40,6 +40,7 @@ function App() {
   const [pin, setPin] = useState('')
   const [isEntering, setIsEntering] = useState(false)
   const [entryError, setEntryError] = useState('')
+  const schoolName = school === 'yesan-high' ? '예산고등학교' : school === 'gwangsi-middle' ? '광시중학교' : ''
   const enter = async (event: FormEvent) => {
     event.preventDefault()
     if (!school || !name.trim() || !pin.trim()) return
@@ -87,10 +88,10 @@ function App() {
 
   return (
     <div className="app-shell">
-      <header className="topbar"><div className="brand"><span className="brand-mark">청</span><span>청·사·진</span></div><div className="student-chip"><span>광시중학교</span><b>파랑 12</b><button onClick={leave} aria-label="나가기">↗</button></div></header>
+      <header className="topbar"><div className="brand"><span className="brand-mark">청</span><span>청·사·진</span></div><div className="student-chip"><span>{schoolName}</span><b>{name.trim()}</b><button onClick={leave} aria-label="나가기">↗</button></div></header>
       <main className="dashboard">
         <section className="dashboard-intro">
-          <div><p className="eyebrow">나의 활동실</p><h1>안녕, <em>파랑 12</em>!</h1><p>오늘도 나만의 가능성을 하나씩 발견해 볼까요?</p></div>
+          <div><p className="eyebrow">나의 활동실</p><h1>안녕, <em>{name.trim()}</em>!</h1><p>오늘도 나만의 가능성을 하나씩 발견해 볼까요?</p></div>
           <div className="progress-card"><div className="progress-label"><span>나의 여정</span><b>20%</b></div><div className="progress-track"><span /></div><small>5개 활동 중 1개 완료</small></div>
         </section>
         <section className="current-session">
