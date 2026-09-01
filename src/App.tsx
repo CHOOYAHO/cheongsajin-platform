@@ -61,14 +61,14 @@ function App() {
   const progress = completedSessionCount * 20
 
   useEffect(() => {
-    window.history.replaceState({ cheongsajinView: 'login' }, '')
+    window.history.replaceState({ cheongsajinView: 'login' }, '', '#login')
     const handleBack = (event: PopStateEvent) => {
       const view = typeof event.state?.cheongsajinView === 'string' ? event.state.cheongsajinView : 'login'
       const sessionMatch = /^session-(\d+)$/.exec(view)
       if ((view === 'dashboard' || sessionMatch) && !auth?.currentUser) {
         setActiveSession(null)
         setEntered(false)
-        window.history.replaceState({ cheongsajinView: 'login' }, '')
+        window.history.replaceState({ cheongsajinView: 'login' }, '', '#login')
         return
       }
       if (sessionMatch) {
@@ -109,7 +109,7 @@ function App() {
       if (!auth) throw new Error('Firebase configuration is missing')
       await signInAnonymously(auth)
       setEntered(true)
-      window.history.pushState({ cheongsajinView: 'dashboard' }, '')
+      window.history.pushState({ cheongsajinView: 'dashboard' }, '', '#dashboard')
     } catch (error) {
       console.error(error)
       setEntryError('연결에 실패했어요. 잠시 후 다시 시도해 주세요.')
@@ -121,11 +121,11 @@ function App() {
     if (auth?.currentUser) await signOut(auth)
     setActiveSession(null)
     setEntered(false)
-    window.history.replaceState({ cheongsajinView: 'login' }, '')
+    window.history.replaceState({ cheongsajinView: 'login' }, '', '#login')
   }
   const openSession = (sessionNumber: number) => {
     setActiveSession(sessionNumber)
-    window.history.pushState({ cheongsajinView: `session-${sessionNumber}` }, '')
+    window.history.pushState({ cheongsajinView: `session-${sessionNumber}` }, '', `#session-${sessionNumber}`)
   }
 
   if (!entered) return (
