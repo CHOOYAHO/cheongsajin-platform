@@ -30,6 +30,7 @@ const firstSessionActivities = [
 const testParticipants = [
   { school: 'yesan-high', name: '1', pin: '1' },
   { school: 'gwangsi-middle', name: '1', pin: '1' },
+  { school: 'staff', name: '1', pin: '1' },
 ]
 
 function PartnerFooter() {
@@ -57,7 +58,7 @@ function App() {
   const [pin, setPin] = useState('')
   const [isEntering, setIsEntering] = useState(false)
   const [entryError, setEntryError] = useState('')
-  const schoolName = school === 'yesan-high' ? '예산고등학교' : school === 'gwangsi-middle' ? '광시중학교' : ''
+  const schoolName = school === 'yesan-high' ? '예산고등학교' : school === 'gwangsi-middle' ? '광시중학교' : school === 'staff' ? '멘토/관리자' : ''
   const completedSessionCount = school === 'yesan-high' ? 1 : 0
   const sessions: Session[] = sessionTemplates.map((session) => ({
     ...session,
@@ -153,7 +154,7 @@ function App() {
         <section className="entry-card">
         <div className="entry-heading"><span className="entry-icon">↗</span><div><h2>활동 시작하기</h2><p>선생님께 받은 참가 정보를 입력해 주세요.</p></div></div>
         <form onSubmit={enter}>
-          <label>학교<select value={school} onChange={(e) => { setSchool(e.target.value); setEntryError('') }}><option value="">학교를 선택하세요</option><option value="yesan-high">예산고등학교</option><option value="gwangsi-middle">광시중학교</option></select></label>
+          <label>학교<select value={school} onChange={(e) => { setSchool(e.target.value); setEntryError('') }}><option value="">학교를 선택하세요</option><option value="yesan-high">예산고등학교</option><option value="gwangsi-middle">광시중학교</option><option value="staff">멘토/관리자</option></select></label>
           <label>이름<input value={name} onChange={(e) => { setName(e.target.value); setEntryError('') }} placeholder="이름을 입력해 주세요" autoComplete="name" /></label>
           <label>PIN 번호<input value={pin} onChange={(e) => { setPin(e.target.value); setEntryError('') }} placeholder="PIN 번호를 입력해 주세요" maxLength={4} type="password" autoComplete="current-password" /></label>
           <button type="submit" disabled={isEntering || !isFirebaseConfigured}>{isEntering ? '안전하게 연결하는 중…' : '나의 활동실로 들어가기'} {!isEntering && <span>→</span>}</button>
