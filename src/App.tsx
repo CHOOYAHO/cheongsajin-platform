@@ -426,7 +426,7 @@ function App() {
   const [masterCode, setMasterCode] = useState('')
   const [isUnlocking, setIsUnlocking] = useState(false)
   const schoolName = school === 'yesan-high' ? '예산고등학교' : school === 'gwangsi-middle' ? '광시중학교' : school === 'staff' ? '멘토/관리자' : ''
-  const completedSessionCount = school === 'yesan-high' ? 1 : 0
+  const completedSessionCount = school === 'yesan-high' || school === 'staff' ? 1 : 0
   const sessions: Session[] = sessionTemplates.map((session) => ({
     ...session,
     status: session.number <= completedSessionCount ? 'done' : session.number === completedSessionCount + 1 ? 'open' : 'locked',
