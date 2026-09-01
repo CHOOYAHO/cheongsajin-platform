@@ -201,6 +201,48 @@ function App() {
     )
   }
 
+  if (activeSession === 2 && sessionPageMode === 'activity') {
+    const sessionDate = school === 'yesan-high' ? '2026. 9. 4.(금)' : '2026. 9. 8.(화)'
+    const sessionPlace = school === 'yesan-high' ? '예산고등학교 지정교실' : '광시중학교 1층 도서관'
+
+    return (
+      <div className="app-shell">
+        <header className="topbar"><div className="brand"><span className="brand-mark">청</span><span>청·사·진</span></div><div className="student-chip"><span>{schoolName}</span><b>{name.trim()}</b><button onClick={leave} aria-label="나가기">↗</button></div></header>
+        <main className="session-review">
+          <button className="back-button" type="button" onClick={() => window.history.back()}>← 나의 활동실로</button>
+          <section className="review-hero second-session-hero">
+            <div>
+              <span className="activity-badge">2회기 · 활동 준비 중</span>
+              <p className="eyebrow">{schoolName}</p>
+              <h1>선호와 강점 탐색</h1>
+              <p>좋아하는 것과 싫어하는 것을 살펴보고, 나만의 강점을 발견하는 활동이에요.</p>
+            </div>
+            <div className="review-icon" aria-hidden="true">✨</div>
+          </section>
+          <section className="session-info" aria-label="활동 정보">
+            <div><small>참여 학교</small><b>{schoolName}</b></div>
+            <div><small>활동 일자</small><b>{sessionDate}</b></div>
+            <div><small>활동 장소</small><b>{sessionPlace}</b></div>
+            <div><small>활동 시간</small><b>추후 안내</b></div>
+          </section>
+          <section className="review-section">
+            <div className="review-section-heading"><div><p className="eyebrow">2회기 활동</p><h2>활동 내용이 여기에 들어가요</h2></div><span>내용 준비 중</span></div>
+            <div className="placeholder-grid">
+              <article className="placeholder-card"><span>1</span><div><h3>활동 안내</h3><p>활동의 목적과 진행 방법을 안내하는 영역이에요.</p></div><b>준비 중</b></article>
+              <article className="placeholder-card"><span>2</span><div><h3>나의 선호 탐색</h3><p>좋아하는 것과 싫어하는 것을 표현하는 활동이 들어갈 영역이에요.</p></div><b>준비 중</b></article>
+              <article className="placeholder-card"><span>3</span><div><h3>나의 강점 탐색</h3><p>나의 강점을 발견하고 정리하는 활동이 들어갈 영역이에요.</p></div><b>준비 중</b></article>
+              <article className="placeholder-card"><span>4</span><div><h3>활동 마무리</h3><p>오늘 발견한 내용을 돌아보고 저장하는 영역이에요.</p></div><b>준비 중</b></article>
+            </div>
+          </section>
+          <section className="empty-activity-note">
+            <div aria-hidden="true">🛠️</div><h2>2회기 활동을 준비하고 있어요</h2><p>세부 활동 내용과 자료가 정해지면 이 화면에 차례대로 추가할 예정이에요.</p>
+          </section>
+        </main>
+        <PartnerFooter />
+      </div>
+    )
+  }
+
   if (activeSession === 1 && sessionPageMode === 'review') {
     const sessionDate = school === 'yesan-high' ? '2026. 8. 28.(금)' : '2026. 9. 1.(화)'
     const sessionPlace = school === 'yesan-high' ? '예산고등학교 지정교실' : '광시중학교 1층 도서관'
@@ -256,7 +298,7 @@ function App() {
         </section>
         <section className="current-session">
           <div className="session-badge">지금 할 활동 · {currentSession.number}회기</div>
-          <div className="current-content"><div className="big-icon">{currentSession.icon}</div><div><p>{currentSession.number === 1 ? '서로를 알아가는 첫 번째 시간' : '나를 알아가는 두 번째 시간'}</p><h2>{currentSession.title}</h2><span>{currentSession.subtitle}</span></div><button onClick={() => currentSession.number === 1 && openSession(1, 'activity')}>{currentSession.number === 1 ? '활동 시작하기' : '활동 이어하기'} <span>→</span></button></div>
+          <div className="current-content"><div className="big-icon">{currentSession.icon}</div><div><p>{currentSession.number === 1 ? '서로를 알아가는 첫 번째 시간' : '나를 알아가는 두 번째 시간'}</p><h2>{currentSession.title}</h2><span>{currentSession.subtitle}</span></div><button onClick={() => openSession(currentSession.number, 'activity')}>{currentSession.number === 1 ? '활동 시작하기' : '활동 이어하기'} <span>→</span></button></div>
         </section>
         <section>
           <div className="section-title"><div><p className="eyebrow">전체 여정</p><h2>회기별 활동</h2></div><span>활동은 순서대로 열려요</span></div>
@@ -264,7 +306,7 @@ function App() {
             <article className={`session-card ${session.status}`} key={session.number}>
               <div className="session-top"><span className="small-icon">{session.icon}</span><span className="status">{session.status === 'done' ? '완료' : session.status === 'open' ? '진행 중' : '잠김'}</span></div>
               <small>{session.number}회기</small><h3>{session.title}</h3><p>{session.subtitle}</p>
-              {session.status === 'done' ? <button type="button" className="card-action" onClick={() => openSession(session.number, 'review')}>활동 다시 보기 <span>→</span></button> : session.status === 'open' && session.number === 1 ? <button type="button" className="card-action" onClick={() => openSession(1, 'activity')}>활동하기 <span>→</span></button> : <div className="card-action">{session.status === 'open' ? '활동하기' : '이전 활동을 완료하면 열려요'} <span>{session.status === 'locked' ? '🔒' : '→'}</span></div>}
+              {session.status === 'done' ? <button type="button" className="card-action" onClick={() => openSession(session.number, 'review')}>활동 다시 보기 <span>→</span></button> : session.status === 'open' ? <button type="button" className="card-action" onClick={() => openSession(session.number, 'activity')}>활동하기 <span>→</span></button> : <div className="card-action">이전 활동을 완료하면 열려요 <span>🔒</span></div>}
             </article>
           ))}</div>
         </section>
