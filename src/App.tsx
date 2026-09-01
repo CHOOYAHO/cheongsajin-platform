@@ -353,7 +353,6 @@ function App() {
     ...session,
     status: session.number <= completedSessionCount ? 'done' : session.number === completedSessionCount + 1 ? 'open' : 'locked',
   }))
-  const currentSession = sessions.find((session) => session.status === 'open') ?? sessions[sessions.length - 1]
   const progress = completedSessionCount * 20
 
   useEffect(() => {
@@ -616,9 +615,11 @@ function App() {
           <div><p className="eyebrow">나의 활동실</p><h1>안녕, <em>{name.trim()}</em>!</h1><p>오늘도 나만의 가능성을 하나씩 발견해 볼까요?</p></div>
           <div className="progress-card"><div className="progress-label"><span>나의 여정</span><b>{progress}%</b></div><div className="progress-track"><span style={{ width: `${progress}%` }} /></div><small>5개 활동 중 {completedSessionCount}개 완료</small></div>
         </section>
-        <section className="current-session">
-          <div className="session-badge">지금 할 활동 · {currentSession.number}회기</div>
-          <div className="current-content"><div className="big-icon">{currentSession.icon}</div><div><p>{currentSession.number === 1 ? '서로를 알아가는 첫 번째 시간' : '나를 알아가는 두 번째 시간'}</p><h2>{currentSession.title}</h2><span>{currentSession.subtitle}</span></div><button onClick={() => openSession(currentSession.number, 'activity')}>{currentSession.number === 1 ? '활동 시작하기' : '활동 이어하기'} <span>→</span></button></div>
+        <section className="dashboard-guide" aria-label="청사진 안내 메뉴">
+          <article><span className="guide-icon blue">🗺️</span><div><small>프로그램 안내</small><h2>청사진이란?</h2><p>청·사·진의 의미와 전체 활동 여정을 알아봐요.</p></div><b>→</b></article>
+          <article><span className="guide-icon green">👤</span><div><small>나의 정보</small><h2>프로필 작성</h2><p>나를 소개하고 관심 분야와 희망 진로를 기록해요.</p></div><b>→</b></article>
+          <article><span className="guide-icon orange">🤝</span><div><small>함께하는 사람</small><h2>멘토 소개</h2><p>이번 여정을 함께할 대학생 멘토를 만나봐요.</p></div><b>→</b></article>
+          <article><span className="guide-icon purple">🏫</span><div><small>운영기관 안내</small><h2>예산군청소년수련관 소개</h2><p>청소년의 성장과 활동을 지원하는 공간을 알아봐요.</p></div><b>→</b></article>
         </section>
         <section>
           <div className="section-title"><div><p className="eyebrow">전체 여정</p><h2>회기별 활동</h2></div><span>활동은 순서대로 열려요</span></div>
