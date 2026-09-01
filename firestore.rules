@@ -38,6 +38,30 @@ service cloud.firestore {
       allow update, delete: if isAdmin();
     }
 
+    match /auctionRooms/{roomId} {
+      allow create: if signedIn()
+        && request.resource.data.hostId == request.auth.uid
+        && request.resource.data.gameState == 'WAITING';
+      allow read: if signedIn();
+      allow update, delete: if signedIn() && resource.data.hostId == request.auth.uid;
+
+      match /participants/{userId} {
+        allow read: if signedIn();
+        allow create: if isOwner(userId)
+          && request.resource.data.role in ['host', 'participant']
+          && get(/databases/$(database)/documents/auctionRooms/$(roomId)).data.gameState == 'WAITING'
+          && (request.resource.data.role == 'participant'
+            || get(/databases/$(database)/documents/auctionRooms/$(roomId)).data.hostId == request.auth.uid)
+          && request.resource.data.nickname is string
+          && request.resource.data.nickname.size() > 0
+          && request.resource.data.nickname.size() <= 12;
+        allow update: if isOwner(userId)
+          || get(/databases/$(database)/documents/auctionRooms/$(roomId)).data.hostId == request.auth.uid;
+        allow delete: if isOwner(userId)
+          || get(/databases/$(database)/documents/auctionRooms/$(roomId)).data.hostId == request.auth.uid;
+      }
+    }
+
     match /{document=**} { allow read, write: if false; }
   }
 }

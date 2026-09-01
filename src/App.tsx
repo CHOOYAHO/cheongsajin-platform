@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { signInAnonymously, signOut } from 'firebase/auth'
+import { collection, doc, getDoc, onSnapshot, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore'
 import './App.css'
-import { auth, isFirebaseConfigured } from './lib/firebase'
+import { auth, db, isFirebaseConfigured } from './lib/firebase'
 import { auctionJobs, createAuctionDeck, jobStrengthProfiles } from './data/auction'
 import chungcheongnamdoLogo from './assets/chungcheongnamdo.png'
 import educationOfficeLogo from './assets/chungnam-education-office.png'
@@ -62,12 +63,17 @@ function PartnerFooter() {
 }
 
 type AuctionPhase = 'lobby' | 'waiting' | 'voting' | 'auction' | 'sold' | 'result'
+type AuctionParticipant = { id: string; nickname: string; role: 'host' | 'participant'; connected: boolean }
 
 function StrengthAuctionGame({ studentName }: { studentName: string }) {
   const [phase, setPhase] = useState<AuctionPhase>('lobby')
   const [role, setRole] = useState<'host' | 'participant'>('participant')
   const [roomCode, setRoomCode] = useState('')
   const [joinCode, setJoinCode] = useState('')
+  const [nickname, setNickname] = useState(studentName || '')
+  const [roomError, setRoomError] = useState('')
+  const [isRoomBusy, setIsRoomBusy] = useState(false)
+  const [participants, setParticipants] = useState<AuctionParticipant[]>([])
   const [initialMoney, setInitialMoney] = useState(1000)
   const [bidLimit, setBidLimit] = useState(10)
   const [itemLimit, setItemLimit] = useState(8)
@@ -81,24 +87,57 @@ function StrengthAuctionGame({ studentName }: { studentName: string }) {
   const [inventory, setInventory] = useState<Record<string, number>>({})
   const [auctionDeck, setAuctionDeck] = useState<string[]>([])
   const currentStrength = auctionDeck[auctionIndex] ?? '문제해결능력'
-  const myName = studentName || '참가자'
+  const myName = nickname.trim() || studentName || '참가자'
   const myStrengthLevel = inventory[currentStrength] ?? 0
   const rarity = (count: number) => count >= 3 ? 'EPIC' : count === 2 ? 'RARE' : 'NORMAL'
 
-  const createRoom = () => {
-    setRole('host')
-    setRoomCode(String(Math.floor(100000 + Math.random() * 900000)))
-    setPhase('waiting')
+  const createRoom = async () => {
+    if (!db || !auth?.currentUser) return setRoomError('Firebase 연결을 확인해 주세요.')
+    setIsRoomBusy(true)
+    setRoomError('')
+    try {
+      let code = ''
+      for (let attempt = 0; attempt < 5; attempt += 1) {
+        const candidate = String(Math.floor(100000 + Math.random() * 900000))
+        if (!(await getDoc(doc(db, 'auctionRooms', candidate))).exists()) { code = candidate; break }
+      }
+      if (!code) throw new Error('room-code-collision')
+      await setDoc(doc(db, 'auctionRooms', code), { hostId: auth.currentUser.uid, gameState: 'WAITING', createdAt: serverTimestamp(), updatedAt: serverTimestamp() })
+      await setDoc(doc(db, 'auctionRooms', code, 'participants', auth.currentUser.uid), { nickname: nickname.trim() || '방장', role: 'host', connected: true, joinedAt: serverTimestamp(), lastSeenAt: serverTimestamp() })
+      setRole('host')
+      setRoomCode(code)
+      setPhase('waiting')
+    } catch (error) {
+      console.error(error)
+      setRoomError('게임방을 만들지 못했어요. 잠시 후 다시 시도해 주세요.')
+    } finally { setIsRoomBusy(false) }
   }
-  const joinRoom = () => {
-    if (joinCode.trim().length < 4) return
-    setRole('participant')
-    setRoomCode(joinCode.trim().toUpperCase())
-    setPhase('waiting')
+  const joinRoom = async () => {
+    if (!db || !auth?.currentUser) return setRoomError('Firebase 연결을 확인해 주세요.')
+    const code = joinCode.trim().toUpperCase()
+    if (code.length < 4 || !nickname.trim()) return
+    setIsRoomBusy(true)
+    setRoomError('')
+    try {
+      const roomSnapshot = await getDoc(doc(db, 'auctionRooms', code))
+      if (!roomSnapshot.exists()) throw new Error('room-not-found')
+      if (roomSnapshot.data().gameState !== 'WAITING') throw new Error('room-started')
+      await setDoc(doc(db, 'auctionRooms', code, 'participants', auth.currentUser.uid), { nickname: nickname.trim(), role: 'participant', connected: true, joinedAt: serverTimestamp(), lastSeenAt: serverTimestamp() })
+      setRole('participant')
+      setRoomCode(code)
+      setPhase('waiting')
+    } catch (error) {
+      console.error(error)
+      setRoomError(error instanceof Error && error.message === 'room-not-found' ? '해당 방을 찾을 수 없어요.' : '입장할 수 없는 방이에요. 방 코드를 확인해 주세요.')
+    } finally { setIsRoomBusy(false) }
   }
-  const startVote = () => {
+  const startVote = async () => {
+    const participantCount = participants.filter((item) => item.role === 'participant').length
+    const totalItems = participantCount * 10
     setBalance(initialMoney)
+    setItemLimit(totalItems)
     setVoteTime(15)
+    if (role === 'host' && db && roomCode) await updateDoc(doc(db, 'auctionRooms', roomCode), { gameState: 'JOB_SELECTION', participantCount, totalItems, updatedAt: serverTimestamp() })
     setPhase('voting')
   }
   const finishVote = () => {
@@ -122,6 +161,31 @@ function StrengthAuctionGame({ studentName }: { studentName: string }) {
     setAuctionTime(bidLimit)
     setPhase('auction')
   }
+
+  useEffect(() => {
+    if (!db || !auth?.currentUser || !roomCode) return
+    const userId = auth.currentUser.uid
+    const roomRef = doc(db, 'auctionRooms', roomCode)
+    const participantRef = doc(db, 'auctionRooms', roomCode, 'participants', userId)
+    const stopRoom = onSnapshot(roomRef, (snapshot) => {
+      const room = snapshot.data()
+      if (typeof room?.totalItems === 'number') setItemLimit(room.totalItems)
+      if (room?.gameState === 'JOB_SELECTION') {
+        setVoteTime(15)
+        setPhase((current) => current === 'waiting' ? 'voting' : current)
+      }
+    })
+    const stopParticipants = onSnapshot(collection(db, 'auctionRooms', roomCode, 'participants'), (snapshot) => {
+      setParticipants(snapshot.docs.map((item) => ({ id: item.id, ...(item.data() as Omit<AuctionParticipant, 'id'>) })))
+    })
+    const heartbeat = window.setInterval(() => void updateDoc(participantRef, { connected: true, lastSeenAt: serverTimestamp() }), 20000)
+    return () => {
+      stopRoom()
+      stopParticipants()
+      window.clearInterval(heartbeat)
+      void updateDoc(participantRef, { connected: false, lastSeenAt: serverTimestamp() })
+    }
+  }, [roomCode])
 
   useEffect(() => {
     if (phase !== 'voting') return
@@ -149,13 +213,14 @@ function StrengthAuctionGame({ studentName }: { studentName: string }) {
 
   if (phase === 'lobby') return <div className="auction-lobby">
     <div className="auction-title"><span>🔨</span><h2>강점 경매장</h2><p>선택한 직업에 필요한 강점을 전략적으로 낙찰받아 보세요.</p></div>
-    <div className="auction-entry-grid"><article><span>방장</span><h3>새 게임방 만들기</h3><p>참가자를 초대하고 금액·시간·상품 수를 설정해요.</p><button type="button" onClick={createRoom}>방 만들기 →</button></article><article><span>참가자</span><h3>게임방 입장하기</h3><p>방장이 알려준 코드를 입력해 주세요.</p><input value={joinCode} onChange={(event) => setJoinCode(event.target.value)} placeholder="방 코드 입력" maxLength={6} /><button type="button" onClick={joinRoom} disabled={joinCode.trim().length < 4}>입장하기 →</button></article></div>
-    <div className="prototype-notice"><b>1차 프로토타입</b><p>현재는 한 기기에서 게임 흐름과 규칙을 시험하는 화면이에요. 실제 여러 기기 접속은 다음 단계에서 Firestore 실시간 방으로 연결해요.</p></div>
+    <div className="auction-entry-grid"><article><span>방장</span><h3>새 게임방 만들기</h3><p>참가자를 초대하고 금액·시간 등 게임 설정을 준비해요.</p><input value={nickname} onChange={(event) => setNickname(event.target.value)} placeholder="방장 닉네임" maxLength={12} /><button type="button" onClick={createRoom} disabled={isRoomBusy}>{isRoomBusy ? '연결 중…' : '방 만들기 →'}</button></article><article><span>참가자</span><h3>게임방 입장하기</h3><p>닉네임과 방장이 알려준 코드를 입력해 주세요.</p><input value={nickname} onChange={(event) => setNickname(event.target.value)} placeholder="닉네임" maxLength={12} /><input value={joinCode} onChange={(event) => setJoinCode(event.target.value)} placeholder="방 코드 입력" maxLength={6} /><button type="button" onClick={joinRoom} disabled={isRoomBusy || joinCode.trim().length < 4 || !nickname.trim()}>{isRoomBusy ? '연결 중…' : '입장하기 →'}</button></article></div>
+    {roomError && <p className="auction-error" role="alert">{roomError}</p>}
+    <div className="prototype-notice"><b>실시간 대기실 연결</b><p>방 생성·코드 입장·참가자 명단과 접속 상태는 Firestore를 통해 여러 기기에 실시간으로 동기화돼요. 경매 진행 동기화는 순서대로 연결 중이에요.</p></div>
   </div>
 
   if (phase === 'waiting') return <div className="auction-waiting">
-    <div className="room-summary"><div><span>방 코드</span><strong>{roomCode}</strong></div><div><span>참가자</span><strong>4 / 20명</strong></div><div><span>내 닉네임</span><strong>{myName}</strong></div></div>
-    {role === 'host' ? <><div className="waiting-columns"><section><div className="auction-section-title"><h3>참가자 목록</h3><span>모두 접속 중</span></div><ul className="participant-list"><li><i />{myName}<b>방장</b></li><li><i />지민<span>접속</span></li><li><i />서준<span>접속</span></li><li><i />하은<span>접속</span></li></ul></section><section><div className="auction-section-title"><h3>게임 설정</h3><span>방장 전용</span></div><div className="auction-settings"><label>참가 가능 인원<input value={20} disabled /></label><label>초기 보유금액<input type="number" value={initialMoney} onChange={(event) => setInitialMoney(Number(event.target.value))} /></label><label>상품당 제한시간<select value={bidLimit} onChange={(event) => setBidLimit(Number(event.target.value))}><option value={7}>7초</option><option value={10}>10초</option><option value={15}>15초</option></select></label><label>총 경매 상품 수<input type="number" min={4} max={20} value={itemLimit} onChange={(event) => setItemLimit(Number(event.target.value))} /></label><label>직업 선택 방식<input value="참가자 15초 투표" disabled /></label></div></section></div><button type="button" className="auction-primary wide" onClick={startVote}>게임 시작 →</button></> : <div className="participant-wait"><div className="waiting-pulse">●</div><h3>방장이 게임을 준비하고 있습니다.</h3><p>참가자 4 / 20명 · 방 코드 {roomCode}</p><button type="button" className="auction-primary" onClick={startVote}>프로토타입 게임 진행 보기 →</button></div>}
+    <div className="room-summary"><div><span>방 코드</span><strong>{roomCode}</strong></div><div><span>경매 참가자</span><strong>{participants.filter((item) => item.role === 'participant').length}명</strong></div><div><span>내 닉네임</span><strong>{nickname || myName}</strong></div></div>
+    {role === 'host' ? <><div className="waiting-columns"><section><div className="auction-section-title"><h3>참가자 목록</h3><span>실시간 동기화</span></div><ul className="participant-list">{participants.map((participant) => <li key={participant.id}><i className={participant.connected ? '' : 'offline'} />{participant.nickname}{participant.role === 'host' ? <b>방장</b> : <span>{participant.connected ? '접속' : '연결 끊김'}</span>}</li>)}</ul></section><section><div className="auction-section-title"><h3>게임 설정</h3><span>방장 전용 · 임시값</span></div><div className="auction-settings"><label>경매 참가자 수<input value={participants.filter((item) => item.role === 'participant').length} disabled /></label><label>예상 총 상품 수<input value={participants.filter((item) => item.role === 'participant').length * 10} disabled /></label><label>초기 보유금액<input type="number" value={initialMoney} onChange={(event) => setInitialMoney(Number(event.target.value))} /></label><label>상품당 제한시간<select value={bidLimit} onChange={(event) => setBidLimit(Number(event.target.value))}><option value={7}>7초</option><option value={10}>10초</option><option value={15}>15초</option></select></label><label>직업 선택 방식<input value="추후 확정" disabled /></label></div></section></div><button type="button" className="auction-primary wide" onClick={startVote} disabled={!participants.some((item) => item.role === 'participant')}>게임 시작 →</button></> : <><section className="participant-list-card"><div className="auction-section-title"><h3>참가자 목록</h3><span>실시간 동기화</span></div><ul className="participant-list">{participants.map((participant) => <li key={participant.id}><i className={participant.connected ? '' : 'offline'} />{participant.nickname}{participant.role === 'host' ? <b>방장</b> : <span>{participant.connected ? '접속' : '연결 끊김'}</span>}</li>)}</ul></section><div className="participant-wait"><div className="waiting-pulse">●</div><h3>방장이 게임을 준비하고 있습니다.</h3><p>참가자 {participants.filter((item) => item.role === 'participant').length}명 · 방 코드 {roomCode}</p></div></>}
   </div>
 
   if (phase === 'voting') return <div className="job-vote"><div className="auction-countdown"><b>{voteTime}</b><span>초</span></div><p>이번 게임의 목표 직업</p><h2>{selectedJob || '어떤 직업의 역량을 모을까요?'}</h2><span>원하는 직업을 하나 선택하세요. 최다 득표 직업으로 경매를 시작해요.</span><div className="job-options">{auctionJobs.map((job) => <button type="button" className={selectedJob === job ? 'selected' : ''} onClick={() => setSelectedJob(job)} key={job}>{job}</button>)}</div><div className="vote-actions"><button type="button" className="random-job" onClick={() => setSelectedJob(auctionJobs[Math.floor(Math.random() * auctionJobs.length)])}>🎲 랜덤 선택</button><button type="button" className="auction-primary" onClick={finishVote}>투표 마감·경매 시작 →</button></div></div>
