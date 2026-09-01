@@ -247,9 +247,11 @@ function StrengthAuctionGame({ studentName }: { studentName: string }) {
 
 function SecondActivityDetail({ step, schoolName, studentName, onLeave }: { step: number; schoolName: string; studentName: string; onLeave: () => void }) {
   const [gameStarted, setGameStarted] = useState(false)
+  const [questionDuration, setQuestionDuration] = useState<5 | 7 | 10>(7)
+  const [isPaused, setIsPaused] = useState(false)
   const [areaIndex, setAreaIndex] = useState(0)
   const [questionIndex, setQuestionIndex] = useState(0)
-  const [timeLeft, setTimeLeft] = useState(7)
+  const [remainingMs, setRemainingMs] = useState(7000)
   const [responses, setResponses] = useState<Record<string, PreferenceChoice>>({})
   const area = preferenceAreas[areaIndex]
   const isGameComplete = areaIndex >= preferenceAreas.length
@@ -260,6 +262,8 @@ function SecondActivityDetail({ step, schoolName, studentName, onLeave }: { step
   const answerCurrentQuestion = (choice: PreferenceChoice) => {
     if (!area || !currentQuestion) return
     setResponses((current) => ({ ...current, [`${area.id}:${currentQuestion}`]: choice }))
+    setRemainingMs(questionDuration * 1000)
+    setIsPaused(false)
     if (questionIndex < area.questions.length - 1) setQuestionIndex((current) => current + 1)
     else {
       setQuestionIndex(0)
@@ -268,15 +272,19 @@ function SecondActivityDetail({ step, schoolName, studentName, onLeave }: { step
   }
 
   useEffect(() => {
-    if (!gameStarted || isGameComplete || step !== 2 || !currentQuestion) return
-    setTimeLeft(7)
-    const countdown = window.setInterval(() => setTimeLeft((current) => Math.max(0, current - 1)), 1000)
-    const timeout = window.setTimeout(() => answerCurrentQuestion('unsure'), 7000)
-    return () => {
-      window.clearInterval(countdown)
-      window.clearTimeout(timeout)
+    if (!gameStarted || isGameComplete || step !== 2 || !currentQuestion || isPaused) return
+    const startedAt = performance.now()
+    const startedWith = remainingMs
+    let frame = 0
+    const tick = (now: number) => {
+      const next = Math.max(0, startedWith - (now - startedAt))
+      setRemainingMs(next)
+      if (next <= 0) answerCurrentQuestion('unsure')
+      else frame = window.requestAnimationFrame(tick)
     }
-  }, [gameStarted, isGameComplete, areaIndex, questionIndex, step])
+    frame = window.requestAnimationFrame(tick)
+    return () => window.cancelAnimationFrame(frame)
+  }, [gameStarted, isGameComplete, areaIndex, questionIndex, step, isPaused])
 
   const detailContent = [
     { eyebrow: 'STEP 1', title: '활동 안내', subtitle: '나의 선택에는 정답이 없어요', icon: '🧭', description: '선호와 비선호가 사람마다 다르다는 점을 이해하고, 오늘 진행할 네 가지 활동의 흐름을 확인해요.' },
@@ -302,20 +310,22 @@ function SecondActivityDetail({ step, schoolName, studentName, onLeave }: { step
         </section>}
 
         {step === 2 && <section className="detail-panel preference-game">
-          {!gameStarted && <div className="game-intro"><span className="game-symbol">👍 👎</span><h2>좋아! 싫어!</h2><p>우리는 좋아하는 것도, 싫어하는 것도 모두 달라요.<br />화면에 나타나는 활동을 보고 지금 내 생각과 가장 가까운 답을 빠르게 선택해 보세요.</p><div className="game-rules"><span>한 번에 한 문항</span><span>문항마다 7초</span><span>시간이 지나면 ‘고민돼요’</span><span>총 24문항</span></div><button type="button" onClick={() => setGameStarted(true)}>시작하기 →</button></div>}
+          {!gameStarted && <div className="game-intro"><span className="game-symbol">👍 👎</span><h2>좋아! 싫어!</h2><p>화면에 나타나는 활동을 하나씩 보고,<br />지금 내 생각과 가장 가까운 답을 빠르게 선택해 보세요.</p><div className="rule-cards"><article><b>1</b><h3>한 번에 한 문항</h3><p>앞 문항으로 돌아가지 않고 지금의 느낌대로 골라요.</p></article><article><b>2</b><h3>세 가지 답변</h3><p>좋아, 그저 그래, 싫어 중 하나를 선택해요.</p></article><article><b>3</b><h3>시간이 지나면</h3><p>응답하지 못한 문항은 자동으로 ‘고민돼요’가 돼요.</p></article></div><fieldset className="duration-picker"><legend>문항당 답변 시간</legend><p>나에게 맞는 속도를 선택하세요.</p><div>{([5, 7, 10] as const).map((seconds) => <button type="button" className={questionDuration === seconds ? 'selected' : ''} onClick={() => setQuestionDuration(seconds)} key={seconds}><b>{seconds}</b>초</button>)}</div></fieldset><div className="game-rules"><span>총 24문항</span><span>선택에는 정답이 없어요</span><span>진행 중 일시정지 가능</span></div><button type="button" onClick={() => { setRemainingMs(questionDuration * 1000); setGameStarted(true) }}>시작하기 →</button></div>}
           {gameStarted && !isGameComplete && area && <div className="question-stage">
             <div className="game-progress"><div><span>{areaIndex * 4 + questionIndex + 1} / 24</span><b>{area.title}</b></div><div className="progress-dots">{preferenceAreas.map((item, index) => <i className={index <= areaIndex ? 'active' : ''} key={item.id} />)}</div></div>
             <div className="area-heading"><span>{area.icon}</span><div><h2>{area.title}</h2><p>{area.guide}</p></div></div>
-            <article className="quick-question-card">
-              <div className="question-timer" aria-label={`${timeLeft}초 남음`}><b>{timeLeft}</b><span>초</span></div>
-              <div className="timer-track"><span style={{ width: `${(timeLeft / 7) * 100}%` }} /></div>
+            <div className="question-controls"><span>문항당 {questionDuration}초</span><button type="button" onClick={() => setIsPaused((current) => !current)}>{isPaused ? '▶ 계속하기' : 'Ⅱ 일시정지'}</button></div>
+            <article className={`quick-question-card ${remainingMs <= 3000 ? 'urgent' : ''} ${isPaused ? 'paused' : ''}`}>
+              <div className="question-timer" aria-label={`${Math.ceil(remainingMs / 1000)}초 남음`}><b>{Math.ceil(remainingMs / 1000)}</b><span>초</span></div>
+              <div className="timer-track"><span style={{ width: `${(remainingMs / (questionDuration * 1000)) * 100}%` }} /></div>
+              {isPaused && <div className="pause-cover"><span>Ⅱ</span><b>잠시 멈췄어요</b><p>‘계속하기’를 누르면 남은 시간부터 이어져요.</p></div>}
               <small>{questionIndex + 1}번째 질문</small>
               <h3>{currentQuestion}</h3>
-              <div className="quick-answer-buttons">{(['like', 'neutral', 'dislike'] as PreferenceChoice[]).map((choice) => <button type="button" className={choice} onClick={() => answerCurrentQuestion(choice)} key={choice}>{choiceLabels[choice]}</button>)}</div>
-              <p>7초 안에 선택하지 않으면 <b>🤔 고민돼요</b>로 기록하고 다음 질문으로 넘어가요.</p>
+              <div className="quick-answer-buttons">{(['like', 'neutral', 'dislike'] as PreferenceChoice[]).map((choice) => <button type="button" className={choice} disabled={isPaused} onClick={() => answerCurrentQuestion(choice)} key={choice}>{choiceLabels[choice]}</button>)}</div>
+              <p>{questionDuration}초 안에 선택하지 않으면 <b>🤔 고민돼요</b>로 기록하고 다음 질문으로 넘어가요.</p>
             </article>
           </div>}
-          {gameStarted && isGameComplete && <div className="preference-summary"><span className="complete-symbol">✓</span><h2>24개 선택을 모두 마쳤어요!</h2><p>좋아하거나 싫어한다고 선택한 활동을 한눈에 살펴보세요. <b>고민돼요 {selectedQuestions('unsure').length}개</b></p><div className="summary-columns"><div><h3>👍 좋아!</h3>{selectedQuestions('like').length ? <ul>{selectedQuestions('like').map((question) => <li key={question}>{question}</li>)}</ul> : <p>선택한 항목이 없어요.</p>}</div><div><h3>👎 싫어!</h3>{selectedQuestions('dislike').length ? <ul>{selectedQuestions('dislike').map((question) => <li key={question}>{question}</li>)}</ul> : <p>선택한 항목이 없어요.</p>}</div></div><div className="next-build-note"><b>다음 개발 단계</b><p>각 목록에서 핵심 항목 최대 3개 고르기 → 자유입력 → 개인 결과 → 전체 워드클라우드 순서로 이어질 예정이에요.</p></div><button type="button" className="restart-button" onClick={() => { setResponses({}); setAreaIndex(0); setQuestionIndex(0); setGameStarted(false) }}>처음부터 다시 하기</button></div>}
+          {gameStarted && isGameComplete && <div className="preference-summary"><span className="complete-symbol">✓</span><h2>24개 선택을 모두 마쳤어요!</h2><p>좋아하거나 싫어한다고 선택한 활동을 한눈에 살펴보세요. <b>고민돼요 {selectedQuestions('unsure').length}개</b></p><div className="summary-columns"><div><h3>👍 좋아!</h3>{selectedQuestions('like').length ? <ul>{selectedQuestions('like').map((question) => <li key={question}>{question}</li>)}</ul> : <p>선택한 항목이 없어요.</p>}</div><div><h3>👎 싫어!</h3>{selectedQuestions('dislike').length ? <ul>{selectedQuestions('dislike').map((question) => <li key={question}>{question}</li>)}</ul> : <p>선택한 항목이 없어요.</p>}</div></div><div className="next-build-note"><b>다음 개발 단계</b><p>각 목록에서 핵심 항목 최대 3개 고르기 → 자유입력 → 개인 결과 → 전체 워드클라우드 순서로 이어질 예정이에요.</p></div><button type="button" className="restart-button" onClick={() => { setResponses({}); setAreaIndex(0); setQuestionIndex(0); setIsPaused(false); setGameStarted(false) }}>처음부터 다시 하기</button></div>}
         </section>}
 
         {step === 3 && <section className="detail-panel auction-panel"><StrengthAuctionGame studentName={studentName} /></section>}
