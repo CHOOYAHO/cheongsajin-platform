@@ -10,7 +10,7 @@ import youthCenterLogo from './assets/yesan-youth-center.png'
 
 type Session = { number: number; title: string; subtitle: string; status: 'done' | 'open' | 'locked'; icon: string }
 type SessionTemplate = Omit<Session, 'status'>
-type PreferenceChoice = 'like' | 'neutral' | 'dislike'
+type PreferenceChoice = 'like' | 'neutral' | 'dislike' | 'unsure'
 type PreferenceArea = { id: string; tag: 'R' | 'I' | 'A' | 'S' | 'E' | 'C'; title: string; icon: string; guide: string; questions: string[] }
 const sessionTemplates: SessionTemplate[] = [
   { number: 1, title: '청사진을 위한 첫 만남', subtitle: '나와 멘토, 새로운 가능성을 만나요', icon: '👋' },
@@ -63,12 +63,35 @@ function PartnerFooter() {
 function SecondActivityDetail({ step, schoolName, studentName, onLeave }: { step: number; schoolName: string; studentName: string; onLeave: () => void }) {
   const [gameStarted, setGameStarted] = useState(false)
   const [areaIndex, setAreaIndex] = useState(0)
+  const [questionIndex, setQuestionIndex] = useState(0)
+  const [timeLeft, setTimeLeft] = useState(7)
   const [responses, setResponses] = useState<Record<string, PreferenceChoice>>({})
   const area = preferenceAreas[areaIndex]
   const isGameComplete = areaIndex >= preferenceAreas.length
-  const choiceLabels: Record<PreferenceChoice, string> = { like: '👍 좋아!', neutral: '😐 그저 그래', dislike: '👎 싫어!' }
-  const answeredInArea = area ? area.questions.filter((question) => responses[`${area.id}:${question}`]).length : 0
+  const currentQuestion = area?.questions[questionIndex]
+  const choiceLabels: Record<PreferenceChoice, string> = { like: '👍 좋아!', neutral: '😐 그저 그래', dislike: '👎 싫어!', unsure: '🤔 고민돼요' }
   const selectedQuestions = (choice: PreferenceChoice) => preferenceAreas.flatMap((item) => item.questions.filter((question) => responses[`${item.id}:${question}`] === choice))
+
+  const answerCurrentQuestion = (choice: PreferenceChoice) => {
+    if (!area || !currentQuestion) return
+    setResponses((current) => ({ ...current, [`${area.id}:${currentQuestion}`]: choice }))
+    if (questionIndex < area.questions.length - 1) setQuestionIndex((current) => current + 1)
+    else {
+      setQuestionIndex(0)
+      setAreaIndex((current) => current + 1)
+    }
+  }
+
+  useEffect(() => {
+    if (!gameStarted || isGameComplete || step !== 2 || !currentQuestion) return
+    setTimeLeft(7)
+    const countdown = window.setInterval(() => setTimeLeft((current) => Math.max(0, current - 1)), 1000)
+    const timeout = window.setTimeout(() => answerCurrentQuestion('unsure'), 7000)
+    return () => {
+      window.clearInterval(countdown)
+      window.clearTimeout(timeout)
+    }
+  }, [gameStarted, isGameComplete, areaIndex, questionIndex, step])
 
   const detailContent = [
     { eyebrow: 'STEP 1', title: '활동 안내', subtitle: '나의 선택에는 정답이 없어요', icon: '🧭', description: '선호와 비선호가 사람마다 다르다는 점을 이해하고, 오늘 진행할 네 가지 활동의 흐름을 확인해요.' },
@@ -94,14 +117,20 @@ function SecondActivityDetail({ step, schoolName, studentName, onLeave }: { step
         </section>}
 
         {step === 2 && <section className="detail-panel preference-game">
-          {!gameStarted && <div className="game-intro"><span className="game-symbol">👍 👎</span><h2>좋아! 싫어!</h2><p>우리는 좋아하는 것도, 싫어하는 것도 모두 달라요.<br />다음 활동과 상황을 보고 지금 내 생각과 가장 가까운 답을 선택해 보세요.</p><div className="game-rules"><span>정답은 없어요</span><span>너무 오래 고민하지 않아요</span><span>총 6개 영역 · 24문항</span></div><button type="button" onClick={() => setGameStarted(true)}>시작하기 →</button></div>}
+          {!gameStarted && <div className="game-intro"><span className="game-symbol">👍 👎</span><h2>좋아! 싫어!</h2><p>우리는 좋아하는 것도, 싫어하는 것도 모두 달라요.<br />화면에 나타나는 활동을 보고 지금 내 생각과 가장 가까운 답을 빠르게 선택해 보세요.</p><div className="game-rules"><span>한 번에 한 문항</span><span>문항마다 7초</span><span>시간이 지나면 ‘고민돼요’</span><span>총 24문항</span></div><button type="button" onClick={() => setGameStarted(true)}>시작하기 →</button></div>}
           {gameStarted && !isGameComplete && area && <div className="question-stage">
-            <div className="game-progress"><div><span>{areaIndex + 1} / {preferenceAreas.length}</span><b>{area.title}</b></div><div className="progress-dots">{preferenceAreas.map((item, index) => <i className={index <= areaIndex ? 'active' : ''} key={item.id} />)}</div></div>
+            <div className="game-progress"><div><span>{areaIndex * 4 + questionIndex + 1} / 24</span><b>{area.title}</b></div><div className="progress-dots">{preferenceAreas.map((item, index) => <i className={index <= areaIndex ? 'active' : ''} key={item.id} />)}</div></div>
             <div className="area-heading"><span>{area.icon}</span><div><h2>{area.title}</h2><p>{area.guide}</p></div></div>
-            <div className="preference-questions">{area.questions.map((question) => { const key = `${area.id}:${question}`; return <article key={question}><h3>{question}</h3><div>{(['like', 'neutral', 'dislike'] as PreferenceChoice[]).map((choice) => <button type="button" className={responses[key] === choice ? `selected ${choice}` : ''} onClick={() => setResponses((current) => ({ ...current, [key]: choice }))} key={choice}>{choiceLabels[choice]}</button>)}</div></article> })}</div>
-            <div className="game-navigation"><button type="button" className="secondary" disabled={areaIndex === 0} onClick={() => setAreaIndex((current) => current - 1)}>← 이전</button><span>{answeredInArea} / 4 선택</span><button type="button" disabled={answeredInArea < 4} onClick={() => setAreaIndex((current) => current + 1)}>{areaIndex === preferenceAreas.length - 1 ? '결과 보기' : '다음'} →</button></div>
+            <article className="quick-question-card">
+              <div className="question-timer" aria-label={`${timeLeft}초 남음`}><b>{timeLeft}</b><span>초</span></div>
+              <div className="timer-track"><span style={{ width: `${(timeLeft / 7) * 100}%` }} /></div>
+              <small>{questionIndex + 1}번째 질문</small>
+              <h3>{currentQuestion}</h3>
+              <div className="quick-answer-buttons">{(['like', 'neutral', 'dislike'] as PreferenceChoice[]).map((choice) => <button type="button" className={choice} onClick={() => answerCurrentQuestion(choice)} key={choice}>{choiceLabels[choice]}</button>)}</div>
+              <p>7초 안에 선택하지 않으면 <b>🤔 고민돼요</b>로 기록하고 다음 질문으로 넘어가요.</p>
+            </article>
           </div>}
-          {gameStarted && isGameComplete && <div className="preference-summary"><span className="complete-symbol">✓</span><h2>24개 선택을 모두 마쳤어요!</h2><p>좋아하거나 싫어한다고 선택한 활동을 한눈에 살펴보세요.</p><div className="summary-columns"><div><h3>👍 좋아!</h3>{selectedQuestions('like').length ? <ul>{selectedQuestions('like').map((question) => <li key={question}>{question}</li>)}</ul> : <p>선택한 항목이 없어요.</p>}</div><div><h3>👎 싫어!</h3>{selectedQuestions('dislike').length ? <ul>{selectedQuestions('dislike').map((question) => <li key={question}>{question}</li>)}</ul> : <p>선택한 항목이 없어요.</p>}</div></div><div className="next-build-note"><b>다음 개발 단계</b><p>각 목록에서 핵심 항목 최대 3개 고르기 → 자유입력 → 개인 결과 → 전체 워드클라우드 순서로 이어질 예정이에요.</p></div><button type="button" className="restart-button" onClick={() => { setResponses({}); setAreaIndex(0); setGameStarted(false) }}>처음부터 다시 하기</button></div>}
+          {gameStarted && isGameComplete && <div className="preference-summary"><span className="complete-symbol">✓</span><h2>24개 선택을 모두 마쳤어요!</h2><p>좋아하거나 싫어한다고 선택한 활동을 한눈에 살펴보세요. <b>고민돼요 {selectedQuestions('unsure').length}개</b></p><div className="summary-columns"><div><h3>👍 좋아!</h3>{selectedQuestions('like').length ? <ul>{selectedQuestions('like').map((question) => <li key={question}>{question}</li>)}</ul> : <p>선택한 항목이 없어요.</p>}</div><div><h3>👎 싫어!</h3>{selectedQuestions('dislike').length ? <ul>{selectedQuestions('dislike').map((question) => <li key={question}>{question}</li>)}</ul> : <p>선택한 항목이 없어요.</p>}</div></div><div className="next-build-note"><b>다음 개발 단계</b><p>각 목록에서 핵심 항목 최대 3개 고르기 → 자유입력 → 개인 결과 → 전체 워드클라우드 순서로 이어질 예정이에요.</p></div><button type="button" className="restart-button" onClick={() => { setResponses({}); setAreaIndex(0); setQuestionIndex(0); setGameStarted(false) }}>처음부터 다시 하기</button></div>}
         </section>}
 
         {step === 3 && <section className="detail-panel"><div className="detail-heading"><span>활동 틀</span><h2>경험에서 강점의 단서를 찾아요</h2><p>세부 문항이 정해지면 이 흐름에 맞춰 입력·저장 기능을 연결할 예정이에요.</p></div><div className="strength-flow"><article><span>1</span><h3>기억 꺼내기</h3><p>최근에 잘했거나 뿌듯했던 경험을 떠올려요.</p></article><article><span>2</span><h3>내가 한 행동 찾기</h3><p>그때 내가 어떤 행동을 했는지 구체적으로 적어요.</p></article><article><span>3</span><h3>강점 이름 붙이기</h3><p>그 행동에서 드러난 나의 힘을 한 단어로 정리해요.</p></article></div><label className="draft-field">기억에 남는 경험<textarea placeholder="예: 친구들과 축제 준비를 하며 역할을 정리하고 일정을 맞췄다." /></label></section>}
