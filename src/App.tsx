@@ -245,7 +245,7 @@ function StrengthAuctionGame({ studentName }: { studentName: string }) {
   return <div className="auction-stage"><div className="auction-topline"><span>{auctionIndex + 1} / {itemLimit} 상품</span><b>목표 직업 · {selectedJob}</b></div><div className="auction-product"><div className={`auction-clock ${auctionTime <= 3 ? 'urgent' : ''}`}><b>{auctionTime}</b><span>초</span></div><span>지금 필요한 강점</span><h2>🔨 {currentStrength}</h2>{myStrengthLevel >= 3 && <p className="epic-block">🌟 최고 등급을 보유하고 있어 입찰할 수 없어요.</p>}<div className="current-bid"><span>현재가</span><strong>{currentPrice}P</strong><small>최고 입찰자 · {highestBidder}</small></div><div className="bid-buttons">{bidOptions.map((amount) => <button type="button" onClick={() => placeBid(amount)} disabled={amount > balance || myStrengthLevel >= 3} key={amount}>{amount}P</button>)}</div><p className="anti-snipe">종료 2초 전 새 입찰이 들어오면 시간이 5초로 연장돼요.</p></div><aside className="auction-player"><div><span>{myName}</span><strong>💰 {balance}P</strong></div><h3>보유 역량</h3>{Object.keys(inventory).length ? <ul>{Object.entries(inventory).map(([strength, count]) => <li key={strength}><span>{strength}</span><b className={`rarity-${rarity(count).toLowerCase()}`}>{rarity(count)}</b></li>)}</ul> : <p>아직 낙찰받은 역량이 없어요.</p>}</aside></div>
 }
 
-function SecondActivityDetail({ step, schoolName, studentName, onLeave }: { step: number; schoolName: string; studentName: string; onLeave: () => void }) {
+function SecondActivityDetail({ step, schoolName, studentName, onLeave, onHome }: { step: number; schoolName: string; studentName: string; onLeave: () => void; onHome: () => void }) {
   const [gameStarted, setGameStarted] = useState(false)
   const [questionDuration, setQuestionDuration] = useState<5 | 7 | 10>(7)
   const [isPaused, setIsPaused] = useState(false)
@@ -353,7 +353,7 @@ function SecondActivityDetail({ step, schoolName, studentName, onLeave }: { step
               <p>{questionDuration}초 안에 선택하지 않으면 <b>🤔 고민돼요</b>로 기록하고 다음 질문으로 넘어가요.</p>
             </article>
           </div>}
-          {gameStarted && isGameComplete && <div className="preference-summary"><span className="complete-symbol">✓</span><h2>24개 선택을 모두 마쳤어요!</h2><p>좋아하거나 싫어한다고 선택한 활동을 한눈에 살펴보세요. <b>고민돼요 {selectedQuestions('unsure').length}개</b></p><div className="summary-columns"><div><h3>👍 좋아!</h3>{selectedQuestions('like').length ? <ul>{selectedQuestions('like').map((question) => <li key={question}>{question}</li>)}</ul> : <p>선택한 항목이 없어요.</p>}</div><div><h3>👎 싫어!</h3>{selectedQuestions('dislike').length ? <ul>{selectedQuestions('dislike').map((question) => <li key={question}>{question}</li>)}</ul> : <p>선택한 항목이 없어요.</p>}</div></div><div className="next-build-note"><b>다음 개발 단계</b><p>각 목록에서 핵심 항목 최대 3개 고르기 → 자유입력 → 개인 결과 → 전체 워드클라우드 순서로 이어질 예정이에요.</p></div><div className="result-save-notice"><b>계정당 하나의 결과만 저장돼요.</b><p>이전에 제출한 결과가 있다면 이번 결과로 덮어씌워집니다.</p></div>{resultSaveState === 'saved' && <p className="save-message success" role="status">✓ 결과가 저장됐어요.</p>}{resultSaveState === 'error' && <p className="save-message error" role="alert">결과를 저장하지 못했어요. 잠시 후 다시 시도해 주세요.</p>}<div className="result-actions"><button type="button" className="restart-button" onClick={() => { setResponses({}); setAreaIndex(0); setQuestionIndex(0); setIsPaused(false); setResultSaveState('idle'); setGameStarted(false) }}>다시 하기</button><button type="button" className="submit-result-button" disabled={resultSaveState === 'saving'} onClick={submitPreferenceResult}>{resultSaveState === 'saving' ? '저장하는 중…' : resultSaveState === 'saved' ? '결과 다시 제출하기' : '결과 제출하기'}</button></div></div>}
+          {gameStarted && isGameComplete && <div className="preference-summary"><span className="complete-symbol">✓</span><h2>24개 선택을 모두 마쳤어요!</h2><p>좋아하거나 싫어한다고 선택한 활동을 한눈에 살펴보세요. <b>고민돼요 {selectedQuestions('unsure').length}개</b></p><div className="summary-columns"><div><h3>👍 좋아!</h3>{selectedQuestions('like').length ? <ul>{selectedQuestions('like').map((question) => <li key={question}>{question}</li>)}</ul> : <p>선택한 항목이 없어요.</p>}</div><div><h3>👎 싫어!</h3>{selectedQuestions('dislike').length ? <ul>{selectedQuestions('dislike').map((question) => <li key={question}>{question}</li>)}</ul> : <p>선택한 항목이 없어요.</p>}</div></div><div className="next-build-note"><b>다음 개발 단계</b><p>각 목록에서 핵심 항목 최대 3개 고르기 → 자유입력 → 개인 결과 → 전체 워드클라우드 순서로 이어질 예정이에요.</p></div><div className="result-save-notice"><b>계정당 하나의 결과만 저장돼요.</b><p>이전에 제출한 결과가 있다면 이번 결과로 덮어씌워집니다.</p></div>{resultSaveState === 'saved' && <p className="save-message success" role="status">✓ 결과가 저장됐어요.</p>}{resultSaveState === 'error' && <p className="save-message error" role="alert">결과를 저장하지 못했어요. 잠시 후 다시 시도해 주세요.</p>}<div className="result-actions"><button type="button" className="restart-button" onClick={() => { setResponses({}); setAreaIndex(0); setQuestionIndex(0); setIsPaused(false); setResultSaveState('idle'); setGameStarted(false) }}>다시 하기</button><button type="button" className="submit-result-button" disabled={resultSaveState === 'saving'} onClick={submitPreferenceResult}>{resultSaveState === 'saving' ? '저장하는 중…' : resultSaveState === 'saved' ? '결과 다시 제출하기' : '결과 제출하기'}</button><button type="button" className="home-result-button" onClick={onHome}>홈으로</button></div></div>}
         </section>}
 
         {step === 3 && <section className="detail-panel auction-panel"><StrengthAuctionGame studentName={studentName} /></section>}
@@ -476,6 +476,11 @@ function App() {
     const view = `activity-2-step-${step}`
     window.history.pushState({ cheongsajinView: view }, '', `#${view}`)
   }
+  const goDashboard = () => {
+    setActiveSession(null)
+    setActiveSecondActivity(null)
+    window.history.pushState({ cheongsajinView: 'dashboard' }, '', '#dashboard')
+  }
 
   if (!entered) return (
     <div className="welcome-page">
@@ -547,7 +552,7 @@ function App() {
   }
 
   if (activeSession === 2 && sessionPageMode === 'activity' && activeSecondActivity) {
-    return <SecondActivityDetail step={activeSecondActivity} schoolName={schoolName} studentName={name.trim()} onLeave={leave} />
+    return <SecondActivityDetail step={activeSecondActivity} schoolName={schoolName} studentName={name.trim()} onLeave={leave} onHome={goDashboard} />
   }
 
   if (activeSession === 2 && sessionPageMode === 'activity') {
