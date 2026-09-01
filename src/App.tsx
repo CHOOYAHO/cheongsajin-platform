@@ -3,6 +3,7 @@ import type { FormEvent } from 'react'
 import { signInAnonymously, signOut } from 'firebase/auth'
 import './App.css'
 import { auth, isFirebaseConfigured } from './lib/firebase'
+import { auctionJobs, createAuctionDeck, jobStrengthProfiles } from './data/auction'
 import chungcheongnamdoLogo from './assets/chungcheongnamdo.png'
 import educationOfficeLogo from './assets/chungnam-education-office.png'
 import socialServiceLogo from './assets/chungnam-social-service.png'
@@ -60,10 +61,7 @@ function PartnerFooter() {
   )
 }
 
-type AuctionPhase = 'lobby' | 'waiting' | 'voting' | 'auction' | 'sold'
-
-const auctionJobs = ['의사', '소방관', '교사', '경찰관', '유튜브 크리에이터', '게임 개발자', '요리사', '간호사']
-const auctionStrengths = ['위기대처능력', '문제해결력', '의사소통능력', '협업능력', '문제해결력', '창의성', '위기대처능력', '문제해결력']
+type AuctionPhase = 'lobby' | 'waiting' | 'voting' | 'auction' | 'sold' | 'result'
 
 function StrengthAuctionGame({ studentName }: { studentName: string }) {
   const [phase, setPhase] = useState<AuctionPhase>('lobby')
@@ -81,7 +79,8 @@ function StrengthAuctionGame({ studentName }: { studentName: string }) {
   const [highestBidder, setHighestBidder] = useState('지민')
   const [balance, setBalance] = useState(1000)
   const [inventory, setInventory] = useState<Record<string, number>>({})
-  const currentStrength = auctionStrengths[auctionIndex % auctionStrengths.length]
+  const [auctionDeck, setAuctionDeck] = useState<string[]>([])
+  const currentStrength = auctionDeck[auctionIndex] ?? '문제해결능력'
   const myName = studentName || '참가자'
   const myStrengthLevel = inventory[currentStrength] ?? 0
   const rarity = (count: number) => count >= 3 ? 'EPIC' : count === 2 ? 'RARE' : 'NORMAL'
@@ -103,7 +102,10 @@ function StrengthAuctionGame({ studentName }: { studentName: string }) {
     setPhase('voting')
   }
   const finishVote = () => {
-    setSelectedJob((current) => current || auctionJobs[Math.floor(Math.random() * auctionJobs.length)])
+    const job = selectedJob || auctionJobs[Math.floor(Math.random() * auctionJobs.length)]
+    setSelectedJob(job)
+    setAuctionDeck(createAuctionDeck(job, itemLimit))
+    setAuctionIndex(0)
     setAuctionTime(bidLimit)
     setPhase('auction')
   }
@@ -160,8 +162,18 @@ function StrengthAuctionGame({ studentName }: { studentName: string }) {
 
   if (phase === 'sold') {
     const wonByMe = highestBidder === myName
-    const nextLevel = wonByMe ? Math.min(3, myStrengthLevel + 1) : myStrengthLevel
-    return <div className="sold-screen"><span className="hammer-hit">🔨</span><p>낙찰!</p><h2>{currentStrength}</h2><div className="sold-price"><b>{highestBidder}</b><strong>{currentPrice}P</strong></div>{wonByMe && <div className={`upgrade-card rarity-${rarity(nextLevel).toLowerCase()}`}><span>{nextLevel > 1 ? '✨ 등급 강화!' : '새로운 강점 획득!'}</span><h3>{currentStrength}</h3><b>{rarity(nextLevel)}</b></div>}<button type="button" className="auction-primary" onClick={nextAuction} disabled={auctionIndex + 1 >= itemLimit}>{auctionIndex + 1 >= itemLimit ? '경매 종료' : '다음 상품 →'}</button></div>
+    const nextLevel = myStrengthLevel
+    return <div className="sold-screen"><span className="hammer-hit">🔨</span><p>낙찰!</p><h2>{currentStrength}</h2><div className="sold-price"><b>{highestBidder}</b><strong>{currentPrice}P</strong></div>{wonByMe && <div className={`upgrade-card rarity-${rarity(nextLevel).toLowerCase()}`}><span>{nextLevel > 1 ? '✨ 등급 강화!' : '새로운 강점 획득!'}</span><h3>{currentStrength}</h3><b>{rarity(nextLevel)}</b></div>}<button type="button" className="auction-primary" onClick={() => auctionIndex + 1 >= itemLimit ? setPhase('result') : nextAuction()}>{auctionIndex + 1 >= itemLimit ? '결과 확인 →' : '다음 상품 →'}</button></div>
+  }
+
+  if (phase === 'result') {
+    const profile = jobStrengthProfiles[selectedJob]
+    const groups = [
+      { key: 'core' as const, title: '핵심 역량', description: '주요 업무 수행에 특히 중요해요.' },
+      { key: 'related' as const, title: '관련 역량', description: '원활한 직무 수행과 밀접하게 연결돼요.' },
+      { key: 'lower' as const, title: '우선도가 낮은 역량', description: '쓸모없는 역량이 아니라, 상대적 우선도가 낮아요.' },
+    ]
+    return <div className="auction-result"><span className="result-kicker">경매 종료 · 중요도 공개</span><h2>{selectedJob}에게 어떤 역량이 중요할까요?</h2><p className="result-guide">게임 중에는 숨겨졌던 직업별 중요도를 내 낙찰 결과와 비교해 보세요. 카드 등급은 중요도가 아니라 같은 역량을 낙찰받은 횟수예요.</p><div className="importance-grid">{groups.map((group) => <section className={`importance-${group.key}`} key={group.key}><h3>{group.title}</h3><p>{group.description}</p><ul>{profile[group.key].map((strength) => <li key={strength}><span>{strength}</span>{inventory[strength] ? <b className={`rarity-${rarity(inventory[strength]).toLowerCase()}`}>내 카드 {rarity(inventory[strength])}</b> : <small>미보유</small>}</li>)}</ul></section>)}</div><div className="result-question"><b>함께 이야기해 봐요</b><p>내가 높은 금액을 투자한 역량은 실제 중요도와 어떻게 달랐나요? 그렇게 판단한 이유는 무엇인가요?</p></div><button type="button" className="auction-primary" onClick={() => setPhase('lobby')}>로비로 돌아가기</button></div>
   }
 
   const bidOptions = [currentPrice + 50, currentPrice + 100, currentPrice + 150]
