@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
-import { signInAnonymously, signInWithCustomToken, signOut } from 'firebase/auth'
+import { signInAnonymously, signOut } from 'firebase/auth'
 import { collection, doc, getDoc, onSnapshot, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore'
 import { httpsCallable } from 'firebase/functions'
 import './App.css'
@@ -455,9 +455,8 @@ function App() {
       if (isStaff) {
         if (!functions) throw new Error('Firebase Functions configuration is missing')
         await signInAnonymously(auth)
-        const loginStaff = httpsCallable<{ name: string; pin: string }, { customToken: string }>(functions, 'staffLogin')
-        const result = await loginStaff({ name: name.trim(), pin: pin.trim() })
-        await signInWithCustomToken(auth, result.data.customToken)
+        const loginStaff = httpsCallable<{ name: string; pin: string }, { role: 'mentor' | 'admin'; displayName: string }>(functions, 'staffLogin')
+        await loginStaff({ name: name.trim(), pin: pin.trim() })
       } else await signInAnonymously(auth)
       setEntered(true)
       setShowMasterUnlock(false)

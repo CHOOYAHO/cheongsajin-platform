@@ -1,14 +1,13 @@
 import { randomBytes, randomInt, scrypt as scryptCallback, timingSafeEqual } from 'node:crypto'
 import { promisify } from 'node:util'
 import { initializeApp } from 'firebase-admin/app'
-import { getAuth } from 'firebase-admin/auth'
 import { FieldValue, getFirestore, Timestamp } from 'firebase-admin/firestore'
 import { defineSecret } from 'firebase-functions/params'
 import { HttpsError, onCall } from 'firebase-functions/v2/https'
 import { setGlobalOptions } from 'firebase-functions/v2/options'
 
 initializeApp()
-setGlobalOptions({ region: 'asia-northeast3', maxInstances: 10 })
+setGlobalOptions({ region: 'asia-northeast3', maxInstances: 3 })
 
 const db = getFirestore()
 const scrypt = promisify(scryptCallback)
@@ -76,6 +75,7 @@ export const bootstrapStaffAccounts = onCall({ secrets: [pinPepper, masterUnlock
 })
 
 export const staffLogin = onCall({ secrets: [pinPepper] }, async (request) => {
+  if (!request.auth?.uid) throw new HttpsError('unauthenticated', 'Firebase 로그인이 필요합니다.')
   const displayName = normalizeName(request.data?.name)
   const pin = String(request.data?.pin ?? '')
   const account = staffDirectory[displayName]
@@ -106,9 +106,15 @@ export const staffLogin = onCall({ secrets: [pinPepper] }, async (request) => {
   if (verified.error === 'locked') throw new HttpsError('resource-exhausted', 'PIN 입력이 15분간 잠겼습니다.', { locked: true, remainingSeconds: verified.remainingSeconds })
   if (verified.error === 'invalid') throw new HttpsError('permission-denied', '이름 또는 PIN이 올바르지 않습니다.', { attemptsRemaining: verified.attemptsRemaining })
 
-  const uid = `staff-${account.number}`
-  const customToken = await getAuth().createCustomToken(uid, { role: verified.account.role, staffNumber: account.number, displayName })
-  return { customToken, role: verified.account.role, displayName }
+  await db.doc(`staffSessions/${request.auth.uid}`).set({
+    userId: request.auth.uid,
+    accountNumber: account.number,
+    displayName,
+    role: verified.account.role,
+    createdAt: FieldValue.serverTimestamp(),
+    expiresAt: Timestamp.fromMillis(Date.now() + 12 * 60 * 60 * 1000),
+  })
+  return { role: verified.account.role, displayName }
 })
 
 export const unlockStaffAccount = onCall({ secrets: [masterUnlockCode] }, async (request) => {

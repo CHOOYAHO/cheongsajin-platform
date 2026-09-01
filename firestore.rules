@@ -45,6 +45,11 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    match /staffSessions/{userId} {
+      allow read: if isOwner(userId);
+      allow write: if false;
+    }
+
     match /auctionRooms/{roomId} {
       allow create: if signedIn()
         && request.resource.data.hostId == request.auth.uid

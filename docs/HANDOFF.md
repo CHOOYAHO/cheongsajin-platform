@@ -23,6 +23,9 @@
 - Firebase 프로젝트 ID: `cheongsajin-57ffc`
 - Firestore 위치: `asia-northeast3`(서울)
 - Firebase Authentication 익명 로그인을 활성화함
+- Cloud Functions 2세대와 Secret Manager를 활성화함
+- 멘토 7명·관리자 2명의 6자리 PIN 계정을 발급함. PIN 원문은 저장하지 않고 서버 함수에서 해시 검증함
+- PIN 5회 실패 시 15분 잠금, Firebase Secret 기반 관리자 코드 잠금 해제를 구현함
 - Cloud Firestore 데이터베이스를 생성함
 - `firestore.rules`를 Firebase Console에 게시함
 - GitHub Actions에 필요한 Firebase 환경변수 6개를 Repository Secrets로 등록함
@@ -32,7 +35,7 @@
 
 - 인터넷에서 접속 가능한 반응형 랜딩 페이지
 - 참가코드와 PIN 입력 화면
-- 입력 후 Firebase 익명 인증 수행
+- 학생은 임시 목록 확인 후 Firebase 익명 인증, 멘토/관리자는 서버 PIN 검증 후 12시간 권한 세션 생성
 - 학생 활동실 예시 화면
 - 회기별 카드와 진행률 UI
 - 2회기의 네 가지 세부 활동 페이지 틀
@@ -61,7 +64,7 @@
 - `강점 경매장`은 Firestore 기반 방 생성/코드 입장/대기실 참가자 명단/접속 상태 동기화까지 연결함. 실시간 경매, QR 입장, 서버 기준 타이머·입찰 검증은 아직 구현하지 않음
 - 파일 업로드용 Firebase Storage 운영 연결
 
-현재 로그인은 코드 안의 임시 허용 목록으로 검사한다. 예산고등학교, 광시중학교, 멘토/관리자 항목 모두 이름 `1`, PIN `1`만 통과하며, 아직 Firestore 기반의 실제 계정 검증은 아니다.
+학생 로그인은 코드 안의 임시 허용 목록으로 검사하며 예산고등학교와 광시중학교 모두 이름 `1`, PIN `1`만 통과한다. 멘토/관리자는 발급된 이름과 6자리 PIN을 Firebase 서버 함수로 검증한다.
 
 ## 주요 파일
 
