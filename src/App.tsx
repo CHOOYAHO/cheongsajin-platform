@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
-import { signInAnonymously, signOut } from 'firebase/auth'
+import { signInAnonymously, signInWithCustomToken, signOut } from 'firebase/auth'
 import { collection, doc, getDoc, onSnapshot, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore'
+import { httpsCallable } from 'firebase/functions'
 import './App.css'
-import { auth, db, isFirebaseConfigured } from './lib/firebase'
+import { auth, db, functions, isFirebaseConfigured } from './lib/firebase'
 import { auctionJobs, createAuctionDeck, jobStrengthProfiles } from './data/auction'
 import chungcheongnamdoLogo from './assets/chungcheongnamdo.png'
 import educationOfficeLogo from './assets/chungnam-education-office.png'
@@ -34,7 +35,6 @@ const firstSessionActivities = [
 const testParticipants = [
   { school: 'yesan-high', name: '1', pin: '1' },
   { school: 'gwangsi-middle', name: '1', pin: '1' },
-  { school: 'staff', name: '1', pin: '1' },
 ]
 
 const preferenceAreas: PreferenceArea[] = [
@@ -375,6 +375,9 @@ function App() {
   const [pin, setPin] = useState('')
   const [isEntering, setIsEntering] = useState(false)
   const [entryError, setEntryError] = useState('')
+  const [showMasterUnlock, setShowMasterUnlock] = useState(false)
+  const [masterCode, setMasterCode] = useState('')
+  const [isUnlocking, setIsUnlocking] = useState(false)
   const schoolName = school === 'yesan-high' ? '예산고등학교' : school === 'gwangsi-middle' ? '광시중학교' : school === 'staff' ? '멘토/관리자' : ''
   const completedSessionCount = school === 'yesan-high' ? 1 : 0
   const sessions: Session[] = sessionTemplates.map((session) => ({
@@ -439,8 +442,9 @@ function App() {
       setEntryError('PIN 번호를 입력해 주세요.')
       return
     }
+    const isStaff = school === 'staff'
     const isRegistered = testParticipants.some((participant) => participant.school === school && participant.name === name.trim() && participant.pin === pin.trim())
-    if (!isRegistered) {
+    if (!isStaff && !isRegistered) {
       setEntryError('등록된 정보와 일치하지 않습니다. 학교, 이름, PIN 번호를 확인해 주세요.')
       return
     }
@@ -448,12 +452,23 @@ function App() {
     setEntryError('')
     try {
       if (!auth) throw new Error('Firebase configuration is missing')
-      await signInAnonymously(auth)
+      if (isStaff) {
+        if (!functions) throw new Error('Firebase Functions configuration is missing')
+        await signInAnonymously(auth)
+        const loginStaff = httpsCallable<{ name: string; pin: string }, { customToken: string }>(functions, 'staffLogin')
+        const result = await loginStaff({ name: name.trim(), pin: pin.trim() })
+        await signInWithCustomToken(auth, result.data.customToken)
+      } else await signInAnonymously(auth)
       setEntered(true)
+      setShowMasterUnlock(false)
       window.history.pushState({ cheongsajinView: 'dashboard' }, '', '#dashboard')
     } catch (error) {
       console.error(error)
-      setEntryError('연결에 실패했어요. 잠시 후 다시 시도해 주세요.')
+      const errorCode = typeof error === 'object' && error && 'code' in error ? String(error.code) : ''
+      if (errorCode.includes('resource-exhausted')) {
+        setShowMasterUnlock(true)
+        setEntryError('PIN 입력이 15분간 잠겼어요. 관리자 코드로 바로 해제할 수 있어요.')
+      } else setEntryError(isStaff ? '이름 또는 PIN 번호가 올바르지 않아요.' : '연결에 실패했어요. 잠시 후 다시 시도해 주세요.')
     } finally {
       setIsEntering(false)
     }
@@ -470,6 +485,21 @@ function App() {
     setActiveSession(sessionNumber)
     const view = mode === 'activity' ? `activity-${sessionNumber}` : `session-${sessionNumber}`
     window.history.pushState({ cheongsajinView: view }, '', `#${view}`)
+  }
+  const unlockStaff = async () => {
+    if (!functions || !name.trim() || !masterCode.trim()) return
+    setIsUnlocking(true)
+    setEntryError('')
+    try {
+      const unlock = httpsCallable<{ name: string; masterCode: string }, { unlocked: boolean }>(functions, 'unlockStaffAccount')
+      await unlock({ name: name.trim(), masterCode: masterCode.trim() })
+      setShowMasterUnlock(false)
+      setMasterCode('')
+      setEntryError('잠금이 해제됐어요. 멘토 PIN으로 다시 로그인해 주세요.')
+    } catch (error) {
+      console.error(error)
+      setEntryError('관리자 코드를 확인해 주세요.')
+    } finally { setIsUnlocking(false) }
   }
   const openSecondActivity = (step: number) => {
     setActiveSecondActivity(step)
@@ -495,9 +525,10 @@ function App() {
         <form onSubmit={enter}>
           <label>학교<select value={school} onChange={(e) => { setSchool(e.target.value); setEntryError('') }}><option value="">학교를 선택하세요</option><option value="yesan-high">예산고등학교</option><option value="gwangsi-middle">광시중학교</option><option value="staff">멘토/관리자</option></select></label>
           <label>이름<input value={name} onChange={(e) => { setName(e.target.value); setEntryError('') }} placeholder="이름을 입력해 주세요" autoComplete="name" /></label>
-          <label>PIN 번호<input value={pin} onChange={(e) => { setPin(e.target.value); setEntryError('') }} placeholder="PIN 번호를 입력해 주세요" maxLength={4} type="password" autoComplete="current-password" /></label>
+          <label>PIN 번호<input value={pin} onChange={(e) => { setPin(e.target.value.replace(/\D/g, '')); setEntryError('') }} placeholder={school === 'staff' ? '6자리 PIN 번호' : 'PIN 번호를 입력해 주세요'} maxLength={school === 'staff' ? 6 : 4} inputMode="numeric" type="password" autoComplete="current-password" /></label>
           <button type="submit" disabled={isEntering || !isFirebaseConfigured}>{isEntering ? '안전하게 연결하는 중…' : '나의 활동실로 들어가기'} {!isEntering && <span>→</span>}</button>
           {entryError && <p className="entry-error" role="alert">{entryError}</p>}
+          {school === 'staff' && showMasterUnlock && <div className="master-unlock"><label>관리자 잠금 해제 코드<input value={masterCode} onChange={(event) => setMasterCode(event.target.value.replace(/\D/g, ''))} type="password" inputMode="numeric" maxLength={8} placeholder="관리자 코드" /></label><button type="button" onClick={unlockStaff} disabled={isUnlocking || !masterCode}>{isUnlocking ? '잠금 해제 중…' : '잠금 바로 해제하기'}</button></div>}
         </form>
         <p className="privacy-note">🔒 입력한 정보는 활동 참여 확인에만 사용해요.</p>
         </section>
