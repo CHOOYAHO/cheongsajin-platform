@@ -60,6 +60,114 @@ function PartnerFooter() {
   )
 }
 
+type AuctionPhase = 'lobby' | 'waiting' | 'voting' | 'auction' | 'sold'
+
+const auctionJobs = ['의사', '소방관', '교사', '경찰관', '유튜브 크리에이터', '게임 개발자', '요리사', '간호사']
+const auctionStrengths = ['위기대처능력', '문제해결력', '의사소통능력', '협업능력', '문제해결력', '창의성', '위기대처능력', '문제해결력']
+
+function StrengthAuctionGame({ studentName }: { studentName: string }) {
+  const [phase, setPhase] = useState<AuctionPhase>('lobby')
+  const [role, setRole] = useState<'host' | 'participant'>('participant')
+  const [roomCode, setRoomCode] = useState('')
+  const [joinCode, setJoinCode] = useState('')
+  const [initialMoney, setInitialMoney] = useState(1000)
+  const [bidLimit, setBidLimit] = useState(10)
+  const [itemLimit, setItemLimit] = useState(8)
+  const [voteTime, setVoteTime] = useState(15)
+  const [selectedJob, setSelectedJob] = useState('')
+  const [auctionIndex, setAuctionIndex] = useState(0)
+  const [auctionTime, setAuctionTime] = useState(10)
+  const [currentPrice, setCurrentPrice] = useState(200)
+  const [highestBidder, setHighestBidder] = useState('지민')
+  const [balance, setBalance] = useState(1000)
+  const [inventory, setInventory] = useState<Record<string, number>>({})
+  const currentStrength = auctionStrengths[auctionIndex % auctionStrengths.length]
+  const myName = studentName || '참가자'
+  const myStrengthLevel = inventory[currentStrength] ?? 0
+  const rarity = (count: number) => count >= 3 ? 'EPIC' : count === 2 ? 'RARE' : 'NORMAL'
+
+  const createRoom = () => {
+    setRole('host')
+    setRoomCode(String(Math.floor(100000 + Math.random() * 900000)))
+    setPhase('waiting')
+  }
+  const joinRoom = () => {
+    if (joinCode.trim().length < 4) return
+    setRole('participant')
+    setRoomCode(joinCode.trim().toUpperCase())
+    setPhase('waiting')
+  }
+  const startVote = () => {
+    setBalance(initialMoney)
+    setVoteTime(15)
+    setPhase('voting')
+  }
+  const finishVote = () => {
+    setSelectedJob((current) => current || auctionJobs[Math.floor(Math.random() * auctionJobs.length)])
+    setAuctionTime(bidLimit)
+    setPhase('auction')
+  }
+  const placeBid = (amount: number) => {
+    if (amount <= currentPrice || amount > balance || myStrengthLevel >= 3) return
+    setCurrentPrice(amount)
+    setHighestBidder(myName)
+    if (auctionTime <= 2) setAuctionTime(5)
+  }
+  const nextAuction = () => {
+    setAuctionIndex((current) => current + 1)
+    setCurrentPrice(200)
+    setHighestBidder('지민')
+    setAuctionTime(bidLimit)
+    setPhase('auction')
+  }
+
+  useEffect(() => {
+    if (phase !== 'voting') return
+    if (voteTime <= 0) {
+      finishVote()
+      return
+    }
+    const timer = window.setTimeout(() => setVoteTime((current) => current - 1), 1000)
+    return () => window.clearTimeout(timer)
+  }, [phase, voteTime])
+
+  useEffect(() => {
+    if (phase !== 'auction') return
+    if (auctionTime <= 0) {
+      if (highestBidder === myName) {
+        setBalance((current) => current - currentPrice)
+        setInventory((current) => ({ ...current, [currentStrength]: Math.min(3, (current[currentStrength] ?? 0) + 1) }))
+      }
+      setPhase('sold')
+      return
+    }
+    const timer = window.setTimeout(() => setAuctionTime((current) => current - 1), 1000)
+    return () => window.clearTimeout(timer)
+  }, [phase, auctionTime, highestBidder, myName, currentPrice, currentStrength])
+
+  if (phase === 'lobby') return <div className="auction-lobby">
+    <div className="auction-title"><span>🔨</span><h2>강점 경매장</h2><p>선택한 직업에 필요한 강점을 전략적으로 낙찰받아 보세요.</p></div>
+    <div className="auction-entry-grid"><article><span>방장</span><h3>새 게임방 만들기</h3><p>참가자를 초대하고 금액·시간·상품 수를 설정해요.</p><button type="button" onClick={createRoom}>방 만들기 →</button></article><article><span>참가자</span><h3>게임방 입장하기</h3><p>방장이 알려준 코드를 입력해 주세요.</p><input value={joinCode} onChange={(event) => setJoinCode(event.target.value)} placeholder="방 코드 입력" maxLength={6} /><button type="button" onClick={joinRoom} disabled={joinCode.trim().length < 4}>입장하기 →</button></article></div>
+    <div className="prototype-notice"><b>1차 프로토타입</b><p>현재는 한 기기에서 게임 흐름과 규칙을 시험하는 화면이에요. 실제 여러 기기 접속은 다음 단계에서 Firestore 실시간 방으로 연결해요.</p></div>
+  </div>
+
+  if (phase === 'waiting') return <div className="auction-waiting">
+    <div className="room-summary"><div><span>방 코드</span><strong>{roomCode}</strong></div><div><span>참가자</span><strong>4 / 20명</strong></div><div><span>내 닉네임</span><strong>{myName}</strong></div></div>
+    {role === 'host' ? <><div className="waiting-columns"><section><div className="auction-section-title"><h3>참가자 목록</h3><span>모두 접속 중</span></div><ul className="participant-list"><li><i />{myName}<b>방장</b></li><li><i />지민<span>접속</span></li><li><i />서준<span>접속</span></li><li><i />하은<span>접속</span></li></ul></section><section><div className="auction-section-title"><h3>게임 설정</h3><span>방장 전용</span></div><div className="auction-settings"><label>참가 가능 인원<input value={20} disabled /></label><label>초기 보유금액<input type="number" value={initialMoney} onChange={(event) => setInitialMoney(Number(event.target.value))} /></label><label>상품당 제한시간<select value={bidLimit} onChange={(event) => setBidLimit(Number(event.target.value))}><option value={7}>7초</option><option value={10}>10초</option><option value={15}>15초</option></select></label><label>총 경매 상품 수<input type="number" min={4} max={20} value={itemLimit} onChange={(event) => setItemLimit(Number(event.target.value))} /></label><label>직업 선택 방식<input value="참가자 15초 투표" disabled /></label></div></section></div><button type="button" className="auction-primary wide" onClick={startVote}>게임 시작 →</button></> : <div className="participant-wait"><div className="waiting-pulse">●</div><h3>방장이 게임을 준비하고 있습니다.</h3><p>참가자 4 / 20명 · 방 코드 {roomCode}</p><button type="button" className="auction-primary" onClick={startVote}>프로토타입 게임 진행 보기 →</button></div>}
+  </div>
+
+  if (phase === 'voting') return <div className="job-vote"><div className="auction-countdown"><b>{voteTime}</b><span>초</span></div><p>이번 게임의 목표 직업</p><h2>{selectedJob || '어떤 직업의 역량을 모을까요?'}</h2><span>원하는 직업을 하나 선택하세요. 최다 득표 직업으로 경매를 시작해요.</span><div className="job-options">{auctionJobs.map((job) => <button type="button" className={selectedJob === job ? 'selected' : ''} onClick={() => setSelectedJob(job)} key={job}>{job}</button>)}</div><div className="vote-actions"><button type="button" className="random-job" onClick={() => setSelectedJob(auctionJobs[Math.floor(Math.random() * auctionJobs.length)])}>🎲 랜덤 선택</button><button type="button" className="auction-primary" onClick={finishVote}>투표 마감·경매 시작 →</button></div></div>
+
+  if (phase === 'sold') {
+    const wonByMe = highestBidder === myName
+    const nextLevel = wonByMe ? Math.min(3, myStrengthLevel + 1) : myStrengthLevel
+    return <div className="sold-screen"><span className="hammer-hit">🔨</span><p>낙찰!</p><h2>{currentStrength}</h2><div className="sold-price"><b>{highestBidder}</b><strong>{currentPrice}P</strong></div>{wonByMe && <div className={`upgrade-card rarity-${rarity(nextLevel).toLowerCase()}`}><span>{nextLevel > 1 ? '✨ 등급 강화!' : '새로운 강점 획득!'}</span><h3>{currentStrength}</h3><b>{rarity(nextLevel)}</b></div>}<button type="button" className="auction-primary" onClick={nextAuction} disabled={auctionIndex + 1 >= itemLimit}>{auctionIndex + 1 >= itemLimit ? '경매 종료' : '다음 상품 →'}</button></div>
+  }
+
+  const bidOptions = [currentPrice + 50, currentPrice + 100, currentPrice + 150]
+  return <div className="auction-stage"><div className="auction-topline"><span>{auctionIndex + 1} / {itemLimit} 상품</span><b>목표 직업 · {selectedJob}</b></div><div className="auction-product"><div className={`auction-clock ${auctionTime <= 3 ? 'urgent' : ''}`}><b>{auctionTime}</b><span>초</span></div><span>지금 필요한 강점</span><h2>🔨 {currentStrength}</h2>{myStrengthLevel >= 3 && <p className="epic-block">🌟 최고 등급을 보유하고 있어 입찰할 수 없어요.</p>}<div className="current-bid"><span>현재가</span><strong>{currentPrice}P</strong><small>최고 입찰자 · {highestBidder}</small></div><div className="bid-buttons">{bidOptions.map((amount) => <button type="button" onClick={() => placeBid(amount)} disabled={amount > balance || myStrengthLevel >= 3} key={amount}>{amount}P</button>)}</div><p className="anti-snipe">종료 2초 전 새 입찰이 들어오면 시간이 5초로 연장돼요.</p></div><aside className="auction-player"><div><span>{myName}</span><strong>💰 {balance}P</strong></div><h3>보유 역량</h3>{Object.keys(inventory).length ? <ul>{Object.entries(inventory).map(([strength, count]) => <li key={strength}><span>{strength}</span><b className={`rarity-${rarity(count).toLowerCase()}`}>{rarity(count)}</b></li>)}</ul> : <p>아직 낙찰받은 역량이 없어요.</p>}</aside></div>
+}
+
 function SecondActivityDetail({ step, schoolName, studentName, onLeave }: { step: number; schoolName: string; studentName: string; onLeave: () => void }) {
   const [gameStarted, setGameStarted] = useState(false)
   const [areaIndex, setAreaIndex] = useState(0)
@@ -96,7 +204,7 @@ function SecondActivityDetail({ step, schoolName, studentName, onLeave }: { step
   const detailContent = [
     { eyebrow: 'STEP 1', title: '활동 안내', subtitle: '나의 선택에는 정답이 없어요', icon: '🧭', description: '선호와 비선호가 사람마다 다르다는 점을 이해하고, 오늘 진행할 네 가지 활동의 흐름을 확인해요.' },
     { eyebrow: 'STEP 2', title: '나의 선호 탐색', subtitle: '좋아, 싫어!', icon: '👍', description: '여러 활동과 상황을 빠르게 살펴보며 지금 내 생각과 가장 가까운 답을 선택해요.' },
-    { eyebrow: 'STEP 3', title: '나의 강점 탐색', subtitle: '내 경험 속 강점 단서 찾기', icon: '✨', description: '내가 잘했거나 뿌듯했던 경험을 떠올리고, 그 안에서 반복해서 나타나는 나의 강점을 찾아요.' },
+    { eyebrow: 'STEP 3', title: '나의 강점 탐색', subtitle: '강점 경매장', icon: '🔨', description: '직업에 필요한 강점을 전략적으로 낙찰받고, 같은 강점을 모아 더 높은 등급으로 강화해요.' },
     { eyebrow: 'STEP 4', title: '활동 마무리', subtitle: '오늘 발견한 나를 내 말로 정리하기', icon: '📝', description: '선호와 강점 활동에서 새롭게 알게 된 나의 모습을 짧은 문장으로 남겨요.' },
   ][step - 1]
 
@@ -133,7 +241,7 @@ function SecondActivityDetail({ step, schoolName, studentName, onLeave }: { step
           {gameStarted && isGameComplete && <div className="preference-summary"><span className="complete-symbol">✓</span><h2>24개 선택을 모두 마쳤어요!</h2><p>좋아하거나 싫어한다고 선택한 활동을 한눈에 살펴보세요. <b>고민돼요 {selectedQuestions('unsure').length}개</b></p><div className="summary-columns"><div><h3>👍 좋아!</h3>{selectedQuestions('like').length ? <ul>{selectedQuestions('like').map((question) => <li key={question}>{question}</li>)}</ul> : <p>선택한 항목이 없어요.</p>}</div><div><h3>👎 싫어!</h3>{selectedQuestions('dislike').length ? <ul>{selectedQuestions('dislike').map((question) => <li key={question}>{question}</li>)}</ul> : <p>선택한 항목이 없어요.</p>}</div></div><div className="next-build-note"><b>다음 개발 단계</b><p>각 목록에서 핵심 항목 최대 3개 고르기 → 자유입력 → 개인 결과 → 전체 워드클라우드 순서로 이어질 예정이에요.</p></div><button type="button" className="restart-button" onClick={() => { setResponses({}); setAreaIndex(0); setQuestionIndex(0); setGameStarted(false) }}>처음부터 다시 하기</button></div>}
         </section>}
 
-        {step === 3 && <section className="detail-panel"><div className="detail-heading"><span>활동 틀</span><h2>경험에서 강점의 단서를 찾아요</h2><p>세부 문항이 정해지면 이 흐름에 맞춰 입력·저장 기능을 연결할 예정이에요.</p></div><div className="strength-flow"><article><span>1</span><h3>기억 꺼내기</h3><p>최근에 잘했거나 뿌듯했던 경험을 떠올려요.</p></article><article><span>2</span><h3>내가 한 행동 찾기</h3><p>그때 내가 어떤 행동을 했는지 구체적으로 적어요.</p></article><article><span>3</span><h3>강점 이름 붙이기</h3><p>그 행동에서 드러난 나의 힘을 한 단어로 정리해요.</p></article></div><label className="draft-field">기억에 남는 경험<textarea placeholder="예: 친구들과 축제 준비를 하며 역할을 정리하고 일정을 맞췄다." /></label></section>}
+        {step === 3 && <section className="detail-panel auction-panel"><StrengthAuctionGame studentName={studentName} /></section>}
 
         {step === 4 && <section className="detail-panel"><div className="detail-heading"><span>활동 틀</span><h2>오늘 발견한 나를 정리해요</h2><p>완성된 문장은 이후 개인 결과 화면과 포트폴리오에 연결할 예정이에요.</p></div><div className="reflection-fields"><label>나는 <input placeholder="어떤 활동을" /> 할 때 즐겁다.</label><label>나는 <input placeholder="어떤 활동이나 상황을" /> 하는 것은 별로 좋아하지 않는다.</label><label>「좋아! 싫어!」를 통해 새롭게 발견한 나의 모습<textarea placeholder="오늘 새롭게 알게 된 점을 자유롭게 적어보세요." /></label></div><button type="button" className="disabled-save" disabled>저장 기능 준비 중</button></section>}
       </main>
@@ -357,7 +465,7 @@ function App() {
             <div className="placeholder-grid">
               <button type="button" className="placeholder-card" onClick={() => openSecondActivity(1)}><span>1</span><div><h3>활동 안내</h3><p>활동의 목적과 진행 방법을 먼저 확인해요.</p></div><b>열기 →</b></button>
               <button type="button" className="placeholder-card featured" onClick={() => openSecondActivity(2)}><span>2</span><div><h3>나의 선호 탐색</h3><strong>좋아, 싫어!</strong><p>24가지 활동과 상황에 대한 내 마음을 선택해요.</p></div><b>게임 시작 →</b></button>
-              <button type="button" className="placeholder-card" onClick={() => openSecondActivity(3)}><span>3</span><div><h3>나의 강점 탐색</h3><p>경험 속에서 나의 강점 단서를 발견해요.</p></div><b>열기 →</b></button>
+              <button type="button" className="placeholder-card featured" onClick={() => openSecondActivity(3)}><span>3</span><div><h3>나의 강점 탐색</h3><strong>강점 경매장</strong><p>직업에 필요한 강점을 입찰하고 강화해요.</p></div><b>게임 시작 →</b></button>
               <button type="button" className="placeholder-card" onClick={() => openSecondActivity(4)}><span>4</span><div><h3>활동 마무리</h3><p>오늘 새롭게 발견한 나의 모습을 정리해요.</p></div><b>열기 →</b></button>
             </div>
           </section>
