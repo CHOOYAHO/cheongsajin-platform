@@ -253,6 +253,7 @@ function SecondActivityDetail({ step, schoolName, studentName, onLeave }: { step
   const [questionIndex, setQuestionIndex] = useState(0)
   const [remainingMs, setRemainingMs] = useState(7000)
   const [responses, setResponses] = useState<Record<string, PreferenceChoice>>({})
+  const [resultSaveState, setResultSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
   const area = preferenceAreas[areaIndex]
   const isGameComplete = areaIndex >= preferenceAreas.length
   const currentQuestion = area?.questions[questionIndex]
@@ -268,6 +269,33 @@ function SecondActivityDetail({ step, schoolName, studentName, onLeave }: { step
     else {
       setQuestionIndex(0)
       setAreaIndex((current) => current + 1)
+    }
+  }
+
+  const submitPreferenceResult = async () => {
+    if (!db || !auth?.currentUser) {
+      setResultSaveState('error')
+      return
+    }
+    setResultSaveState('saving')
+    try {
+      await setDoc(doc(db, 'preferenceResults', auth.currentUser.uid), {
+        userId: auth.currentUser.uid,
+        schoolName,
+        responses,
+        questionDuration,
+        summary: {
+          like: selectedQuestions('like').length,
+          neutral: selectedQuestions('neutral').length,
+          dislike: selectedQuestions('dislike').length,
+          unsure: selectedQuestions('unsure').length,
+        },
+        updatedAt: serverTimestamp(),
+      })
+      setResultSaveState('saved')
+    } catch (error) {
+      console.error(error)
+      setResultSaveState('error')
     }
   }
 
@@ -325,7 +353,7 @@ function SecondActivityDetail({ step, schoolName, studentName, onLeave }: { step
               <p>{questionDuration}초 안에 선택하지 않으면 <b>🤔 고민돼요</b>로 기록하고 다음 질문으로 넘어가요.</p>
             </article>
           </div>}
-          {gameStarted && isGameComplete && <div className="preference-summary"><span className="complete-symbol">✓</span><h2>24개 선택을 모두 마쳤어요!</h2><p>좋아하거나 싫어한다고 선택한 활동을 한눈에 살펴보세요. <b>고민돼요 {selectedQuestions('unsure').length}개</b></p><div className="summary-columns"><div><h3>👍 좋아!</h3>{selectedQuestions('like').length ? <ul>{selectedQuestions('like').map((question) => <li key={question}>{question}</li>)}</ul> : <p>선택한 항목이 없어요.</p>}</div><div><h3>👎 싫어!</h3>{selectedQuestions('dislike').length ? <ul>{selectedQuestions('dislike').map((question) => <li key={question}>{question}</li>)}</ul> : <p>선택한 항목이 없어요.</p>}</div></div><div className="next-build-note"><b>다음 개발 단계</b><p>각 목록에서 핵심 항목 최대 3개 고르기 → 자유입력 → 개인 결과 → 전체 워드클라우드 순서로 이어질 예정이에요.</p></div><button type="button" className="restart-button" onClick={() => { setResponses({}); setAreaIndex(0); setQuestionIndex(0); setIsPaused(false); setGameStarted(false) }}>처음부터 다시 하기</button></div>}
+          {gameStarted && isGameComplete && <div className="preference-summary"><span className="complete-symbol">✓</span><h2>24개 선택을 모두 마쳤어요!</h2><p>좋아하거나 싫어한다고 선택한 활동을 한눈에 살펴보세요. <b>고민돼요 {selectedQuestions('unsure').length}개</b></p><div className="summary-columns"><div><h3>👍 좋아!</h3>{selectedQuestions('like').length ? <ul>{selectedQuestions('like').map((question) => <li key={question}>{question}</li>)}</ul> : <p>선택한 항목이 없어요.</p>}</div><div><h3>👎 싫어!</h3>{selectedQuestions('dislike').length ? <ul>{selectedQuestions('dislike').map((question) => <li key={question}>{question}</li>)}</ul> : <p>선택한 항목이 없어요.</p>}</div></div><div className="next-build-note"><b>다음 개발 단계</b><p>각 목록에서 핵심 항목 최대 3개 고르기 → 자유입력 → 개인 결과 → 전체 워드클라우드 순서로 이어질 예정이에요.</p></div><div className="result-save-notice"><b>계정당 하나의 결과만 저장돼요.</b><p>이전에 제출한 결과가 있다면 이번 결과로 덮어씌워집니다.</p></div>{resultSaveState === 'saved' && <p className="save-message success" role="status">✓ 결과가 저장됐어요.</p>}{resultSaveState === 'error' && <p className="save-message error" role="alert">결과를 저장하지 못했어요. 잠시 후 다시 시도해 주세요.</p>}<div className="result-actions"><button type="button" className="restart-button" onClick={() => { setResponses({}); setAreaIndex(0); setQuestionIndex(0); setIsPaused(false); setResultSaveState('idle'); setGameStarted(false) }}>다시 하기</button><button type="button" className="submit-result-button" disabled={resultSaveState === 'saving'} onClick={submitPreferenceResult}>{resultSaveState === 'saving' ? '저장하는 중…' : resultSaveState === 'saved' ? '결과 다시 제출하기' : '결과 제출하기'}</button></div></div>}
         </section>}
 
         {step === 3 && <section className="detail-panel auction-panel"><StrengthAuctionGame studentName={studentName} /></section>}

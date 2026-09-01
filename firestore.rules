@@ -38,6 +38,13 @@ service cloud.firestore {
       allow update, delete: if isAdmin();
     }
 
+    match /preferenceResults/{userId} {
+      allow read: if isOwner(userId);
+      allow create, update: if isOwner(userId)
+        && request.resource.data.userId == request.auth.uid;
+      allow delete: if false;
+    }
+
     match /auctionRooms/{roomId} {
       allow create: if signedIn()
         && request.resource.data.hostId == request.auth.uid
