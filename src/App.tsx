@@ -28,8 +28,8 @@ const firstSessionActivities = [
 ]
 
 const testParticipants = [
-  { school: 'yesan-high', name: 'ㅇ', pin: 'd' },
-  { school: 'gwangsi-middle', name: 'ㅇ', pin: 'd' },
+  { school: 'yesan-high', name: '1', pin: '1' },
+  { school: 'gwangsi-middle', name: '1', pin: '1' },
 ]
 
 function PartnerFooter() {
