@@ -27,6 +27,11 @@ const firstSessionActivities = [
   { duration: '10분', title: '활동 마무리', description: '궁금한 점을 나누고 다음 회기인 선호와 강점 탐색 활동을 확인했어요.' },
 ]
 
+const testParticipants = [
+  { school: 'yesan-high', name: 'ㅇ', pin: 'ㅇ' },
+  { school: 'gwangsi-middle', name: 'ㅇ', pin: 'ㅇ' },
+]
+
 function PartnerFooter() {
   return (
     <footer className="partner-footer">
@@ -105,6 +110,11 @@ function App() {
       setEntryError('PIN 번호를 입력해 주세요.')
       return
     }
+    const isRegistered = testParticipants.some((participant) => participant.school === school && participant.name === name.trim() && participant.pin === pin.trim())
+    if (!isRegistered) {
+      setEntryError('등록된 정보와 일치하지 않습니다. 학교, 이름, PIN 번호를 확인해 주세요.')
+      return
+    }
     setIsEntering(true)
     setEntryError('')
     try {
@@ -145,7 +155,7 @@ function App() {
         <form onSubmit={enter}>
           <label>학교<select value={school} onChange={(e) => { setSchool(e.target.value); setEntryError('') }}><option value="">학교를 선택하세요</option><option value="yesan-high">예산고등학교</option><option value="gwangsi-middle">광시중학교</option></select></label>
           <label>이름<input value={name} onChange={(e) => { setName(e.target.value); setEntryError('') }} placeholder="이름을 입력해 주세요" autoComplete="name" /></label>
-          <label>PIN 번호<input value={pin} onChange={(e) => { setPin(e.target.value); setEntryError('') }} placeholder="숫자 4자리" inputMode="numeric" maxLength={4} type="password" autoComplete="current-password" /></label>
+          <label>PIN 번호<input value={pin} onChange={(e) => { setPin(e.target.value); setEntryError('') }} placeholder="PIN 번호를 입력해 주세요" maxLength={4} type="password" autoComplete="current-password" /></label>
           <button type="submit" disabled={isEntering || !isFirebaseConfigured}>{isEntering ? '안전하게 연결하는 중…' : '나의 활동실로 들어가기'} {!isEntering && <span>→</span>}</button>
           {entryError && <p className="entry-error" role="alert">{entryError}</p>}
         </form>
