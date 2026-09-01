@@ -455,7 +455,7 @@ function App() {
       if (isStaff) {
         if (!functions) throw new Error('Firebase Functions configuration is missing')
         await signInAnonymously(auth)
-        const loginStaff = httpsCallable<{ name: string; pin: string }, { role: 'mentor' | 'admin'; displayName: string }>(functions, 'staffLogin')
+        const loginStaff = httpsCallable<{ name: string; pin: string }, { role: 'mentor' | 'teacher' | 'admin'; displayName: string }>(functions, 'staffLogin')
         await loginStaff({ name: name.trim(), pin: pin.trim() })
       } else await signInAnonymously(auth)
       setEntered(true)

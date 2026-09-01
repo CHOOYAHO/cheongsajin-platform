@@ -22,8 +22,10 @@ const staffDirectory = {
   '김승주': { number: '50', role: 'mentor' },
   '이영우': { number: '60', role: 'mentor' },
   '추규한': { number: '70', role: 'mentor' },
-  '관리자1': { number: '80', role: 'admin' },
-  '관리자2': { number: '90', role: 'admin' },
+  '관리자1': { number: '80', role: 'admin', storageKey: '80' },
+  '관리자2': { number: '90', role: 'admin', storageKey: '90' },
+  '예산고': { number: '80', role: 'teacher', storageKey: 'teacher-yesan-high' },
+  '광시중': { number: '90', role: 'teacher', storageKey: 'teacher-gwangsi-middle' },
 }
 
 const normalizeName = (value) => String(value ?? '').trim().replaceAll(' ', '')
@@ -42,20 +44,14 @@ const createPin = (number, used) => {
   }
 }
 
-export const bootstrapStaffAccounts = onCall({ secrets: [pinPepper, masterUnlockCode] }, async (request) => {
-  if (!safeEqual(request.data?.masterCode, masterUnlockCode.value())) throw new HttpsError('permission-denied', '관리자 코드가 올바르지 않습니다.')
-  const setupRef = db.doc('system/staffAccountSetup')
-  if ((await setupRef.get()).exists) throw new HttpsError('already-exists', '계정 발급이 이미 완료되었습니다.')
-
-  const used = new Set()
-  const credentials = []
-  const batch = db.batch()
-  for (const [displayName, account] of Object.entries(staffDirectory)) {
-    const pin = createPin(account.number, used)
-    used.add(pin)
-    const pinSalt = randomBytes(16).toString('hex')
-    const pinHash = await hashPin(pin, pinSalt)
-    batch.set(db.doc(`staffAccounts/${account.number}`), {
+const createAccount = async (displayName, account, used) => {
+  const pin = createPin(account.number, used)
+  used.add(pin)
+  const pinSalt = randomBytes(16).toString('hex')
+  const pinHash = await hashPin(pin, pinSalt)
+  return {
+    credential: { displayName, accountNumber: account.number, role: account.role, pin },
+    record: {
       displayName,
       accountNumber: account.number,
       role: account.role,
@@ -66,8 +62,41 @@ export const bootstrapStaffAccounts = onCall({ secrets: [pinPepper, masterUnlock
       active: true,
       createdAt: FieldValue.serverTimestamp(),
       updatedAt: FieldValue.serverTimestamp(),
-    })
-    credentials.push({ displayName, accountNumber: account.number, role: account.role, pin })
+    },
+  }
+}
+
+export const bootstrapStaffAccounts = onCall({ secrets: [pinPepper, masterUnlockCode] }, async (request) => {
+  if (!safeEqual(request.data?.masterCode, masterUnlockCode.value())) throw new HttpsError('permission-denied', '관리자 코드가 올바르지 않습니다.')
+  const setupRef = db.doc('system/staffAccountSetup')
+  if ((await setupRef.get()).exists) throw new HttpsError('already-exists', '계정 발급이 이미 완료되었습니다.')
+
+  const used = new Set()
+  const credentials = []
+  const batch = db.batch()
+  for (const [displayName, account] of Object.entries(staffDirectory)) {
+    const created = await createAccount(displayName, account, used)
+    batch.set(db.doc(`staffAccounts/${account.storageKey ?? account.number}`), created.record)
+    credentials.push(created.credential)
+  }
+  batch.create(setupRef, { completedAt: FieldValue.serverTimestamp(), accountCount: credentials.length })
+  await batch.commit()
+  return { credentials }
+})
+
+export const bootstrapTeacherAccounts = onCall({ secrets: [pinPepper, masterUnlockCode] }, async (request) => {
+  if (!safeEqual(request.data?.masterCode, masterUnlockCode.value())) throw new HttpsError('permission-denied', '관리자 코드가 올바르지 않습니다.')
+  const setupRef = db.doc('system/teacherAccountSetup')
+  if ((await setupRef.get()).exists) throw new HttpsError('already-exists', '교사용 계정 발급이 이미 완료되었습니다.')
+
+  const teachers = Object.entries(staffDirectory).filter(([, account]) => account.role === 'teacher')
+  const used = new Set()
+  const credentials = []
+  const batch = db.batch()
+  for (const [displayName, account] of teachers) {
+    const created = await createAccount(displayName, account, used)
+    batch.create(db.doc(`staffAccounts/${account.storageKey}`), created.record)
+    credentials.push(created.credential)
   }
   batch.create(setupRef, { completedAt: FieldValue.serverTimestamp(), accountCount: credentials.length })
   await batch.commit()
@@ -80,7 +109,7 @@ export const staffLogin = onCall({ secrets: [pinPepper] }, async (request) => {
   const pin = String(request.data?.pin ?? '')
   const account = staffDirectory[displayName]
   if (!account || !/^\d{6}$/.test(pin)) throw new HttpsError('invalid-argument', '이름 또는 PIN이 올바르지 않습니다.')
-  const accountRef = db.doc(`staffAccounts/${account.number}`)
+  const accountRef = db.doc(`staffAccounts/${account.storageKey ?? account.number}`)
 
   const verified = await db.runTransaction(async (transaction) => {
     const snapshot = await transaction.get(accountRef)
@@ -122,6 +151,6 @@ export const unlockStaffAccount = onCall({ secrets: [masterUnlockCode] }, async 
   const displayName = normalizeName(request.data?.name)
   const account = staffDirectory[displayName]
   if (!account) throw new HttpsError('not-found', '계정을 찾을 수 없습니다.')
-  await db.doc(`staffAccounts/${account.number}`).update({ failedAttempts: 0, lockedUntil: null, unlockedAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() })
+  await db.doc(`staffAccounts/${account.storageKey ?? account.number}`).update({ failedAttempts: 0, lockedUntil: null, unlockedAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() })
   return { unlocked: true }
 })
