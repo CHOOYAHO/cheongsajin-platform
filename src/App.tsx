@@ -5,7 +5,7 @@ import { collection, doc, getDoc, onSnapshot, serverTimestamp, setDoc, updateDoc
 import { httpsCallable } from 'firebase/functions'
 import './App.css'
 import { auth, db, functions, isFirebaseConfigured } from './lib/firebase'
-import { auctionJobs, createAuctionDeck, jobStrengthProfiles } from './data/auction'
+import { auctionJobs, jobStrengthProfiles } from './data/auction'
 import chungcheongnamdoLogo from './assets/chungcheongnamdo.png'
 import educationOfficeLogo from './assets/chungnam-education-office.png'
 import socialServiceLogo from './assets/chungnam-social-service.png'
@@ -16,8 +16,8 @@ type SessionTemplate = Omit<Session, 'status'>
 type PreferenceChoice = 'like' | 'neutral' | 'dislike' | 'unsure'
 type PreferenceArea = { id: string; tag: 'R' | 'I' | 'A' | 'S' | 'E' | 'C'; title: string; icon: string; guide: string; questions: string[] }
 type GuidePage = 'program' | 'profile' | 'mentors' | 'center'
-type ProfilePayload = { introduction: string; interests: string; hopeJob: string; schoolMajor: string; majorReason: string; careerInterests: string; campusLife: string; strengths: string; message: string }
-type MentorProfile = { id: string; displayName: string; schoolMajor?: string; interests?: string; majorReason?: string; careerInterests?: string; campusLife?: string; strengths?: string; message?: string; major?: string; university?: string; introduction?: string; careerStory?: string }
+type ProfilePayload = { introduction: string; interests: string; hopeJob: string; oneLineIntro: string; schoolMajor: string; majorReason: string; careerInterests: string; campusLife: string; strengths: string; message: string }
+type MentorProfile = { id: string; displayName: string; oneLineIntro?: string; schoolMajor?: string; interests?: string; majorReason?: string; careerInterests?: string; campusLife?: string; strengths?: string; message?: string; major?: string; university?: string; introduction?: string; careerStory?: string }
 const sessionTemplates: SessionTemplate[] = [
   { number: 1, title: '청사진을 위한 첫 만남', subtitle: '나와 멘토, 새로운 가능성을 만나요', icon: '👋' },
   { number: 2, title: '선호와 강점 탐색', subtitle: '좋아하는 것과 나만의 강점을 발견해요', icon: '✨' },
@@ -69,6 +69,7 @@ function ProfileEditor({ kind, displayName, schoolName, existing, onSave }: { ki
   const [introduction, setIntroduction] = useState('')
   const [interests, setInterests] = useState('')
   const [hopeJob, setHopeJob] = useState('')
+  const [oneLineIntro, setOneLineIntro] = useState('')
   const [schoolMajor, setSchoolMajor] = useState('')
   const [majorReason, setMajorReason] = useState('')
   const [careerInterests, setCareerInterests] = useState('')
@@ -79,6 +80,7 @@ function ProfileEditor({ kind, displayName, schoolName, existing, onSave }: { ki
 
   useEffect(() => {
     if (!existing) return
+    setOneLineIntro(existing.oneLineIntro ?? '')
     setSchoolMajor(existing.schoolMajor ?? [existing.university, existing.major].filter(Boolean).join(' / '))
     setInterests(existing.interests ?? '')
     setMajorReason(existing.majorReason ?? '')
@@ -92,7 +94,7 @@ function ProfileEditor({ kind, displayName, schoolName, existing, onSave }: { ki
     event.preventDefault()
     setSaveState('saving')
     try {
-      await onSave({ introduction, interests, hopeJob, schoolMajor, majorReason, careerInterests, campusLife, strengths, message })
+      await onSave({ introduction, interests, hopeJob, oneLineIntro, schoolMajor, majorReason, careerInterests, campusLife, strengths, message })
       setSaveState('saved')
     } catch (error) {
       console.error(error)
@@ -102,13 +104,14 @@ function ProfileEditor({ kind, displayName, schoolName, existing, onSave }: { ki
 
   return <form className="profile-editor" onSubmit={submit}>
     <div className="profile-identity"><span>{kind === 'mentor' ? '🤝' : '👤'}</span><div><small>{kind === 'mentor' ? '멘토/관리자 프로필' : schoolName}</small><h2>{displayName}</h2></div></div>
-    {kind === 'mentor' ? <div className="profile-field-grid mentor-fields"><label className="wide">1. 학교 / 학과(전공)<input value={schoolMajor} onChange={(event) => setSchoolMajor(event.target.value)} maxLength={100} placeholder="예: ○○대학교 / 사회복지학과" /></label><label className="wide">2. 나의 관심 분야 <small>전공 외 관심사도 가능해요.</small><input value={interests} onChange={(event) => setInterests(event.target.value)} maxLength={120} placeholder="예: 청소년 활동, 사진, 여행" /></label><label className="wide">3. 내가 이 전공을 선택한 이유 <small>한두 문장으로 적어 주세요.</small><textarea value={majorReason} onChange={(event) => setMajorReason(event.target.value)} maxLength={300} placeholder="이 전공에 관심을 갖게 된 계기를 적어 주세요." /></label><label className="wide">4. 요즘 내가 관심 있는 진로·직업<input value={careerInterests} onChange={(event) => setCareerInterests(event.target.value)} maxLength={150} placeholder="현재 관심 있게 알아보는 진로나 직업" /></label><label className="wide">5. 나의 대학생활 <small>동아리, 대외활동, 아르바이트, 취미 등을 자유롭게 적어 주세요.</small><textarea value={campusLife} onChange={(event) => setCampusLife(event.target.value)} maxLength={500} placeholder="대학생활에서 경험하고 있는 다양한 이야기를 들려주세요." /></label><label className="wide">6. 나의 강점 <small>3~4개 정도를 쉼표로 구분해 주세요.</small><input value={strengths} onChange={(event) => setStrengths(event.target.value)} maxLength={120} placeholder="예: 경청, 책임감, 도전정신, 친화력" /></label><label className="wide">7. 청소년들에게 해주고 싶은 말<textarea value={message} onChange={(event) => setMessage(event.target.value)} maxLength={300} placeholder="청소년들에게 전하고 싶은 한마디를 적어 주세요." /></label></div> : <div className="profile-field-grid"><label className="wide">나를 소개하는 한마디<textarea value={introduction} onChange={(event) => setIntroduction(event.target.value)} maxLength={240} placeholder="내가 좋아하는 것과 나의 특징을 적어 보세요." /></label><label>관심 분야<input value={interests} onChange={(event) => setInterests(event.target.value)} maxLength={80} placeholder="예: 그림, 운동, 과학" /></label><label>희망 진로<input value={hopeJob} onChange={(event) => setHopeJob(event.target.value)} maxLength={80} placeholder="아직 없다면 관심 직업도 좋아요." /></label></div>}
+    {kind === 'mentor' ? <div className="profile-field-grid mentor-fields"><label className="wide">1. 한 줄 소개 <small>나를 잘 보여주는 짧은 문장을 적어 주세요.</small><input value={oneLineIntro} onChange={(event) => setOneLineIntro(event.target.value)} maxLength={80} placeholder="예: 사람과 이야기를 좋아하는 사회복지학과 멘토입니다." /></label><label className="wide">2. 학교 / 학과(전공)<input value={schoolMajor} onChange={(event) => setSchoolMajor(event.target.value)} maxLength={100} placeholder="예: ○○대학교 / 사회복지학과" /></label><label className="wide">3. 나의 관심 분야 <small>전공 외 관심사도 가능해요.</small><input value={interests} onChange={(event) => setInterests(event.target.value)} maxLength={120} placeholder="예: 청소년 활동, 사진, 여행" /></label><label className="wide">4. 내가 이 전공을 선택한 이유 <small>한두 문장으로 적어 주세요.</small><textarea value={majorReason} onChange={(event) => setMajorReason(event.target.value)} maxLength={300} placeholder="이 전공에 관심을 갖게 된 계기를 적어 주세요." /></label><label className="wide">5. 요즘 내가 관심 있는 진로·직업<input value={careerInterests} onChange={(event) => setCareerInterests(event.target.value)} maxLength={150} placeholder="현재 관심 있게 알아보는 진로나 직업" /></label><label className="wide">6. 나의 대학생활 <small>동아리, 대외활동, 아르바이트, 취미 등을 자유롭게 적어 주세요.</small><textarea value={campusLife} onChange={(event) => setCampusLife(event.target.value)} maxLength={500} placeholder="대학생활에서 경험하고 있는 다양한 이야기를 들려주세요." /></label><label className="wide">7. 나의 강점 <small>3~4개 정도를 쉼표로 구분해 주세요.</small><input value={strengths} onChange={(event) => setStrengths(event.target.value)} maxLength={120} placeholder="예: 경청, 책임감, 도전정신, 친화력" /></label><label className="wide">8. 청소년들에게 해주고 싶은 말<textarea value={message} onChange={(event) => setMessage(event.target.value)} maxLength={300} placeholder="청소년들에게 전하고 싶은 한마디를 적어 주세요." /></label></div> : <div className="profile-field-grid"><label className="wide">나를 소개하는 한마디<textarea value={introduction} onChange={(event) => setIntroduction(event.target.value)} maxLength={240} placeholder="내가 좋아하는 것과 나의 특징을 적어 보세요." /></label><label>관심 분야<input value={interests} onChange={(event) => setInterests(event.target.value)} maxLength={80} placeholder="예: 그림, 운동, 과학" /></label><label>희망 진로<input value={hopeJob} onChange={(event) => setHopeJob(event.target.value)} maxLength={80} placeholder="아직 없다면 관심 직업도 좋아요." /></label></div>}
     <div className="profile-save-row"><button type="submit" disabled={saveState === 'saving'}>{saveState === 'saving' ? '저장하는 중…' : '프로필 저장하기'}</button>{saveState === 'saved' && <p role="status">✓ 프로필이 저장됐어요.</p>}{saveState === 'error' && <p className="error" role="alert">저장하지 못했어요. 잠시 후 다시 시도해 주세요.</p>}</div>
   </form>
 }
 
 type AuctionPhase = 'lobby' | 'waiting' | 'voting' | 'auction' | 'sold' | 'result'
-type AuctionParticipant = { id: string; nickname: string; role: 'host' | 'participant'; connected: boolean }
+type AuctionParticipant = { id: string; nickname: string; role: 'host' | 'participant'; connected: boolean; balance?: number; inventory?: Record<string, number> }
+type AuctionRoom = { hostId: string; gameState: 'WAITING' | 'JOB_SELECTION' | 'AUCTION' | 'SOLD' | 'RESULT'; initialMoney?: number; bidLimit?: number; totalItems?: number; voteEndsAt?: { toMillis: () => number }; selectedJob?: string; deck?: string[]; auctionIndex?: number; currentPrice?: number; highestBidderId?: string | null; highestBidderName?: string | null; auctionEndsAt?: { toMillis: () => number } }
 
 function StrengthAuctionGame({ studentName }: { studentName: string }) {
   const [phase, setPhase] = useState<AuctionPhase>('lobby')
@@ -119,22 +122,30 @@ function StrengthAuctionGame({ studentName }: { studentName: string }) {
   const [roomError, setRoomError] = useState('')
   const [isRoomBusy, setIsRoomBusy] = useState(false)
   const [participants, setParticipants] = useState<AuctionParticipant[]>([])
+  const [roomData, setRoomData] = useState<AuctionRoom | null>(null)
   const [initialMoney, setInitialMoney] = useState(1000)
   const [bidLimit, setBidLimit] = useState(10)
-  const [itemLimit, setItemLimit] = useState(8)
-  const [voteTime, setVoteTime] = useState(15)
   const [selectedJob, setSelectedJob] = useState('')
-  const [auctionIndex, setAuctionIndex] = useState(0)
-  const [auctionTime, setAuctionTime] = useState(10)
-  const [currentPrice, setCurrentPrice] = useState(200)
-  const [highestBidder, setHighestBidder] = useState('지민')
-  const [balance, setBalance] = useState(1000)
-  const [inventory, setInventory] = useState<Record<string, number>>({})
-  const [auctionDeck, setAuctionDeck] = useState<string[]>([])
-  const currentStrength = auctionDeck[auctionIndex] ?? '문제해결능력'
+  const [now, setNow] = useState(Date.now())
+  const [settleRequestedFor, setSettleRequestedFor] = useState('')
+  const auctionIndex = roomData?.auctionIndex ?? 0
+  const itemLimit = roomData?.totalItems ?? 0
+  const currentPrice = roomData?.currentPrice ?? 200
+  const currentStrength = roomData?.deck?.[auctionIndex] ?? '문제해결능력'
   const myName = nickname.trim() || studentName || '참가자'
+  const myParticipant = participants.find((item) => item.id === auth?.currentUser?.uid)
+  const balance = myParticipant?.balance ?? initialMoney
+  const inventory = myParticipant?.inventory ?? {}
   const myStrengthLevel = inventory[currentStrength] ?? 0
   const rarity = (count: number) => count >= 3 ? 'EPIC' : count === 2 ? 'RARE' : 'NORMAL'
+  const secondsLeft = (deadline?: { toMillis: () => number }) => deadline ? Math.max(0, Math.ceil((deadline.toMillis() - now) / 1000)) : 0
+  const voteTime = secondsLeft(roomData?.voteEndsAt)
+  const auctionTime = secondsLeft(roomData?.auctionEndsAt)
+
+  const callAuction = async <T,>(name: string, data: Record<string, unknown>) => {
+    if (!functions) throw new Error('Firebase Functions 연결이 필요합니다.')
+    return (await httpsCallable<Record<string, unknown>, T>(functions, name)(data)).data
+  }
 
   const createRoom = async () => {
     if (!db || !auth?.currentUser) return setRoomError('Firebase 연결을 확인해 주세요.')
@@ -177,34 +188,26 @@ function StrengthAuctionGame({ studentName }: { studentName: string }) {
     } finally { setIsRoomBusy(false) }
   }
   const startVote = async () => {
-    const participantCount = participants.filter((item) => item.role === 'participant').length
-    const totalItems = participantCount * 10
-    setBalance(initialMoney)
-    setItemLimit(totalItems)
-    setVoteTime(15)
-    if (role === 'host' && db && roomCode) await updateDoc(doc(db, 'auctionRooms', roomCode), { gameState: 'JOB_SELECTION', participantCount, totalItems, updatedAt: serverTimestamp() })
-    setPhase('voting')
+    setRoomError('')
+    try { await callAuction('startAuctionVote', { roomCode, initialMoney, bidLimit }) }
+    catch (error) { console.error(error); setRoomError('게임을 시작하지 못했어요. 설정과 참가자를 확인해 주세요.') }
   }
-  const finishVote = () => {
-    const job = selectedJob || auctionJobs[Math.floor(Math.random() * auctionJobs.length)]
+  const castVote = async (job: string) => {
     setSelectedJob(job)
-    setAuctionDeck(createAuctionDeck(job, itemLimit))
-    setAuctionIndex(0)
-    setAuctionTime(bidLimit)
-    setPhase('auction')
+    try { await callAuction('castAuctionVote', { roomCode, job }) }
+    catch (error) { console.error(error); setRoomError('투표를 저장하지 못했어요. 투표 시간이 끝났는지 확인해 주세요.') }
   }
-  const placeBid = (amount: number) => {
-    if (amount <= currentPrice || amount > balance || myStrengthLevel >= 3) return
-    setCurrentPrice(amount)
-    setHighestBidder(myName)
-    if (auctionTime <= 2) setAuctionTime(5)
+  const finishVote = async () => {
+    try { await callAuction('finishAuctionVote', { roomCode }) }
+    catch (error) { console.error(error); setRoomError('투표를 마감하지 못했어요.') }
   }
-  const nextAuction = () => {
-    setAuctionIndex((current) => current + 1)
-    setCurrentPrice(200)
-    setHighestBidder('지민')
-    setAuctionTime(bidLimit)
-    setPhase('auction')
+  const placeBid = async (amount: number) => {
+    try { await callAuction('placeAuctionBid', { roomCode, amount }) }
+    catch (error) { console.error(error); setRoomError('입찰하지 못했어요. 현재가와 잔액을 확인해 주세요.') }
+  }
+  const nextAuction = async () => {
+    try { await callAuction('advanceAuctionItem', { roomCode }) }
+    catch (error) { console.error(error); setRoomError('다음 상품으로 진행하지 못했어요.') }
   }
 
   useEffect(() => {
@@ -213,12 +216,11 @@ function StrengthAuctionGame({ studentName }: { studentName: string }) {
     const roomRef = doc(db, 'auctionRooms', roomCode)
     const participantRef = doc(db, 'auctionRooms', roomCode, 'participants', userId)
     const stopRoom = onSnapshot(roomRef, (snapshot) => {
-      const room = snapshot.data()
-      if (typeof room?.totalItems === 'number') setItemLimit(room.totalItems)
-      if (room?.gameState === 'JOB_SELECTION') {
-        setVoteTime(15)
-        setPhase((current) => current === 'waiting' ? 'voting' : current)
-      }
+      const room = snapshot.data() as AuctionRoom | undefined
+      if (!room) return
+      setRoomData(room)
+      const nextPhase: Record<AuctionRoom['gameState'], AuctionPhase> = { WAITING: 'waiting', JOB_SELECTION: 'voting', AUCTION: 'auction', SOLD: 'sold', RESULT: 'result' }
+      setPhase(nextPhase[room.gameState])
     })
     const stopParticipants = onSnapshot(collection(db, 'auctionRooms', roomCode, 'participants'), (snapshot) => {
       setParticipants(snapshot.docs.map((item) => ({ id: item.id, ...(item.data() as Omit<AuctionParticipant, 'id'>) })))
@@ -233,61 +235,52 @@ function StrengthAuctionGame({ studentName }: { studentName: string }) {
   }, [roomCode])
 
   useEffect(() => {
-    if (phase !== 'voting') return
-    if (voteTime <= 0) {
-      finishVote()
-      return
-    }
-    const timer = window.setTimeout(() => setVoteTime((current) => current - 1), 1000)
-    return () => window.clearTimeout(timer)
-  }, [phase, voteTime])
+    if (phase !== 'voting' && phase !== 'auction') return
+    const timer = window.setInterval(() => setNow(Date.now()), 250)
+    return () => window.clearInterval(timer)
+  }, [phase])
 
   useEffect(() => {
-    if (phase !== 'auction') return
-    if (auctionTime <= 0) {
-      if (highestBidder === myName) {
-        setBalance((current) => current - currentPrice)
-        setInventory((current) => ({ ...current, [currentStrength]: Math.min(3, (current[currentStrength] ?? 0) + 1) }))
-      }
-      setPhase('sold')
-      return
-    }
-    const timer = window.setTimeout(() => setAuctionTime((current) => current - 1), 1000)
-    return () => window.clearTimeout(timer)
-  }, [phase, auctionTime, highestBidder, myName, currentPrice, currentStrength])
+    if (phase !== 'auction' || auctionTime > 0 || !roomData?.auctionEndsAt) return
+    const key = `${auctionIndex}:${roomData.auctionEndsAt.toMillis()}`
+    if (settleRequestedFor === key) return
+    setSettleRequestedFor(key)
+    void callAuction('settleAuctionItem', { roomCode }).catch((error) => console.error(error))
+  }, [phase, auctionTime, auctionIndex, roomData?.auctionEndsAt, roomCode, settleRequestedFor])
 
   if (phase === 'lobby') return <div className="auction-lobby">
     <div className="auction-title"><span>🔨</span><h2>강점 경매장</h2><p>선택한 직업에 필요한 강점을 전략적으로 낙찰받아 보세요.</p></div>
     <div className="auction-entry-grid"><article><span>방장</span><h3>새 게임방 만들기</h3><p>참가자를 초대하고 금액·시간 등 게임 설정을 준비해요.</p><input value={nickname} onChange={(event) => setNickname(event.target.value)} placeholder="방장 닉네임" maxLength={12} /><button type="button" onClick={createRoom} disabled={isRoomBusy}>{isRoomBusy ? '연결 중…' : '방 만들기 →'}</button></article><article><span>참가자</span><h3>게임방 입장하기</h3><p>닉네임과 방장이 알려준 코드를 입력해 주세요.</p><input value={nickname} onChange={(event) => setNickname(event.target.value)} placeholder="닉네임" maxLength={12} /><input value={joinCode} onChange={(event) => setJoinCode(event.target.value)} placeholder="방 코드 입력" maxLength={6} /><button type="button" onClick={joinRoom} disabled={isRoomBusy || joinCode.trim().length < 4 || !nickname.trim()}>{isRoomBusy ? '연결 중…' : '입장하기 →'}</button></article></div>
     {roomError && <p className="auction-error" role="alert">{roomError}</p>}
-    <div className="prototype-notice"><b>실시간 대기실 연결</b><p>방 생성·코드 입장·참가자 명단과 접속 상태는 Firestore를 통해 여러 기기에 실시간으로 동기화돼요. 경매 진행 동기화는 순서대로 연결 중이에요.</p></div>
+    <div className="prototype-notice"><b>실시간 게임</b><p>방 입장부터 직업 투표, 입찰, 낙찰과 결과까지 여러 기기에 실시간으로 동기화돼요.</p></div>
   </div>
 
   if (phase === 'waiting') return <div className="auction-waiting">
     <div className="room-summary"><div><span>방 코드</span><strong>{roomCode}</strong></div><div><span>경매 참가자</span><strong>{participants.filter((item) => item.role === 'participant').length}명</strong></div><div><span>내 닉네임</span><strong>{nickname || myName}</strong></div></div>
-    {role === 'host' ? <><div className="waiting-columns"><section><div className="auction-section-title"><h3>참가자 목록</h3><span>실시간 동기화</span></div><ul className="participant-list">{participants.map((participant) => <li key={participant.id}><i className={participant.connected ? '' : 'offline'} />{participant.nickname}{participant.role === 'host' ? <b>방장</b> : <span>{participant.connected ? '접속' : '연결 끊김'}</span>}</li>)}</ul></section><section><div className="auction-section-title"><h3>게임 설정</h3><span>방장 전용 · 임시값</span></div><div className="auction-settings"><label>경매 참가자 수<input value={participants.filter((item) => item.role === 'participant').length} disabled /></label><label>예상 총 상품 수<input value={participants.filter((item) => item.role === 'participant').length * 10} disabled /></label><label>초기 보유금액<input type="number" value={initialMoney} onChange={(event) => setInitialMoney(Number(event.target.value))} /></label><label>상품당 제한시간<select value={bidLimit} onChange={(event) => setBidLimit(Number(event.target.value))}><option value={7}>7초</option><option value={10}>10초</option><option value={15}>15초</option></select></label><label>직업 선택 방식<input value="추후 확정" disabled /></label></div></section></div><button type="button" className="auction-primary wide" onClick={startVote} disabled={!participants.some((item) => item.role === 'participant')}>게임 시작 →</button></> : <><section className="participant-list-card"><div className="auction-section-title"><h3>참가자 목록</h3><span>실시간 동기화</span></div><ul className="participant-list">{participants.map((participant) => <li key={participant.id}><i className={participant.connected ? '' : 'offline'} />{participant.nickname}{participant.role === 'host' ? <b>방장</b> : <span>{participant.connected ? '접속' : '연결 끊김'}</span>}</li>)}</ul></section><div className="participant-wait"><div className="waiting-pulse">●</div><h3>방장이 게임을 준비하고 있습니다.</h3><p>참가자 {participants.filter((item) => item.role === 'participant').length}명 · 방 코드 {roomCode}</p></div></>}
+    {role === 'host' ? <><div className="waiting-columns"><section><div className="auction-section-title"><h3>참가자 목록</h3><span>실시간 동기화</span></div><ul className="participant-list">{participants.map((participant) => <li key={participant.id}><i className={participant.connected ? '' : 'offline'} />{participant.nickname}{participant.role === 'host' ? <b>방장</b> : <span>{participant.connected ? '접속' : '연결 끊김'}</span>}</li>)}</ul></section><section><div className="auction-section-title"><h3>게임 설정</h3><span>방장 전용</span></div><div className="auction-settings"><label>경매 참가자 수<input value={participants.filter((item) => item.role === 'participant').length} disabled /></label><label>예상 총 상품 수<input value={participants.filter((item) => item.role === 'participant').length * 10} disabled /></label><label>초기 보유금액<input type="number" min={500} max={10000} value={initialMoney} onChange={(event) => setInitialMoney(Number(event.target.value))} /></label><label>상품당 제한시간<select value={bidLimit} onChange={(event) => setBidLimit(Number(event.target.value))}><option value={7}>7초</option><option value={10}>10초</option><option value={15}>15초</option></select></label><label>직업 선택 방식<input value="참가자 투표" disabled /></label></div></section></div><button type="button" className="auction-primary wide" onClick={startVote} disabled={!participants.some((item) => item.role === 'participant')}>게임 시작 →</button>{roomError && <p className="auction-error" role="alert">{roomError}</p>}</> : <><section className="participant-list-card"><div className="auction-section-title"><h3>참가자 목록</h3><span>실시간 동기화</span></div><ul className="participant-list">{participants.map((participant) => <li key={participant.id}><i className={participant.connected ? '' : 'offline'} />{participant.nickname}{participant.role === 'host' ? <b>방장</b> : <span>{participant.connected ? '접속' : '연결 끊김'}</span>}</li>)}</ul></section><div className="participant-wait"><div className="waiting-pulse">●</div><h3>방장이 게임을 준비하고 있습니다.</h3><p>참가자 {participants.filter((item) => item.role === 'participant').length}명 · 방 코드 {roomCode}</p></div></>}
   </div>
 
-  if (phase === 'voting') return <div className="job-vote"><div className="auction-countdown"><b>{voteTime}</b><span>초</span></div><p>이번 게임의 목표 직업</p><h2>{selectedJob || '어떤 직업의 역량을 모을까요?'}</h2><span>원하는 직업을 하나 선택하세요. 최다 득표 직업으로 경매를 시작해요.</span><div className="job-options">{auctionJobs.map((job) => <button type="button" className={selectedJob === job ? 'selected' : ''} onClick={() => setSelectedJob(job)} key={job}>{job}</button>)}</div><div className="vote-actions"><button type="button" className="random-job" onClick={() => setSelectedJob(auctionJobs[Math.floor(Math.random() * auctionJobs.length)])}>🎲 랜덤 선택</button><button type="button" className="auction-primary" onClick={finishVote}>투표 마감·경매 시작 →</button></div></div>
+  if (phase === 'voting') return <div className="job-vote"><div className="auction-countdown"><b>{voteTime}</b><span>초</span></div><p>이번 게임의 목표 직업</p><h2>{selectedJob || '어떤 직업의 역량을 모을까요?'}</h2><span>{role === 'host' ? '참가자들의 투표가 끝나면 경매를 시작해 주세요.' : '원하는 직업을 하나 선택하세요. 마지막 선택이 내 표로 저장돼요.'}</span><div className="job-options">{auctionJobs.map((job) => <button type="button" className={selectedJob === job ? 'selected' : ''} onClick={() => castVote(job)} disabled={role === 'host' || voteTime <= 0} key={job}>{job}</button>)}</div>{role === 'host' ? <div className="vote-actions"><button type="button" className="auction-primary" onClick={finishVote} disabled={voteTime > 0}>투표 마감·경매 시작 →</button></div> : <div className="participant-wait"><p>선택한 직업: <b>{selectedJob || '아직 선택하지 않음'}</b></p></div>}{roomError && <p className="auction-error" role="alert">{roomError}</p>}</div>
 
   if (phase === 'sold') {
-    const wonByMe = highestBidder === myName
+    const wonByMe = roomData?.highestBidderId === auth?.currentUser?.uid
     const nextLevel = myStrengthLevel
-    return <div className="sold-screen"><span className="hammer-hit">🔨</span><p>낙찰!</p><h2>{currentStrength}</h2><div className="sold-price"><b>{highestBidder}</b><strong>{currentPrice}P</strong></div>{wonByMe && <div className={`upgrade-card rarity-${rarity(nextLevel).toLowerCase()}`}><span>{nextLevel > 1 ? '✨ 등급 강화!' : '새로운 강점 획득!'}</span><h3>{currentStrength}</h3><b>{rarity(nextLevel)}</b></div>}<button type="button" className="auction-primary" onClick={() => auctionIndex + 1 >= itemLimit ? setPhase('result') : nextAuction()}>{auctionIndex + 1 >= itemLimit ? '결과 확인 →' : '다음 상품 →'}</button></div>
+    return <div className="sold-screen"><span className="hammer-hit">🔨</span><p>{roomData?.highestBidderId ? '낙찰!' : '유찰'}</p><h2>{currentStrength}</h2>{roomData?.highestBidderId && <div className="sold-price"><b>{roomData.highestBidderName}</b><strong>{currentPrice}P</strong></div>}{wonByMe && <div className={`upgrade-card rarity-${rarity(nextLevel).toLowerCase()}`}><span>{nextLevel > 1 ? '✨ 등급 강화!' : '새로운 강점 획득!'}</span><h3>{currentStrength}</h3><b>{rarity(nextLevel)}</b></div>}{role === 'host' ? <button type="button" className="auction-primary" onClick={nextAuction}>{auctionIndex + 1 >= itemLimit ? '결과 공개 →' : '다음 상품 →'}</button> : <div className="participant-wait"><p>방장이 다음 상품을 준비하고 있어요.</p></div>}{roomError && <p className="auction-error" role="alert">{roomError}</p>}</div>
   }
 
   if (phase === 'result') {
-    const profile = jobStrengthProfiles[selectedJob]
+    const resultJob = roomData?.selectedJob ?? selectedJob
+    const profile = jobStrengthProfiles[resultJob]
     const groups = [
       { key: 'core' as const, title: '핵심 역량', description: '주요 업무 수행에 특히 중요해요.' },
       { key: 'related' as const, title: '관련 역량', description: '원활한 직무 수행과 밀접하게 연결돼요.' },
       { key: 'lower' as const, title: '우선도가 낮은 역량', description: '쓸모없는 역량이 아니라, 상대적 우선도가 낮아요.' },
     ]
-    return <div className="auction-result"><span className="result-kicker">경매 종료 · 중요도 공개</span><h2>{selectedJob}에게 어떤 역량이 중요할까요?</h2><p className="result-guide">게임 중에는 숨겨졌던 직업별 중요도를 내 낙찰 결과와 비교해 보세요. 카드 등급은 중요도가 아니라 같은 역량을 낙찰받은 횟수예요.</p><div className="importance-grid">{groups.map((group) => <section className={`importance-${group.key}`} key={group.key}><h3>{group.title}</h3><p>{group.description}</p><ul>{profile[group.key].map((strength) => <li key={strength}><span>{strength}</span>{inventory[strength] ? <b className={`rarity-${rarity(inventory[strength]).toLowerCase()}`}>내 카드 {rarity(inventory[strength])}</b> : <small>미보유</small>}</li>)}</ul></section>)}</div><div className="result-question"><b>함께 이야기해 봐요</b><p>내가 높은 금액을 투자한 역량은 실제 중요도와 어떻게 달랐나요? 그렇게 판단한 이유는 무엇인가요?</p></div><button type="button" className="auction-primary" onClick={() => setPhase('lobby')}>로비로 돌아가기</button></div>
+    return <div className="auction-result"><span className="result-kicker">경매 종료 · 중요도 공개</span><h2>{resultJob}에게 어떤 역량이 중요할까요?</h2><p className="result-guide">게임 중에는 숨겨졌던 직업별 중요도를 내 낙찰 결과와 비교해 보세요. 카드 등급은 중요도가 아니라 같은 역량을 낙찰받은 횟수예요.</p><div className="importance-grid">{groups.map((group) => <section className={`importance-${group.key}`} key={group.key}><h3>{group.title}</h3><p>{group.description}</p><ul>{profile[group.key].map((strength) => <li key={strength}><span>{strength}</span>{inventory[strength] ? <b className={`rarity-${rarity(inventory[strength]).toLowerCase()}`}>내 카드 {rarity(inventory[strength])}</b> : <small>미보유</small>}</li>)}</ul></section>)}</div><div className="result-question"><b>함께 이야기해 봐요</b><p>내가 높은 금액을 투자한 역량은 실제 중요도와 어떻게 달랐나요? 그렇게 판단한 이유는 무엇인가요?</p></div><button type="button" className="auction-primary" onClick={() => { setRoomCode(''); setRoomData(null); setPhase('lobby') }}>로비로 돌아가기</button></div>
   }
 
   const bidOptions = [currentPrice + 50, currentPrice + 100, currentPrice + 150]
-  return <div className="auction-stage"><div className="auction-topline"><span>{auctionIndex + 1} / {itemLimit} 상품</span><b>목표 직업 · {selectedJob}</b></div><div className="auction-product"><div className={`auction-clock ${auctionTime <= 3 ? 'urgent' : ''}`}><b>{auctionTime}</b><span>초</span></div><span>지금 필요한 강점</span><h2>🔨 {currentStrength}</h2>{myStrengthLevel >= 3 && <p className="epic-block">🌟 최고 등급을 보유하고 있어 입찰할 수 없어요.</p>}<div className="current-bid"><span>현재가</span><strong>{currentPrice}P</strong><small>최고 입찰자 · {highestBidder}</small></div><div className="bid-buttons">{bidOptions.map((amount) => <button type="button" onClick={() => placeBid(amount)} disabled={amount > balance || myStrengthLevel >= 3} key={amount}>{amount}P</button>)}</div><p className="anti-snipe">종료 2초 전 새 입찰이 들어오면 시간이 5초로 연장돼요.</p></div><aside className="auction-player"><div><span>{myName}</span><strong>💰 {balance}P</strong></div><h3>보유 역량</h3>{Object.keys(inventory).length ? <ul>{Object.entries(inventory).map(([strength, count]) => <li key={strength}><span>{strength}</span><b className={`rarity-${rarity(count).toLowerCase()}`}>{rarity(count)}</b></li>)}</ul> : <p>아직 낙찰받은 역량이 없어요.</p>}</aside></div>
+  return <div className="auction-stage"><div className="auction-topline"><span>{auctionIndex + 1} / {itemLimit} 상품</span><b>목표 직업 · {roomData?.selectedJob}</b></div><div className="auction-product"><div className={`auction-clock ${auctionTime <= 3 ? 'urgent' : ''}`}><b>{auctionTime}</b><span>초</span></div><span>지금 필요한 강점</span><h2>🔨 {currentStrength}</h2>{myStrengthLevel >= 3 && <p className="epic-block">🌟 최고 등급을 보유하고 있어 입찰할 수 없어요.</p>}<div className="current-bid"><span>현재가</span><strong>{currentPrice}P</strong><small>최고 입찰자 · {roomData?.highestBidderName || '아직 없음'}</small></div><div className="bid-buttons">{bidOptions.map((amount) => <button type="button" onClick={() => placeBid(amount)} disabled={role === 'host' || auctionTime <= 0 || amount > balance || myStrengthLevel >= 3} key={amount}>{amount}P</button>)}</div><p className="anti-snipe">종료 2초 전 새 입찰이 들어오면 시간이 5초로 연장돼요.</p>{roomError && <p className="auction-error" role="alert">{roomError}</p>}</div><aside className="auction-player"><div><span>{myName}</span><strong>💰 {balance}P</strong></div><h3>보유 역량</h3>{Object.keys(inventory).length ? <ul>{Object.entries(inventory).map(([strength, count]) => <li key={strength}><span>{strength}</span><b className={`rarity-${rarity(count).toLowerCase()}`}>{rarity(count)}</b></li>)}</ul> : <p>아직 낙찰받은 역량이 없어요.</p>}</aside></div>
 }
 
 function SecondActivityDetail({ step, schoolName, studentName, onLeave, onHome }: { step: number; schoolName: string; studentName: string; onLeave: () => void; onHome: () => void }) {
@@ -589,7 +582,7 @@ function App() {
       const session = await getDoc(doc(db, 'staffSessions', auth.currentUser.uid))
       if (!session.exists()) throw new Error('멘토 권한 세션을 찾을 수 없습니다.')
       const accountNumber = String(session.data().accountNumber)
-      await setDoc(doc(db, 'mentorProfiles', accountNumber), { accountNumber, displayName: name.trim(), schoolMajor: profile.schoolMajor.trim(), interests: profile.interests.trim(), majorReason: profile.majorReason.trim(), careerInterests: profile.careerInterests.trim(), campusLife: profile.campusLife.trim(), strengths: profile.strengths.trim(), message: profile.message.trim(), updatedAt: serverTimestamp() }, { merge: true })
+      await setDoc(doc(db, 'mentorProfiles', accountNumber), { accountNumber, displayName: name.trim(), oneLineIntro: profile.oneLineIntro.trim(), schoolMajor: profile.schoolMajor.trim(), interests: profile.interests.trim(), majorReason: profile.majorReason.trim(), careerInterests: profile.careerInterests.trim(), campusLife: profile.campusLife.trim(), strengths: profile.strengths.trim(), message: profile.message.trim(), updatedAt: serverTimestamp() }, { merge: true })
     } else {
       await setDoc(doc(db, 'studentProfiles', auth.currentUser.uid), { userId: auth.currentUser.uid, displayName: name.trim(), school, introduction: profile.introduction.trim(), interests: profile.interests.trim(), hopeJob: profile.hopeJob.trim(), updatedAt: serverTimestamp() }, { merge: true })
     }
@@ -628,7 +621,7 @@ function App() {
         <button className="back-button" type="button" onClick={() => window.history.back()}>← 나의 활동실로</button>
         {activeGuide === 'program' && <><section className="guide-detail-hero blue"><span>🗺️</span><div><small>프로그램 안내</small><h1>청사진이란?</h1><p>청소년의 가능성을 발견하고 미래의 모습을 구체적으로 그려 가는 진로 멘토링 여정이에요.</p></div></section><section className="guide-content-card"><h2>청·사·진의 의미</h2><p><b>청소년의 사기진작 진로멘토링</b>의 줄임말로, 내가 좋아하는 것과 잘하는 것을 찾고 다양한 직업과 진로를 탐색하는 프로그램이에요.</p><div className="program-journey"><article><b>1</b><h3>서로 만나기</h3><p>멘토와 인사하고 진로의 의미를 알아봐요.</p></article><article><b>2</b><h3>나를 발견하기</h3><p>선호와 강점을 재미있는 활동으로 찾아봐요.</p></article><article><b>3</b><h3>역량 키우기</h3><p>희망 직업에 필요한 힘을 탐색해요.</p></article><article><b>4</b><h3>직업 연습하기</h3><p>직업 정보를 찾고 AI 면접을 경험해요.</p></article><article><b>5</b><h3>청사진 완성하기</h3><p>활동 결과를 모아 나만의 포트폴리오를 만들어요.</p></article></div></section></>}
         {activeGuide === 'profile' && <><section className="guide-detail-hero green"><span>👤</span><div><small>{school === 'staff' ? '멘토 정보' : '나의 정보'}</small><h1>{school === 'staff' ? '멘토 프로필 작성' : '학생 프로필 작성'}</h1><p>{school === 'staff' ? '작성한 내용은 멘토 소개 화면에 표시돼요.' : '관심 분야와 희망 진로를 기록하고 나의 변화를 쌓아 가요.'}</p></div></section><section className="guide-content-card"><ProfileEditor kind={school === 'staff' ? 'mentor' : 'student'} displayName={name.trim()} schoolName={schoolName} existing={school === 'staff' ? ownMentorProfile : undefined} onSave={saveProfile} /></section></>}
-        {activeGuide === 'mentors' && <><section className="guide-detail-hero orange"><span>🤝</span><div><small>함께하는 사람</small><h1>멘토 소개</h1><p>청·사·진의 여정을 함께할 멘토들의 전공과 진로 이야기를 만나 보세요.</p></div></section><section className="guide-content-card"><div className="mentor-page-heading"><div><h2>우리의 멘토</h2><p>멘토가 프로필을 저장하면 이곳에 바로 표시돼요.</p></div>{school === 'staff' && <button type="button" onClick={() => openGuide('profile')}>내 멘토 프로필 작성 →</button>}</div>{mentorProfiles.length ? <div className="mentor-profile-grid">{mentorProfiles.map((profile) => { const schoolMajor = profile.schoolMajor || [profile.university, profile.major].filter(Boolean).join(' / '); const message = profile.message || profile.introduction; return <article key={profile.id}><div className="mentor-avatar">{profile.displayName.slice(0, 1)}</div><small>{schoolMajor || '학교와 전공을 준비 중이에요'}</small><h2>{profile.displayName} 멘토</h2><p>{message || '청소년들에게 전할 말을 준비하고 있어요.'}</p><dl className="mentor-profile-details">{profile.interests && <><dt>관심 분야</dt><dd>{profile.interests}</dd></>}{profile.majorReason && <><dt>전공 선택 이유</dt><dd>{profile.majorReason}</dd></>}{profile.careerInterests && <><dt>관심 진로·직업</dt><dd>{profile.careerInterests}</dd></>}{profile.campusLife && <><dt>대학생활</dt><dd>{profile.campusLife}</dd></>}{profile.strengths && <><dt>나의 강점</dt><dd>{profile.strengths}</dd></>}{!profile.campusLife && profile.careerStory && <><dt>나의 진로 이야기</dt><dd>{profile.careerStory}</dd></>}</dl></article> })}</div> : <div className="empty-mentor-list"><span>🤝</span><h2>멘토 소개를 준비하고 있어요</h2><p>멘토가 프로필을 작성하면 이곳에서 확인할 수 있어요.</p></div>}</section></>}
+        {activeGuide === 'mentors' && <><section className="guide-detail-hero orange"><span>🤝</span><div><small>함께하는 사람</small><h1>멘토 소개</h1><p>청·사·진의 여정을 함께할 멘토들의 전공과 진로 이야기를 만나 보세요.</p></div></section><section className="guide-content-card"><div className="mentor-page-heading"><div><h2>우리의 멘토</h2><p>멘토가 프로필을 저장하면 이곳에 바로 표시돼요.</p></div>{school === 'staff' && <button type="button" onClick={() => openGuide('profile')}>내 멘토 프로필 작성 →</button>}</div>{mentorProfiles.length ? <div className="mentor-profile-grid">{mentorProfiles.map((profile) => { const schoolMajor = profile.schoolMajor || [profile.university, profile.major].filter(Boolean).join(' / '); const message = profile.message || profile.introduction; return <article key={profile.id}><div className="mentor-avatar">{profile.displayName.slice(0, 1)}</div><small>{schoolMajor || '학교와 전공을 준비 중이에요'}</small><h2>{profile.displayName} 멘토</h2><p className="mentor-one-line">{profile.oneLineIntro || '한 줄 소개를 준비하고 있어요.'}</p><dl className="mentor-profile-details">{profile.interests && <><dt>관심 분야</dt><dd>{profile.interests}</dd></>}{profile.majorReason && <><dt>전공 선택 이유</dt><dd>{profile.majorReason}</dd></>}{profile.careerInterests && <><dt>관심 진로·직업</dt><dd>{profile.careerInterests}</dd></>}{profile.campusLife && <><dt>대학생활</dt><dd>{profile.campusLife}</dd></>}{profile.strengths && <><dt>나의 강점</dt><dd>{profile.strengths}</dd></>}{!profile.campusLife && profile.careerStory && <><dt>나의 진로 이야기</dt><dd>{profile.careerStory}</dd></>}{message && <><dt>전하고 싶은 말</dt><dd>{message}</dd></>}</dl></article> })}</div> : <div className="empty-mentor-list"><span>🤝</span><h2>멘토 소개를 준비하고 있어요</h2><p>멘토가 프로필을 작성하면 이곳에서 확인할 수 있어요.</p></div>}</section></>}
         {activeGuide === 'center' && <><section className="guide-detail-hero purple"><span>🏫</span><div><small>운영기관 안내</small><h1>예산군청소년수련관 소개</h1><p>청소년이 꿈을 발견하고 다양한 활동을 경험하도록 함께하는 지역 청소년 활동 공간이에요.</p></div></section><section className="guide-content-card center-intro"><div><h2>청소년의 오늘과 미래를 응원합니다</h2><p>예산군청소년수련관은 청소년이 안전하고 즐겁게 참여할 수 있는 문화·진로·자치·체험 활동을 운영하며, 청소년의 건강한 성장을 지원해요.</p></div><div className="center-values"><article><span>🌱</span><h3>성장</h3><p>새로운 경험을 통해 자신의 가능성을 발견해요.</p></article><article><span>🤲</span><h3>참여</h3><p>청소년이 직접 의견을 내고 활동의 주인이 돼요.</p></article><article><span>🎯</span><h3>진로</h3><p>다양한 직업과 삶의 모습을 탐색할 기회를 만들어요.</p></article></div><div className="center-contact"><b>청·사·진 운영</b><span>예산군청소년수련관</span></div></section></>}
       </main>
       <PartnerFooter />

@@ -73,7 +73,12 @@ service cloud.firestore {
         && request.resource.data.hostId == request.auth.uid
         && request.resource.data.gameState == 'WAITING';
       allow read: if signedIn();
-      allow update, delete: if signedIn() && resource.data.hostId == request.auth.uid;
+      allow update, delete: if false;
+
+      match /votes/{userId} {
+        allow read: if signedIn();
+        allow write: if false;
+      }
 
       match /participants/{userId} {
         allow read: if signedIn();
@@ -86,7 +91,7 @@ service cloud.firestore {
           && request.resource.data.nickname.size() > 0
           && request.resource.data.nickname.size() <= 12;
         allow update: if isOwner(userId)
-          || get(/databases/$(database)/documents/auctionRooms/$(roomId)).data.hostId == request.auth.uid;
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['connected', 'lastSeenAt']);
         allow delete: if isOwner(userId)
           || get(/databases/$(database)/documents/auctionRooms/$(roomId)).data.hostId == request.auth.uid;
       }
