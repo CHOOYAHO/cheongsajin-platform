@@ -23,7 +23,22 @@ const auctionProfiles = {
   '게임 개발자': ['문제해결능력', '논리적 사고', '창의성', '디지털 활용능력', '협업능력', '집중력', '분석력', '끈기', '의사소통능력', '계획성', '적응력'],
   '요리사': ['손재주', '꼼꼼함', '집중력', '위기대처능력', '계획성', '창의성', '협업능력', '신체능력', '관찰력', '적응력', '실행력'],
   '간호사': ['관찰력', '책임감', '공감능력', '위기대처능력', '의사소통능력', '협업능력', '꼼꼼함', '판단력', '적응력', '집중력', '갈등조정능력'],
+  '웹툰 작가': ['창의성', '디지털 활용능력', '관찰력', '언어능력', '끈기', '자기주도성', '계획성', '집중력', '공감능력', '정보활용능력', '손재주'],
+  '반려동물 훈련사': ['관찰력', '공감능력', '끈기', '의사소통능력', '책임감', '문제해결능력', '신체능력', '계획성', '위기대처능력', '친화력', '적응력'],
+  '로봇공학자': ['논리적 사고', '문제해결능력', '창의성', '수리능력', '디지털 활용능력', '분석력', '손재주', '협업능력', '집중력', '계획성', '끈기'],
+  '스포츠 트레이너': ['신체능력', '관찰력', '의사소통능력', '계획성', '책임감', '공감능력', '리더십', '위기대처능력', '적응력', '분석력', '실행력'],
+  '심리상담사': ['공감능력', '의사소통능력', '관찰력', '갈등조정능력', '책임감', '분석력', '언어능력', '집중력', '적응력', '문제해결능력', '친화력'],
+  '항공 승무원': ['의사소통능력', '위기대처능력', '책임감', '친화력', '적응력', '공감능력', '협업능력', '언어능력', '관찰력', '계획성', '꼼꼼함'],
+  '건축가': ['공간지각능력', '창의성', '문제해결능력', '수리능력', '계획성', '디지털 활용능력', '분석력', '의사소통능력', '꼼꼼함', '협업능력', '관찰력'],
+  '패션 디자이너': ['창의성', '손재주', '관찰력', '디지털 활용능력', '자기주도성', '계획성', '의사소통능력', '정보활용능력', '실행력', '적응력', '분석력'],
+  '사회복지사': ['공감능력', '의사소통능력', '책임감', '갈등조정능력', '문제해결능력', '협업능력', '친화력', '관찰력', '적응력', '설득력', '계획성'],
+  '데이터 분석가': ['분석력', '논리적 사고', '수리능력', '정보활용능력', '문제해결능력', '디지털 활용능력', '꼼꼼함', '집중력', '의사소통능력', '계획성', '끈기'],
+  '환경 연구원': ['관찰력', '분석력', '문제해결능력', '책임감', '정보활용능력', '협업능력', '논리적 사고', '꼼꼼함', '계획성', '적응력', '도전정신'],
+  '창업가': ['도전정신', '실행력', '리더십', '문제해결능력', '설득력', '창의성', '의사소통능력', '정보활용능력', '자기주도성', '적응력', '계획성'],
 }
+
+const fallbackAuctionJob = '게임 개발자'
+const auctionJobNames = Object.keys(auctionProfiles)
 
 const requireAuctionUser = (request) => {
   if (!request.auth?.uid) throw new HttpsError('unauthenticated', 'Firebase 로그인이 필요합니다.')
@@ -32,8 +47,8 @@ const requireAuctionUser = (request) => {
   return { uid: request.auth.uid, roomCode, roomRef: db.doc(`auctionRooms/${roomCode}`) }
 }
 
-const shuffledDeck = (job, count) => {
-  const candidates = auctionProfiles[job]
+const shuffledAuctionDeck = (jobs, count) => {
+  const candidates = [...new Set(jobs.flatMap((job) => auctionProfiles[job] ?? auctionProfiles[fallbackAuctionJob]))]
   const deck = Array.from({ length: count }, (_, index) => candidates[index % candidates.length])
   for (let index = deck.length - 1; index > 0; index -= 1) {
     const swapIndex = randomInt(0, index + 1)
@@ -195,8 +210,8 @@ export const startAuctionVote = onCall(async (request) => {
     const room = await transaction.get(roomRef)
     if (!room.exists || room.data().hostId !== uid) throw new HttpsError('permission-denied', '방장만 게임을 시작할 수 있습니다.')
     if (room.data().gameState !== 'WAITING') throw new HttpsError('failed-precondition', '이미 시작된 게임입니다.')
-    transaction.update(roomRef, { gameState: 'JOB_SELECTION', initialMoney, bidLimit, totalItems: playerCount * 10, voteEndsAt: Timestamp.fromMillis(Date.now() + 15000), updatedAt: FieldValue.serverTimestamp() })
-    for (const participant of participants.docs) transaction.update(participant.ref, { balance: initialMoney, inventory: {}, updatedAt: FieldValue.serverTimestamp() })
+    transaction.update(roomRef, { gameState: 'JOB_SELECTION', initialMoney, bidLimit, totalItems: playerCount * 10, voteEndsAt: Timestamp.fromMillis(Date.now() + 30000), updatedAt: FieldValue.serverTimestamp() })
+    for (const participant of participants.docs) transaction.update(participant.ref, { balance: initialMoney, inventory: {}, selectedJob: null, updatedAt: FieldValue.serverTimestamp() })
   })
   return { started: true }
 })
@@ -208,23 +223,43 @@ export const castAuctionVote = onCall(async (request) => {
   const [room, participant] = await Promise.all([roomRef.get(), roomRef.collection('participants').doc(uid).get()])
   if (!room.exists || room.data().gameState !== 'JOB_SELECTION' || room.data().voteEndsAt.toMillis() <= Date.now()) throw new HttpsError('failed-precondition', '투표 시간이 종료되었습니다.')
   if (!participant.exists || participant.data().role !== 'participant') throw new HttpsError('permission-denied', '참가자만 투표할 수 있습니다.')
-  await roomRef.collection('votes').doc(uid).set({ userId: uid, job, updatedAt: FieldValue.serverTimestamp() })
+  await Promise.all([
+    roomRef.collection('votes').doc(uid).set({ userId: uid, job, updatedAt: FieldValue.serverTimestamp() }),
+    roomRef.collection('participants').doc(uid).update({ selectedJob: job, updatedAt: FieldValue.serverTimestamp() }),
+  ])
   return { voted: true }
 })
 
 export const finishAuctionVote = onCall(async (request) => {
   const { uid, roomRef } = requireAuctionUser(request)
-  const [room, votes] = await Promise.all([roomRef.get(), roomRef.collection('votes').get()])
+  const [room, participants] = await Promise.all([roomRef.get(), roomRef.collection('participants').get()])
   if (!room.exists || room.data().hostId !== uid) throw new HttpsError('permission-denied', '방장만 투표를 마감할 수 있습니다.')
   if (room.data().gameState !== 'JOB_SELECTION') throw new HttpsError('failed-precondition', '투표 중인 방이 아닙니다.')
-  const counts = Object.fromEntries(Object.keys(auctionProfiles).map((job) => [job, 0]))
-  for (const vote of votes.docs) if (counts[vote.data().job] !== undefined) counts[vote.data().job] += 1
-  const topCount = Math.max(...Object.values(counts))
-  const candidates = Object.keys(counts).filter((job) => counts[job] === topCount)
-  const selectedJob = candidates[randomInt(0, candidates.length)]
-  const deck = shuffledDeck(selectedJob, room.data().totalItems)
-  await roomRef.update({ gameState: 'AUCTION', selectedJob, deck, auctionIndex: 0, currentPrice: 200, highestBidderId: null, highestBidderName: null, auctionEndsAt: Timestamp.fromMillis(Date.now() + room.data().bidLimit * 1000), updatedAt: FieldValue.serverTimestamp() })
-  return { selectedJob }
+  const participantDocs = participants.docs.filter((item) => item.data().role === 'participant')
+  if (!participantDocs.length) throw new HttpsError('failed-precondition', '참가자가 한 명 이상 필요합니다.')
+  const selectedJobs = participantDocs.map((participant) => auctionProfiles[participant.data().selectedJob] ? participant.data().selectedJob : auctionJobNames[randomInt(0, auctionJobNames.length)])
+  const deck = shuffledAuctionDeck(selectedJobs, room.data().totalItems)
+  const batch = db.batch()
+  participantDocs.forEach((participant, index) => batch.update(participant.ref, { selectedJob: selectedJobs[index], updatedAt: FieldValue.serverTimestamp() }))
+  batch.update(roomRef, { gameState: 'COUNTDOWN', selectedJob: null, selectedJobs, deck, auctionIndex: 0, currentPrice: 200, highestBidderId: null, highestBidderName: null, countdownEndsAt: Timestamp.fromMillis(Date.now() + 5000), updatedAt: FieldValue.serverTimestamp() })
+  await batch.commit()
+  return { selectedJobs }
+})
+
+export const startAuctionRound = onCall(async (request) => {
+  const { uid, roomRef } = requireAuctionUser(request)
+  await db.runTransaction(async (transaction) => {
+    const participantRef = roomRef.collection('participants').doc(uid)
+    const [room, participant] = await Promise.all([transaction.get(roomRef), transaction.get(participantRef)])
+    if (!room.exists) throw new HttpsError('not-found', '게임방을 찾을 수 없습니다.')
+    if (!participant.exists) throw new HttpsError('permission-denied', '입장한 참가자만 경매를 시작할 수 있습니다.')
+    const data = room.data()
+    if (data.gameState === 'AUCTION') return
+    if (data.gameState !== 'COUNTDOWN') throw new HttpsError('failed-precondition', '시작 대기 중인 방이 아닙니다.')
+    if (data.countdownEndsAt.toMillis() > Date.now()) throw new HttpsError('failed-precondition', '아직 시작 전입니다.')
+    transaction.update(roomRef, { gameState: 'AUCTION', auctionEndsAt: Timestamp.fromMillis(Date.now() + data.bidLimit * 1000), updatedAt: FieldValue.serverTimestamp() })
+  })
+  return { started: true }
 })
 
 export const placeAuctionBid = onCall(async (request) => {

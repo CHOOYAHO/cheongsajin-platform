@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
-import { signInAnonymously, signOut } from 'firebase/auth'
+import { onAuthStateChanged, signInAnonymously, signOut } from 'firebase/auth'
 import { collection, doc, getDoc, onSnapshot, serverTimestamp, setDoc, updateDoc } from 'firebase/firestore'
 import { httpsCallable } from 'firebase/functions'
 import './App.css'
@@ -109,11 +109,12 @@ function ProfileEditor({ kind, displayName, schoolName, existing, onSave }: { ki
   </form>
 }
 
-type AuctionPhase = 'lobby' | 'waiting' | 'voting' | 'auction' | 'sold' | 'result'
-type AuctionParticipant = { id: string; nickname: string; role: 'host' | 'participant'; connected: boolean; balance?: number; inventory?: Record<string, number> }
-type AuctionRoom = { hostId: string; gameState: 'WAITING' | 'JOB_SELECTION' | 'AUCTION' | 'SOLD' | 'RESULT'; initialMoney?: number; bidLimit?: number; totalItems?: number; voteEndsAt?: { toMillis: () => number }; selectedJob?: string; deck?: string[]; auctionIndex?: number; currentPrice?: number; highestBidderId?: string | null; highestBidderName?: string | null; auctionEndsAt?: { toMillis: () => number } }
+type AuctionPhase = 'lobby' | 'waiting' | 'voting' | 'countdown' | 'auction' | 'sold' | 'result'
+type AuctionParticipant = { id: string; nickname: string; role: 'host' | 'participant'; connected: boolean; selectedJob?: string | null; balance?: number; inventory?: Record<string, number> }
+type AuctionRoom = { hostId: string; gameState: 'WAITING' | 'JOB_SELECTION' | 'COUNTDOWN' | 'AUCTION' | 'SOLD' | 'RESULT'; initialMoney?: number; bidLimit?: number; totalItems?: number; voteEndsAt?: { toMillis: () => number }; countdownEndsAt?: { toMillis: () => number }; selectedJob?: string | null; selectedJobs?: string[]; deck?: string[]; auctionIndex?: number; currentPrice?: number; highestBidderId?: string | null; highestBidderName?: string | null; auctionEndsAt?: { toMillis: () => number } }
 type AuctionTestRole = 'host' | 'participant'
 const auctionTestJobs = ['의사', '소방관', '교사', '경찰관', '유튜브 크리에이터', '게임 개발자', '요리사', '간호사', '웹툰 작가', '반려동물 훈련사', '로봇공학자', '스포츠 트레이너', '심리상담사', '항공 승무원', '건축가', '패션 디자이너', '사회복지사', '데이터 분석가', '환경 연구원', '창업가']
+const savedSessionKey = 'cheongsajin-session'
 
 function StrengthAuctionTest({ role, playerName, onExit }: { role: AuctionTestRole; playerName: string; onExit: () => void }) {
   const [phase, setPhase] = useState<Exclude<AuctionPhase, 'lobby'>>('waiting')
@@ -267,6 +268,7 @@ function StrengthAuctionGame({ studentName }: { studentName: string }) {
   const [selectedJob, setSelectedJob] = useState('')
   const [now, setNow] = useState(Date.now())
   const [settleRequestedFor, setSettleRequestedFor] = useState('')
+  const [countdownRequestedFor, setCountdownRequestedFor] = useState('')
   const [testRole, setTestRole] = useState<AuctionTestRole | null>(null)
   const auctionIndex = roomData?.auctionIndex ?? 0
   const itemLimit = roomData?.totalItems ?? 0
@@ -274,12 +276,16 @@ function StrengthAuctionGame({ studentName }: { studentName: string }) {
   const currentStrength = roomData?.deck?.[auctionIndex] ?? '문제해결능력'
   const myName = nickname.trim() || studentName || '참가자'
   const myParticipant = participants.find((item) => item.id === auth?.currentUser?.uid)
+  const participantPlayers = participants.filter((item) => item.role === 'participant')
+  const selectedParticipantCount = participantPlayers.filter((item) => item.selectedJob).length
+  const myJob = myParticipant?.selectedJob ?? selectedJob
   const balance = myParticipant?.balance ?? initialMoney
   const inventory = myParticipant?.inventory ?? {}
   const myStrengthLevel = inventory[currentStrength] ?? 0
   const rarity = (count: number) => count >= 3 ? 'EPIC' : count === 2 ? 'RARE' : 'NORMAL'
   const secondsLeft = (deadline?: { toMillis: () => number }) => deadline ? Math.max(0, Math.ceil((deadline.toMillis() - now) / 1000)) : 0
   const voteTime = secondsLeft(roomData?.voteEndsAt)
+  const countdownTime = secondsLeft(roomData?.countdownEndsAt)
   const auctionTime = secondsLeft(roomData?.auctionEndsAt)
 
   const callAuction = async <T,>(name: string, data: Record<string, unknown>) => {
@@ -339,7 +345,11 @@ function StrengthAuctionGame({ studentName }: { studentName: string }) {
   }
   const finishVote = async () => {
     try { await callAuction('finishAuctionVote', { roomCode }) }
-    catch (error) { console.error(error); setRoomError('투표를 마감하지 못했어요.') }
+    catch (error) { console.error(error); setRoomError('직업 선택을 마감하지 못했어요.') }
+  }
+  const startAuctionAfterCountdown = async () => {
+    try { await callAuction('startAuctionRound', { roomCode }) }
+    catch (error) { console.error(error); setRoomError('경매를 시작하지 못했어요.') }
   }
   const placeBid = async (amount: number) => {
     try { await callAuction('placeAuctionBid', { roomCode, amount }) }
@@ -359,7 +369,7 @@ function StrengthAuctionGame({ studentName }: { studentName: string }) {
       const room = snapshot.data() as AuctionRoom | undefined
       if (!room) return
       setRoomData(room)
-      const nextPhase: Record<AuctionRoom['gameState'], AuctionPhase> = { WAITING: 'waiting', JOB_SELECTION: 'voting', AUCTION: 'auction', SOLD: 'sold', RESULT: 'result' }
+      const nextPhase: Record<AuctionRoom['gameState'], AuctionPhase> = { WAITING: 'waiting', JOB_SELECTION: 'voting', COUNTDOWN: 'countdown', AUCTION: 'auction', SOLD: 'sold', RESULT: 'result' }
       setPhase(nextPhase[room.gameState])
     })
     const stopParticipants = onSnapshot(collection(db, 'auctionRooms', roomCode, 'participants'), (snapshot) => {
@@ -375,10 +385,18 @@ function StrengthAuctionGame({ studentName }: { studentName: string }) {
   }, [roomCode])
 
   useEffect(() => {
-    if (phase !== 'voting' && phase !== 'auction') return
+    if (phase !== 'voting' && phase !== 'countdown' && phase !== 'auction') return
     const timer = window.setInterval(() => setNow(Date.now()), 250)
     return () => window.clearInterval(timer)
   }, [phase])
+
+  useEffect(() => {
+    if (phase !== 'countdown' || countdownTime > 0 || !roomData?.countdownEndsAt) return
+    const key = String(roomData.countdownEndsAt.toMillis())
+    if (countdownRequestedFor === key) return
+    setCountdownRequestedFor(key)
+    void startAuctionAfterCountdown()
+  }, [phase, countdownTime, roomData?.countdownEndsAt, countdownRequestedFor])
 
   useEffect(() => {
     if (phase !== 'auction' || auctionTime > 0 || !roomData?.auctionEndsAt) return
@@ -403,7 +421,9 @@ function StrengthAuctionGame({ studentName }: { studentName: string }) {
     {role === 'host' ? <><div className="waiting-columns"><section><div className="auction-section-title"><h3>참가자 목록</h3><span>실시간 동기화</span></div><ul className="participant-list">{participants.map((participant) => <li key={participant.id}><i className={participant.connected ? '' : 'offline'} />{participant.nickname}{participant.role === 'host' ? <b>방장</b> : <span>{participant.connected ? '접속' : '연결 끊김'}</span>}</li>)}</ul></section><section><div className="auction-section-title"><h3>게임 설정</h3><span>방장 전용</span></div><div className="auction-settings"><label>경매 참가자 수<input value={participants.filter((item) => item.role === 'participant').length} disabled /></label><label>예상 총 상품 수<input value={participants.filter((item) => item.role === 'participant').length * 10} disabled /></label><label>초기 보유금액<input type="number" min={500} max={10000} value={initialMoney} onChange={(event) => setInitialMoney(Number(event.target.value))} /></label><label>상품당 제한시간<select value={bidLimit} onChange={(event) => setBidLimit(Number(event.target.value))}><option value={7}>7초</option><option value={10}>10초</option><option value={15}>15초</option></select></label><label>직업 선택 방식<input value="참가자 투표" disabled /></label></div></section></div><button type="button" className="auction-primary wide" onClick={startVote} disabled={!participants.some((item) => item.role === 'participant')}>게임 시작 →</button>{roomError && <p className="auction-error" role="alert">{roomError}</p>}</> : <><section className="participant-list-card"><div className="auction-section-title"><h3>참가자 목록</h3><span>실시간 동기화</span></div><ul className="participant-list">{participants.map((participant) => <li key={participant.id}><i className={participant.connected ? '' : 'offline'} />{participant.nickname}{participant.role === 'host' ? <b>방장</b> : <span>{participant.connected ? '접속' : '연결 끊김'}</span>}</li>)}</ul></section><div className="participant-wait"><div className="waiting-pulse">●</div><h3>방장이 게임을 준비하고 있습니다.</h3><p>참가자 {participants.filter((item) => item.role === 'participant').length}명 · 방 코드 {roomCode}</p></div></>}
   </div>
 
-  if (phase === 'voting') return <div className="job-vote"><div className="auction-countdown"><b>{voteTime}</b><span>초</span></div><p>이번 게임의 목표 직업</p><h2>{selectedJob || '어떤 직업의 역량을 모을까요?'}</h2><span>{role === 'host' ? '참가자들의 투표가 끝나면 경매를 시작해 주세요.' : '원하는 직업을 하나 선택하세요. 마지막 선택이 내 표로 저장돼요.'}</span><div className="job-options">{auctionJobs.map((job) => <button type="button" className={selectedJob === job ? 'selected' : ''} onClick={() => castVote(job)} disabled={role === 'host' || voteTime <= 0} key={job}>{job}</button>)}</div>{role === 'host' ? <div className="vote-actions"><button type="button" className="auction-primary" onClick={finishVote} disabled={voteTime > 0}>투표 마감·경매 시작 →</button></div> : <div className="participant-wait"><p>선택한 직업: <b>{selectedJob || '아직 선택하지 않음'}</b></p></div>}{roomError && <p className="auction-error" role="alert">{roomError}</p>}</div>
+  if (phase === 'voting') return <div className="job-vote"><div className="auction-countdown"><b>{voteTime}</b><span>초</span></div><p>각자의 목표 직업</p><h2>{role === 'host' ? `${selectedParticipantCount} / ${participantPlayers.length}명 선택 완료` : myJob || '내 직업을 하나 고르세요'}</h2><span>{role === 'host' ? '참가자마다 자기 직업을 하나씩 고릅니다. 시간이 끝나면 미선택 참가자는 자동으로 배정돼요.' : '내가 고른 직업을 기준으로 마지막 결과 화면의 중요도가 표시돼요. 중복 선택도 가능해요.'}</span><div className="job-options">{auctionJobs.map((job) => <button type="button" className={myJob === job ? 'selected' : ''} onClick={() => castVote(job)} disabled={role === 'host' || voteTime <= 0} key={job}>{job}</button>)}</div><div className="job-choice-list"><b>직업 선택 현황</b><ul>{participantPlayers.map((participant) => <li key={participant.id}><span>{participant.nickname}</span><strong>{participant.selectedJob || '고르는 중'}</strong></li>)}</ul></div>{role === 'host' ? <div className="vote-actions"><button type="button" className="auction-primary" onClick={finishVote} disabled={participantPlayers.length === 0 || (voteTime > 0 && selectedParticipantCount < participantPlayers.length)}>선택 마감·5초 뒤 경매 시작 →</button></div> : <div className="participant-wait"><p>선택한 직업: <b>{myJob || '아직 선택하지 않음'}</b></p></div>}{roomError && <p className="auction-error" role="alert">{roomError}</p>}</div>
+
+  if (phase === 'countdown') return <div className="job-vote"><div className="auction-countdown"><b>{countdownTime}</b><span>초</span></div><p>경매 시작 전</p><h2>곧 첫 상품이 출품돼요</h2><span>각자 선택한 직업은 결과 화면에서 따로 적용됩니다.</span><div className="job-choice-list"><b>참가자별 직업</b><ul>{participantPlayers.map((participant) => <li key={participant.id}><span>{participant.nickname}</span><strong>{participant.selectedJob || '자동 배정 중'}</strong></li>)}</ul></div>{roomError && <p className="auction-error" role="alert">{roomError}</p>}</div>
 
   if (phase === 'sold') {
     const wonByMe = roomData?.highestBidderId === auth?.currentUser?.uid
@@ -412,18 +432,18 @@ function StrengthAuctionGame({ studentName }: { studentName: string }) {
   }
 
   if (phase === 'result') {
-    const resultJob = roomData?.selectedJob ?? selectedJob
-    const profile = jobStrengthProfiles[resultJob]
+    const resultJob = myJob || roomData?.selectedJobs?.[0] || selectedJob || '게임 개발자'
+    const profile = jobStrengthProfiles[resultJob] ?? jobStrengthProfiles['게임 개발자']
     const groups = [
       { key: 'core' as const, title: '핵심 역량', description: '주요 업무 수행에 특히 중요해요.' },
       { key: 'related' as const, title: '관련 역량', description: '원활한 직무 수행과 밀접하게 연결돼요.' },
       { key: 'lower' as const, title: '우선도가 낮은 역량', description: '쓸모없는 역량이 아니라, 상대적 우선도가 낮아요.' },
     ]
-    return <div className="auction-result"><span className="result-kicker">경매 종료 · 중요도 공개</span><h2>{resultJob}에게 어떤 역량이 중요할까요?</h2><p className="result-guide">게임 중에는 숨겨졌던 직업별 중요도를 내 낙찰 결과와 비교해 보세요. 카드 등급은 중요도가 아니라 같은 역량을 낙찰받은 횟수예요.</p><div className="importance-grid">{groups.map((group) => <section className={`importance-${group.key}`} key={group.key}><h3>{group.title}</h3><p>{group.description}</p><ul>{profile[group.key].map((strength) => <li key={strength}><span>{strength}</span>{inventory[strength] ? <b className={`rarity-${rarity(inventory[strength]).toLowerCase()}`}>내 카드 {rarity(inventory[strength])}</b> : <small>미보유</small>}</li>)}</ul></section>)}</div><div className="result-question"><b>함께 이야기해 봐요</b><p>내가 높은 금액을 투자한 역량은 실제 중요도와 어떻게 달랐나요? 그렇게 판단한 이유는 무엇인가요?</p></div><button type="button" className="auction-primary" onClick={() => { setRoomCode(''); setRoomData(null); setPhase('lobby') }}>로비로 돌아가기</button></div>
+    return <div className="auction-result"><span className="result-kicker">경매 종료 · 중요도 공개</span><h2>{resultJob}에게 어떤 역량이 중요할까요?</h2><p className="result-guide">게임 중에는 숨겨졌던 내 직업의 중요도를 낙찰 결과와 비교해 보세요. 카드 등급은 중요도가 아니라 같은 역량을 낙찰받은 횟수예요.</p><div className="importance-grid">{groups.map((group) => <section className={`importance-${group.key}`} key={group.key}><h3>{group.title}</h3><p>{group.description}</p><ul>{profile[group.key].map((strength) => <li key={strength}><span>{strength}</span>{inventory[strength] ? <b className={`rarity-${rarity(inventory[strength]).toLowerCase()}`}>내 카드 {rarity(inventory[strength])}</b> : <small>미보유</small>}</li>)}</ul></section>)}</div><div className="result-question"><b>함께 이야기해 봐요</b><p>내가 높은 금액을 투자한 역량은 실제 중요도와 어떻게 달랐나요? 그렇게 판단한 이유는 무엇인가요?</p></div><button type="button" className="auction-primary" onClick={() => { setRoomCode(''); setRoomData(null); setPhase('lobby') }}>로비로 돌아가기</button></div>
   }
 
   const bidOptions = [currentPrice + 50, currentPrice + 100, currentPrice + 150]
-  return <div className="auction-stage"><div className="auction-topline"><span>{auctionIndex + 1} / {itemLimit} 상품</span><b>목표 직업 · {roomData?.selectedJob}</b></div><div className="auction-product"><div className={`auction-clock ${auctionTime <= 3 ? 'urgent' : ''}`}><b>{auctionTime}</b><span>초</span></div><span>지금 필요한 강점</span><h2>🔨 {currentStrength}</h2>{myStrengthLevel >= 3 && <p className="epic-block">🌟 최고 등급을 보유하고 있어 입찰할 수 없어요.</p>}<div className="current-bid"><span>현재가</span><strong>{currentPrice}P</strong><small>최고 입찰자 · {roomData?.highestBidderName || '아직 없음'}</small></div><div className="bid-buttons">{bidOptions.map((amount) => <button type="button" onClick={() => placeBid(amount)} disabled={role === 'host' || auctionTime <= 0 || amount > balance || myStrengthLevel >= 3} key={amount}>{amount}P</button>)}</div><p className="anti-snipe">종료 2초 전 새 입찰이 들어오면 시간이 5초로 연장돼요.</p>{roomError && <p className="auction-error" role="alert">{roomError}</p>}</div><aside className="auction-player"><div><span>{myName}</span><strong>💰 {balance}P</strong></div><h3>보유 역량</h3>{Object.keys(inventory).length ? <ul>{Object.entries(inventory).map(([strength, count]) => <li key={strength}><span>{strength}</span><b className={`rarity-${rarity(count).toLowerCase()}`}>{rarity(count)}</b></li>)}</ul> : <p>아직 낙찰받은 역량이 없어요.</p>}</aside></div>
+  return <div className="auction-stage"><div className="auction-topline"><span>{auctionIndex + 1} / {itemLimit} 상품</span><b>내 직업 · {myJob || '방장 진행 화면'}</b></div><div className="auction-product"><div className={`auction-clock ${auctionTime <= 3 ? 'urgent' : ''}`}><b>{auctionTime}</b><span>초</span></div><span>지금 필요한 강점</span><h2>🔨 {currentStrength}</h2>{myStrengthLevel >= 3 && <p className="epic-block">🌟 최고 등급을 보유하고 있어 입찰할 수 없어요.</p>}<div className="current-bid"><span>현재가</span><strong>{currentPrice}P</strong><small>최고 입찰자 · {roomData?.highestBidderName || '아직 없음'}</small></div><div className="bid-buttons">{bidOptions.map((amount) => <button type="button" onClick={() => placeBid(amount)} disabled={role === 'host' || auctionTime <= 0 || amount > balance || myStrengthLevel >= 3} key={amount}>{amount}P</button>)}</div><p className="anti-snipe">종료 2초 전 새 입찰이 들어오면 시간이 5초로 연장돼요.</p>{roomError && <p className="auction-error" role="alert">{roomError}</p>}</div><aside className="auction-player"><div><span>{myName}</span><strong>💰 {balance}P</strong></div><h3>{myJob ? `${myJob} 목표` : '보유 역량'}</h3>{Object.keys(inventory).length ? <ul>{Object.entries(inventory).map(([strength, count]) => <li key={strength}><span>{strength}</span><b className={`rarity-${rarity(count).toLowerCase()}`}>{rarity(count)}</b></li>)}</ul> : <p>아직 낙찰받은 역량이 없어요.</p>}</aside></div>
 }
 
 function SecondActivityDetail({ step, schoolName, studentName, onLeave, onHome }: { step: number; schoolName: string; studentName: string; onLeave: () => void; onHome: () => void }) {
@@ -504,7 +524,7 @@ function SecondActivityDetail({ step, schoolName, studentName, onLeave, onHome }
 
   return (
     <div className="app-shell">
-      <header className="topbar"><div className="brand"><span className="brand-mark">청</span><span>청·사·진</span></div><div className="student-chip"><span>{schoolName}</span><b>{studentName}</b><button onClick={onLeave} aria-label="나가기">↗</button></div></header>
+      <header className="topbar"><div className="brand"><span className="brand-mark">청</span><span>청·사·진</span></div><div className="student-chip"><span>{schoolName}</span><b>{studentName}</b><button className="logout-button" onClick={onLeave}>로그아웃</button></div></header>
       <main className="session-review activity-detail-page">
         <button className="back-button" type="button" onClick={() => window.history.back()}>← 2회기 활동 목록으로</button>
         <section className="review-hero second-session-hero detail-hero">
@@ -570,7 +590,7 @@ function App() {
   const progress = completedSessionCount * 20
 
   useEffect(() => {
-    window.history.replaceState({ cheongsajinView: 'login' }, '', '#login')
+    if (!window.location.hash) window.history.replaceState({ cheongsajinView: 'login' }, '', '#login')
     const handleBack = (event: PopStateEvent) => {
       const view = typeof event.state?.cheongsajinView === 'string' ? event.state.cheongsajinView : 'login'
       const secondActivityMatch = /^activity-2-step-([1-4])$/.exec(view)
@@ -623,6 +643,29 @@ function App() {
   }, [])
 
   useEffect(() => {
+    if (!auth) return
+    return onAuthStateChanged(auth, (user) => {
+      if (!user || entered) return
+      try {
+        const saved = JSON.parse(window.localStorage.getItem(savedSessionKey) ?? 'null') as { school?: string; name?: string } | null
+        if (saved?.school && saved?.name) {
+          setSchool(saved.school)
+          setName(saved.name)
+          setPin('')
+          setEntered(true)
+          setActiveSession(null)
+          setActiveSecondActivity(null)
+          setActiveGuide(null)
+          window.history.replaceState({ cheongsajinView: 'dashboard' }, '', '#dashboard')
+        }
+      } catch (error) {
+        console.error(error)
+        window.localStorage.removeItem(savedSessionKey)
+      }
+    })
+  }, [entered])
+
+  useEffect(() => {
     if (!entered || !db) return
     return onSnapshot(collection(db, 'mentorProfiles'), (snapshot) => {
       setMentorProfiles(snapshot.docs.map((profile) => ({ id: profile.id, ...profile.data() } as MentorProfile)).sort((a, b) => a.displayName.localeCompare(b.displayName, 'ko')))
@@ -661,6 +704,7 @@ function App() {
         const loginStaff = httpsCallable<{ name: string; pin: string }, { role: 'mentor' | 'teacher' | 'admin'; displayName: string }>(functions, 'staffLogin')
         await loginStaff({ name: name.trim(), pin: pin.trim() })
       } else await signInAnonymously(auth)
+      window.localStorage.setItem(savedSessionKey, JSON.stringify({ school, name: name.trim() }))
       setEntered(true)
       setShowMasterUnlock(false)
       window.history.pushState({ cheongsajinView: 'dashboard' }, '', '#dashboard')
@@ -677,6 +721,7 @@ function App() {
   }
   const leave = async () => {
     if (auth?.currentUser) await signOut(auth)
+    window.localStorage.removeItem(savedSessionKey)
     setActiveSession(null)
     setActiveSecondActivity(null)
     setActiveGuide(null)
@@ -759,7 +804,7 @@ function App() {
   if (activeGuide) {
     const ownMentorProfile = mentorProfiles.find((profile) => profile.displayName === name.trim())
     return <div className="app-shell">
-      <header className="topbar"><div className="brand"><span className="brand-mark">청</span><span>청·사·진</span></div><div className="student-chip"><span>{schoolName}</span><b>{name.trim()}</b><button onClick={leave} aria-label="나가기">↗</button></div></header>
+      <header className="topbar"><div className="brand"><span className="brand-mark">청</span><span>청·사·진</span></div><div className="student-chip"><span>{schoolName}</span><b>{name.trim()}</b><button className="logout-button" onClick={leave}>로그아웃</button></div></header>
       <main className="guide-detail-page">
         <button className="back-button" type="button" onClick={() => window.history.back()}>← 나의 활동실로</button>
         {activeGuide === 'program' && <><section className="guide-detail-hero blue"><span>🗺️</span><div><small>프로그램 안내</small><h1>청사진이란?</h1><p>청소년의 가능성을 발견하고 미래의 모습을 구체적으로 그려 가는 진로 멘토링 여정이에요.</p></div></section><section className="guide-content-card"><h2>청·사·진의 의미</h2><p><b>청소년의 사기진작 진로멘토링</b>의 줄임말로, 내가 좋아하는 것과 잘하는 것을 찾고 다양한 직업과 진로를 탐색하는 프로그램이에요.</p><div className="program-journey"><article><b>1</b><h3>서로 만나기</h3><p>멘토와 인사하고 진로의 의미를 알아봐요.</p></article><article><b>2</b><h3>나를 발견하기</h3><p>선호와 강점을 재미있는 활동으로 찾아봐요.</p></article><article><b>3</b><h3>역량 키우기</h3><p>희망 직업에 필요한 힘을 탐색해요.</p></article><article><b>4</b><h3>직업 연습하기</h3><p>직업 정보를 찾고 AI 면접을 경험해요.</p></article><article><b>5</b><h3>청사진 완성하기</h3><p>활동 결과를 모아 나만의 포트폴리오를 만들어요.</p></article></div></section></>}
@@ -774,7 +819,7 @@ function App() {
   if (activeSession === 1 && sessionPageMode === 'activity') {
     return (
       <div className="app-shell">
-        <header className="topbar"><div className="brand"><span className="brand-mark">청</span><span>청·사·진</span></div><div className="student-chip"><span>{schoolName}</span><b>{name.trim()}</b><button onClick={leave} aria-label="나가기">↗</button></div></header>
+        <header className="topbar"><div className="brand"><span className="brand-mark">청</span><span>청·사·진</span></div><div className="student-chip"><span>{schoolName}</span><b>{name.trim()}</b><button className="logout-button" onClick={leave}>로그아웃</button></div></header>
         <main className="session-review">
           <button className="back-button" type="button" onClick={() => window.history.back()}>← 나의 활동실로</button>
           <section className="review-hero activity-hero">
@@ -826,7 +871,7 @@ function App() {
 
     return (
       <div className="app-shell">
-        <header className="topbar"><div className="brand"><span className="brand-mark">청</span><span>청·사·진</span></div><div className="student-chip"><span>{schoolName}</span><b>{name.trim()}</b><button onClick={leave} aria-label="나가기">↗</button></div></header>
+        <header className="topbar"><div className="brand"><span className="brand-mark">청</span><span>청·사·진</span></div><div className="student-chip"><span>{schoolName}</span><b>{name.trim()}</b><button className="logout-button" onClick={leave}>로그아웃</button></div></header>
         <main className="session-review">
           <button className="back-button" type="button" onClick={() => window.history.back()}>← 나의 활동실로</button>
           <section className="review-hero second-session-hero">
@@ -866,7 +911,7 @@ function App() {
 
     return (
       <div className="app-shell">
-        <header className="topbar"><div className="brand"><span className="brand-mark">청</span><span>청·사·진</span></div><div className="student-chip"><span>{schoolName}</span><b>{name.trim()}</b><button onClick={leave} aria-label="나가기">↗</button></div></header>
+        <header className="topbar"><div className="brand"><span className="brand-mark">청</span><span>청·사·진</span></div><div className="student-chip"><span>{schoolName}</span><b>{name.trim()}</b><button className="logout-button" onClick={leave}>로그아웃</button></div></header>
         <main className="session-review">
           <button className="back-button" type="button" onClick={() => window.history.back()}>← 나의 활동실로</button>
           <section className="review-hero">
@@ -907,7 +952,7 @@ function App() {
 
   return (
     <div className="app-shell">
-      <header className="topbar"><div className="brand"><span className="brand-mark">청</span><span>청·사·진</span></div><div className="student-chip"><span>{schoolName}</span><b>{name.trim()}</b><button onClick={leave} aria-label="나가기">↗</button></div></header>
+      <header className="topbar"><div className="brand"><span className="brand-mark">청</span><span>청·사·진</span></div><div className="student-chip"><span>{schoolName}</span><b>{name.trim()}</b><button className="logout-button" onClick={leave}>로그아웃</button></div></header>
       <main className="dashboard">
         <section className="dashboard-intro">
           <div><p className="eyebrow">나의 활동실</p><h1>안녕, <em>{name.trim()}</em>!</h1><p>오늘도 나만의 가능성을 하나씩 발견해 볼까요?</p></div>
