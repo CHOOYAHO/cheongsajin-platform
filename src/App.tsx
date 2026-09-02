@@ -5,7 +5,7 @@ import { collection, doc, getDoc, onSnapshot, serverTimestamp, setDoc, updateDoc
 import { httpsCallable } from 'firebase/functions'
 import './App.css'
 import { auth, db, functions, isFirebaseConfigured } from './lib/firebase'
-import { auctionJobs, jobStrengthProfiles } from './data/auction'
+import { auctionJobs, createAuctionDeck, jobStrengthProfiles } from './data/auction'
 import chungcheongnamdoLogo from './assets/chungcheongnamdo.png'
 import educationOfficeLogo from './assets/chungnam-education-office.png'
 import socialServiceLogo from './assets/chungnam-social-service.png'
@@ -112,6 +112,130 @@ function ProfileEditor({ kind, displayName, schoolName, existing, onSave }: { ki
 type AuctionPhase = 'lobby' | 'waiting' | 'voting' | 'auction' | 'sold' | 'result'
 type AuctionParticipant = { id: string; nickname: string; role: 'host' | 'participant'; connected: boolean; balance?: number; inventory?: Record<string, number> }
 type AuctionRoom = { hostId: string; gameState: 'WAITING' | 'JOB_SELECTION' | 'AUCTION' | 'SOLD' | 'RESULT'; initialMoney?: number; bidLimit?: number; totalItems?: number; voteEndsAt?: { toMillis: () => number }; selectedJob?: string; deck?: string[]; auctionIndex?: number; currentPrice?: number; highestBidderId?: string | null; highestBidderName?: string | null; auctionEndsAt?: { toMillis: () => number } }
+type AuctionTestRole = 'host' | 'participant'
+
+function StrengthAuctionTest({ role, playerName, onExit }: { role: AuctionTestRole; playerName: string; onExit: () => void }) {
+  const [phase, setPhase] = useState<Exclude<AuctionPhase, 'lobby'>>('waiting')
+  const [voteTime, setVoteTime] = useState(10)
+  const [selectedJob, setSelectedJob] = useState('')
+  const [auctionDeck, setAuctionDeck] = useState<string[]>([])
+  const [auctionIndex, setAuctionIndex] = useState(0)
+  const [auctionTime, setAuctionTime] = useState(7)
+  const [currentPrice, setCurrentPrice] = useState(200)
+  const [highestBidder, setHighestBidder] = useState('')
+  const [balance, setBalance] = useState(1000)
+  const [inventory, setInventory] = useState<Record<string, number>>({})
+  const testName = playerName.trim() || (role === 'host' ? '테스트 방장' : '나')
+  const botNames = role === 'host' ? ['지민', '서준', '하윤'] : ['지민', '서준']
+  const participants = role === 'host' ? [testName, ...botNames] : ['가상 방장', testName, ...botNames]
+  const currentStrength = auctionDeck[auctionIndex] ?? '문제해결능력'
+  const myStrengthLevel = inventory[currentStrength] ?? 0
+  const rarity = (count: number) => count >= 3 ? 'EPIC' : count === 2 ? 'RARE' : 'NORMAL'
+  const itemLimit = 6
+
+  const startTest = () => {
+    setVoteTime(10)
+    setPhase('voting')
+  }
+  const finishVote = () => {
+    const job = role === 'participant' && selectedJob ? selectedJob : '게임 개발자'
+    setSelectedJob(job)
+    setAuctionDeck(createAuctionDeck(job, itemLimit))
+    setAuctionIndex(0)
+    setCurrentPrice(200)
+    setHighestBidder('')
+    setAuctionTime(7)
+    setPhase('auction')
+  }
+  const placeTestBid = (amount: number) => {
+    if (role !== 'participant' || amount > balance || amount <= currentPrice || myStrengthLevel >= 3) return
+    setCurrentPrice(amount)
+    setHighestBidder(testName)
+    if (auctionTime <= 2) setAuctionTime(5)
+  }
+  const nextTestItem = () => {
+    if (auctionIndex + 1 >= itemLimit) {
+      setPhase('result')
+      return
+    }
+    setAuctionIndex((current) => current + 1)
+    setCurrentPrice(200)
+    setHighestBidder('')
+    setAuctionTime(7)
+    setPhase('auction')
+  }
+  const restartTest = () => {
+    setSelectedJob('')
+    setAuctionDeck([])
+    setAuctionIndex(0)
+    setBalance(1000)
+    setInventory({})
+    setPhase('waiting')
+  }
+
+  useEffect(() => {
+    if (phase !== 'voting') return
+    if (voteTime <= 0) {
+      if (role === 'participant') finishVote()
+      return
+    }
+    const timer = window.setTimeout(() => setVoteTime((current) => current - 1), 1000)
+    return () => window.clearTimeout(timer)
+  }, [phase, voteTime, role])
+
+  useEffect(() => {
+    if (phase !== 'auction' || auctionTime <= 0) return
+    const tick = window.setTimeout(() => setAuctionTime((current) => current - 1), 1000)
+    return () => window.clearTimeout(tick)
+  }, [phase, auctionTime])
+
+  useEffect(() => {
+    if (phase !== 'auction' || auctionTime <= 0) return
+    const botBid = window.setTimeout(() => {
+      if (Math.random() < .62) {
+        const bidder = botNames[Math.floor(Math.random() * botNames.length)]
+        setCurrentPrice((price) => Math.min(950, price + 50))
+        setHighestBidder(bidder)
+        if (auctionTime <= 2) setAuctionTime(5)
+      }
+    }, 900 + Math.random() * 1300)
+    return () => window.clearTimeout(botBid)
+  }, [phase, auctionTime, auctionIndex])
+
+  useEffect(() => {
+    if (phase !== 'auction' || auctionTime > 0) return
+    if (highestBidder === testName) {
+      setBalance((current) => current - currentPrice)
+      setInventory((current) => ({ ...current, [currentStrength]: Math.min(3, (current[currentStrength] ?? 0) + 1) }))
+    }
+    setPhase('sold')
+  }, [phase, auctionTime, highestBidder, testName, currentPrice, currentStrength])
+
+  const testHeader = <div className="test-mode-bar"><div><b>🧪 {role === 'host' ? '방장용' : '참여자용'} 테스트 게임</b><span>Firebase에 저장되지 않는 연습 모드</span></div><button type="button" onClick={onExit}>테스트 종료</button></div>
+
+  if (phase === 'waiting') return <div className="auction-waiting">{testHeader}<div className="room-summary"><div><span>방 코드</span><strong>TEST</strong></div><div><span>경매 참가자</span><strong>{participants.length - 1}명</strong></div><div><span>내 역할</span><strong>{role === 'host' ? '방장' : '참가자'}</strong></div></div><section className="participant-list-card"><div className="auction-section-title"><h3>테스트 참가자</h3><span>가상 참가자 자동 행동</span></div><ul className="participant-list">{participants.map((name, index) => <li key={name}><i />{name}{(index === 0 && role === 'host') || name === '가상 방장' ? <b>방장</b> : <span>{name === testName ? '나' : 'BOT'}</span>}</li>)}</ul></section><button type="button" className="auction-primary wide" onClick={startTest}>{role === 'host' ? '테스트 게임 시작 →' : '가상 방장에게 시작 요청 →'}</button></div>
+
+  if (phase === 'voting') return <div className="job-vote">{testHeader}<div className="auction-countdown"><b>{voteTime}</b><span>초</span></div><p>이번 게임의 목표 직업</p><h2>{selectedJob || (role === 'host' ? '가상 참가자들이 투표 중이에요' : '어떤 직업의 역량을 모을까요?')}</h2><span>{role === 'host' ? '가상 참가자 3명이 자동으로 투표하고 있어요.' : '원하는 직업을 선택하면 가상 방장이 자동으로 경매를 시작해요.'}</span><div className="job-options">{auctionJobs.map((job) => <button type="button" className={selectedJob === job ? 'selected' : ''} onClick={() => setSelectedJob(job)} disabled={role === 'host' || voteTime <= 0} key={job}>{job}</button>)}</div>{role === 'host' && <div className="vote-actions"><button type="button" className="auction-primary" onClick={finishVote} disabled={voteTime > 0}>투표 결과 확인·경매 시작 →</button></div>}</div>
+
+  if (phase === 'sold') {
+    const wonByMe = highestBidder === testName
+    const nextLevel = inventory[currentStrength] ?? 0
+    return <div className="sold-screen">{testHeader}<span className="hammer-hit">🔨</span><p>{highestBidder ? '낙찰!' : '유찰'}</p><h2>{currentStrength}</h2>{highestBidder && <div className="sold-price"><b>{highestBidder}</b><strong>{currentPrice}P</strong></div>}{wonByMe && <div className={`upgrade-card rarity-${rarity(nextLevel).toLowerCase()}`}><span>{nextLevel > 1 ? '✨ 등급 강화!' : '새로운 강점 획득!'}</span><h3>{currentStrength}</h3><b>{rarity(nextLevel)}</b></div>}<button type="button" className="auction-primary" onClick={nextTestItem}>{auctionIndex + 1 >= itemLimit ? '결과 확인 →' : role === 'host' ? '다음 상품 진행 →' : '가상 방장 다음 상품 진행 →'}</button></div>
+  }
+
+  if (phase === 'result') {
+    const profile = jobStrengthProfiles[selectedJob]
+    const groups = [
+      { key: 'core' as const, title: '핵심 역량' },
+      { key: 'related' as const, title: '관련 역량' },
+      { key: 'lower' as const, title: '우선도가 낮은 역량' },
+    ]
+    return <div className="auction-result">{testHeader}<span className="result-kicker">테스트 종료 · 중요도 공개</span><h2>{selectedJob}에게 어떤 역량이 중요할까요?</h2><p className="result-guide">실제 데이터에는 저장되지 않았어요. 방장·참가자 화면 흐름을 다시 연습하거나 로비로 돌아갈 수 있어요.</p><div className="importance-grid">{groups.map((group) => <section className={`importance-${group.key}`} key={group.key}><h3>{group.title}</h3><ul>{profile[group.key].map((strength) => <li key={strength}><span>{strength}</span>{inventory[strength] ? <b className={`rarity-${rarity(inventory[strength]).toLowerCase()}`}>{rarity(inventory[strength])}</b> : <small>미보유</small>}</li>)}</ul></section>)}</div><div className="test-result-actions"><button type="button" className="auction-primary" onClick={restartTest}>같은 역할로 다시 하기</button><button type="button" className="random-job" onClick={onExit}>테스트 선택으로 돌아가기</button></div></div>
+  }
+
+  const bidOptions = [currentPrice + 50, currentPrice + 100, currentPrice + 150]
+  return <div className="auction-stage">{testHeader}<div className="auction-topline"><span>{auctionIndex + 1} / {itemLimit} 상품</span><b>목표 직업 · {selectedJob}</b></div><div className="auction-product"><div className={`auction-clock ${auctionTime <= 3 ? 'urgent' : ''}`}><b>{auctionTime}</b><span>초</span></div><span>지금 필요한 강점</span><h2>🔨 {currentStrength}</h2>{myStrengthLevel >= 3 && <p className="epic-block">🌟 최고 등급을 보유하고 있어 입찰할 수 없어요.</p>}<div className="current-bid"><span>현재가</span><strong>{currentPrice}P</strong><small>최고 입찰자 · {highestBidder || '아직 없음'}</small></div><div className="bid-buttons">{bidOptions.map((amount) => <button type="button" onClick={() => placeTestBid(amount)} disabled={role === 'host' || amount > balance || myStrengthLevel >= 3} key={amount}>{role === 'host' ? '참가자 화면 전용' : `${amount}P`}</button>)}</div><p className="anti-snipe">가상 참가자들이 자동으로 입찰하며, 종료 직전 입찰 시 5초 연장돼요.</p></div><aside className="auction-player"><div><span>{testName}</span><strong>💰 {balance}P</strong></div><h3>보유 역량</h3>{Object.keys(inventory).length ? <ul>{Object.entries(inventory).map(([strength, count]) => <li key={strength}><span>{strength}</span><b className={`rarity-${rarity(count).toLowerCase()}`}>{rarity(count)}</b></li>)}</ul> : <p>{role === 'host' ? '방장은 입찰하지 않아요.' : '아직 낙찰받은 역량이 없어요.'}</p>}</aside></div>
+}
 
 function StrengthAuctionGame({ studentName }: { studentName: string }) {
   const [phase, setPhase] = useState<AuctionPhase>('lobby')
@@ -128,6 +252,7 @@ function StrengthAuctionGame({ studentName }: { studentName: string }) {
   const [selectedJob, setSelectedJob] = useState('')
   const [now, setNow] = useState(Date.now())
   const [settleRequestedFor, setSettleRequestedFor] = useState('')
+  const [testRole, setTestRole] = useState<AuctionTestRole | null>(null)
   const auctionIndex = roomData?.auctionIndex ?? 0
   const itemLimit = roomData?.totalItems ?? 0
   const currentPrice = roomData?.currentPrice ?? 200
@@ -248,11 +373,14 @@ function StrengthAuctionGame({ studentName }: { studentName: string }) {
     void callAuction('settleAuctionItem', { roomCode }).catch((error) => console.error(error))
   }, [phase, auctionTime, auctionIndex, roomData?.auctionEndsAt, roomCode, settleRequestedFor])
 
+  if (testRole) return <StrengthAuctionTest role={testRole} playerName={myName} onExit={() => setTestRole(null)} />
+
   if (phase === 'lobby') return <div className="auction-lobby">
     <div className="auction-title"><span>🔨</span><h2>강점 경매장</h2><p>선택한 직업에 필요한 강점을 전략적으로 낙찰받아 보세요.</p></div>
     <div className="auction-entry-grid"><article><span>방장</span><h3>새 게임방 만들기</h3><p>참가자를 초대하고 금액·시간 등 게임 설정을 준비해요.</p><input value={nickname} onChange={(event) => setNickname(event.target.value)} placeholder="방장 닉네임" maxLength={12} /><button type="button" onClick={createRoom} disabled={isRoomBusy}>{isRoomBusy ? '연결 중…' : '방 만들기 →'}</button></article><article><span>참가자</span><h3>게임방 입장하기</h3><p>닉네임과 방장이 알려준 코드를 입력해 주세요.</p><input value={nickname} onChange={(event) => setNickname(event.target.value)} placeholder="닉네임" maxLength={12} /><input value={joinCode} onChange={(event) => setJoinCode(event.target.value)} placeholder="방 코드 입력" maxLength={6} /><button type="button" onClick={joinRoom} disabled={isRoomBusy || joinCode.trim().length < 4 || !nickname.trim()}>{isRoomBusy ? '연결 중…' : '입장하기 →'}</button></article></div>
     {roomError && <p className="auction-error" role="alert">{roomError}</p>}
     <div className="prototype-notice"><b>실시간 게임</b><p>방 입장부터 직업 투표, 입찰, 낙찰과 결과까지 여러 기기에 실시간으로 동기화돼요.</p></div>
+    <section className="auction-test-section"><div className="auction-section-title"><div><span>혼자서도 연습 가능</span><h3>테스트 게임</h3></div><b>Firebase 저장 없음</b></div><p>가상 참가자들과 전체 흐름을 미리 확인해 보세요.</p><div><button type="button" onClick={() => setTestRole('host')}><span>👑</span><b>방장으로 테스트</b><small>게임 시작·투표 마감·다음 상품 진행</small></button><button type="button" onClick={() => setTestRole('participant')}><span>🙋</span><b>참여자로 테스트</b><small>직업 투표·실시간 입찰·강점 수집</small></button></div></section>
   </div>
 
   if (phase === 'waiting') return <div className="auction-waiting">
