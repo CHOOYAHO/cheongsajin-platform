@@ -19,6 +19,8 @@ type PreferenceResult = { id: string; displayName?: string; schoolName?: string;
 type GuidePage = 'program' | 'profile' | 'mentors' | 'center'
 type ProfilePayload = { introduction: string; interests: string; hopeJob: string; oneLineIntro: string; schoolMajor: string; majorReason: string; careerInterests: string; campusLife: string; strengths: string; message: string }
 type MentorProfile = { id: string; displayName: string; oneLineIntro?: string; schoolMajor?: string; interests?: string; majorReason?: string; careerInterests?: string; campusLife?: string; strengths?: string; message?: string; major?: string; university?: string; introduction?: string; careerStory?: string }
+type StaffRole = 'mentor' | 'teacher' | 'admin'
+type StaffSessionPlan = { title: string; subtitle: string; description: string; icon: string; theme: string; activities: { duration: string; title: string; description: string; mentorTip: string }[] }
 const sessionTemplates: SessionTemplate[] = [
   { number: 1, title: '청사진을 위한 첫 만남', subtitle: '나와 멘토, 새로운 가능성을 만나요', icon: '👋' },
   { number: 2, title: '선호와 강점 탐색', subtitle: '좋아하는 것과 나만의 강점을 발견해요', icon: '✨' },
@@ -35,6 +37,36 @@ const firstSessionActivities = [
   { duration: '20분', title: '진로와 직업', description: '퀴즈와 짧은 이야기를 통해 진로와 직업의 의미를 생각해 봤어요.' },
   { duration: '10분', title: '활동 마무리', description: '궁금한 점을 나누고 다음 회기인 선호와 강점 탐색 활동을 확인했어요.' },
 ]
+
+const staffSessionPlans: Record<number, StaffSessionPlan> = {
+  3: {
+    title: '진로 역량 갖추기', subtitle: '흥미와 강점을 희망 직업의 역량으로 연결해요.', description: '2회기에서 발견한 선호와 강점을 바탕으로 관심 직업을 구체화하고, 그 직업에 필요한 역량을 찾아보는 회기예요.', icon: '🧩', theme: 'competency',
+    activities: [
+      { duration: '15분', title: '지난 활동 돌아보기', description: '선호 탐색과 강점 경매 결과에서 나를 잘 보여 주는 키워드를 골라요.', mentorTip: '결과를 평가하기보다 청소년이 선택한 이유를 질문해 주세요.' },
+      { duration: '25분', title: '관심 직업 후보 찾기', description: '흥미와 강점이 연결되는 직업을 탐색하고 관심 직업 후보를 정해요.', mentorTip: '직업을 하나로 확정하기보다 여러 가능성을 비교하도록 도와주세요.' },
+      { duration: '35분', title: '직업의 핵심 역량 연결하기', description: '관심 직업이 하는 일과 필요한 역량을 조사하고 나의 강점과 연결해요.', mentorTip: '막연한 성격보다 실제 행동과 경험을 근거로 연결해 주세요.' },
+      { duration: '25분', title: '나의 역량 성장 계획', description: '이미 가진 역량과 더 키우고 싶은 역량을 나누고 작은 실천을 정해요.', mentorTip: '다음 회기 전까지 실천할 수 있는 구체적인 행동으로 마무리해 주세요.' },
+    ],
+  },
+  4: {
+    title: '직업 탐색과 AI 면접', subtitle: '직업을 깊이 알아보고 미래의 나를 연습해요.', description: '관심 직업의 실제 업무와 진입 과정을 조사하고, AI 모의면접을 통해 나의 경험과 강점을 말로 표현해 보는 회기예요.', icon: '💬', theme: 'interview',
+    activities: [
+      { duration: '20분', title: '직업 정보 깊이 탐색하기', description: '주요 업무, 필요한 준비, 관련 학과와 자격 등 직업 정보를 확인해요.', mentorTip: '출처가 분명한 정보인지 함께 확인하고 어려운 용어를 풀어 주세요.' },
+      { duration: '20분', title: '면접 질문과 답변 준비하기', description: '지원 동기, 나의 강점, 경험을 묻는 질문에 답변의 핵심을 적어요.', mentorTip: '완성된 문장을 대신 써주기보다 청소년의 실제 경험을 끌어내 주세요.' },
+      { duration: '35분', title: 'AI 모의면접 체험하기', description: 'AI 면접관의 질문을 듣고 준비한 내용을 직접 말하며 면접을 연습해요.', mentorTip: '촬영·음성 이용 안내를 먼저 확인하고 참여를 강요하지 않아요.' },
+      { duration: '25분', title: '피드백으로 답변 다듬기', description: '잘 전달된 점과 보완할 점을 찾아 답변을 한 번 더 개선해요.', mentorTip: '구체적인 장점을 먼저 말한 뒤 한 가지 개선점만 제안해 주세요.' },
+    ],
+  },
+  5: {
+    title: '나만의 청사진 만들기', subtitle: '지금까지의 발견을 모아 미래의 모습을 그려요.', description: '전체 활동 결과를 돌아보고 나의 흥미·강점·관심 직업·성장 계획을 한 장의 진로 청사진으로 완성하는 회기예요.', icon: '🗺️', theme: 'blueprint',
+    activities: [
+      { duration: '20분', title: '활동 결과 모아보기', description: '1~4회기의 기록에서 나를 잘 보여 주는 결과와 문장을 골라요.', mentorTip: '좋은 결과만 고르기보다 생각이 달라진 지점도 발견하도록 도와주세요.' },
+      { duration: '20분', title: '나의 변화 돌아보기', description: '처음 생각과 지금 생각을 비교하고 새롭게 알게 된 나의 모습을 정리해요.', mentorTip: '작은 변화도 청소년의 언어로 표현할 수 있도록 기다려 주세요.' },
+      { duration: '35분', title: '진로 청사진 완성하기', description: '나의 흥미, 강점, 관심 직업과 앞으로의 실천을 하나의 이야기로 연결해요.', mentorTip: '정답처럼 보이는 진로보다 지금의 방향과 다음 행동이 드러나게 해 주세요.' },
+      { duration: '25분', title: '청사진 나누기와 마무리', description: '완성한 청사진을 소개하고 서로의 가능성과 도전을 응원해요.', mentorTip: '공개 범위를 청소년이 선택하게 하고 구체적인 응원의 말을 전해 주세요.' },
+    ],
+  },
+}
 
 const testParticipants = [
   { school: 'yesan-high', name: '1', pin: '1' },
@@ -699,6 +731,30 @@ function SecondActivityDetail({ step, schoolName, studentName, viewerMode, onLea
   )
 }
 
+function StaffSessionDetail({ sessionNumber, schoolName, displayName, onLeave }: { sessionNumber: number; schoolName: string; displayName: string; onLeave: () => void }) {
+  const plan = staffSessionPlans[sessionNumber]
+  return (
+    <div className="app-shell">
+      <header className="topbar"><div className="brand"><span className="brand-mark">청</span><span>청·사·진</span></div><div className="student-chip"><span>{schoolName}</span><b>{displayName}</b><button className="logout-button" onClick={onLeave}>로그아웃</button></div></header>
+      <main className="session-review staff-session-detail">
+        <button className="back-button" type="button" onClick={() => window.history.back()}>← 나의 활동실로</button>
+        <section className={`review-hero staff-session-hero ${plan.theme}`}>
+          <div><span className="staff-preview-badge">멘토·관리자 미리보기 · {sessionNumber}회기</span><p className="eyebrow">활동 세부 안내</p><h1>{plan.title}</h1><p>{plan.description}</p></div>
+          <div className="review-icon" aria-hidden="true">{plan.icon}</div>
+        </section>
+        <section className="staff-session-summary"><div><small>회기</small><b>{sessionNumber}회기</b></div><div><small>활동 주제</small><b>{plan.subtitle}</b></div><div><small>예상 시간</small><b>총 100분</b></div></section>
+        <section className="activity-notice staff-notice"><span aria-hidden="true">📌</span><div><h2>멘토 진행 안내</h2><p>현재 페이지는 멘토와 관리자가 수업 흐름을 미리 확인하는 용도예요. 세부 활동 기능과 학생용 입력 화면은 회기별 개발 단계에서 연결됩니다.</p></div></section>
+        <section className="review-section">
+          <div className="review-section-heading"><div><p className="eyebrow">활동 흐름</p><h2>이 순서대로 진행해요</h2></div><span>4개 활동 · 100분</span></div>
+          <div className="staff-activity-list">{plan.activities.map((activity, index) => <article key={activity.title}><div className="staff-activity-number">{index + 1}</div><div className="staff-activity-body"><div><h3>{activity.title}</h3><span>{activity.duration}</span></div><p>{activity.description}</p><aside><b>멘토 포인트</b><span>{activity.mentorTip}</span></aside></div></article>)}</div>
+        </section>
+        <section className="activity-help"><div><p>활동 설계 확인</p><h2>세부 기능을 만들기 전 전체 진행 흐름을 먼저 확인해 주세요.</h2></div><button type="button" onClick={() => window.history.back()}>활동실로 돌아가기 →</button></section>
+      </main>
+      <PartnerFooter />
+    </div>
+  )
+}
+
 function App() {
   const [entered, setEntered] = useState(false)
   const [activeSession, setActiveSession] = useState<number | null>(null)
@@ -706,6 +762,7 @@ function App() {
   const [activeGuide, setActiveGuide] = useState<GuidePage | null>(null)
   const [mentorProfiles, setMentorProfiles] = useState<MentorProfile[]>([])
   const [sessionPageMode, setSessionPageMode] = useState<'activity' | 'review'>('review')
+  const [staffRole, setStaffRole] = useState<StaffRole | null>(null)
   const [school, setSchool] = useState('')
   const [name, setName] = useState('')
   const [pin, setPin] = useState('')
@@ -715,10 +772,11 @@ function App() {
   const [masterCode, setMasterCode] = useState('')
   const [isUnlocking, setIsUnlocking] = useState(false)
   const schoolName = school === 'yesan-high' ? '예산고등학교' : school === 'gwangsi-middle' ? '광시중학교' : school === 'staff' ? '멘토/관리자' : ''
+  const canPreviewFutureSessions = staffRole === 'mentor' || staffRole === 'admin'
   const completedSessionCount = school === 'yesan-high' || school === 'staff' ? 1 : 0
   const sessions: Session[] = sessionTemplates.map((session) => ({
     ...session,
-    status: session.number <= completedSessionCount ? 'done' : session.number === completedSessionCount + 1 ? 'open' : 'locked',
+    status: canPreviewFutureSessions && session.number >= 3 ? 'open' : session.number <= completedSessionCount ? 'done' : session.number === completedSessionCount + 1 ? 'open' : 'locked',
   }))
   const progress = completedSessionCount * 20
 
@@ -752,9 +810,17 @@ function App() {
         return
       }
       if (sessionMatch) {
+        const requestedSession = Number(sessionMatch[2])
+        if (requestedSession >= 3 && staffRole !== 'mentor' && staffRole !== 'admin') {
+          setActiveSession(null)
+          setActiveSecondActivity(null)
+          setActiveGuide(null)
+          window.history.replaceState({ cheongsajinView: 'dashboard' }, '', '#dashboard')
+          return
+        }
         setEntered(true)
         setSessionPageMode(sessionMatch[1] === 'activity' ? 'activity' : 'review')
-        setActiveSession(Number(sessionMatch[2]))
+        setActiveSession(requestedSession)
         setActiveSecondActivity(null)
         return
       }
@@ -773,17 +839,26 @@ function App() {
     }
     window.addEventListener('popstate', handleBack)
     return () => window.removeEventListener('popstate', handleBack)
-  }, [])
+  }, [staffRole])
 
   useEffect(() => {
-    if (!auth) return
-    return onAuthStateChanged(auth, (user) => {
+    if (!auth || !db) return
+    const firestore = db
+    return onAuthStateChanged(auth, async (user) => {
       if (!user || entered) return
       try {
-        const saved = JSON.parse(window.localStorage.getItem(savedSessionKey) ?? 'null') as { school?: string; name?: string } | null
+        const saved = JSON.parse(window.localStorage.getItem(savedSessionKey) ?? 'null') as { school?: string; name?: string; role?: StaffRole } | null
         if (saved?.school && saved?.name) {
+          let verifiedRole: StaffRole | null = null
+          if (saved.role) {
+            const sessionSnapshot = await getDoc(doc(firestore, 'staffSessions', user.uid))
+            const sessionData = sessionSnapshot.data()
+            const expiresAt = sessionData?.expiresAt?.toMillis?.() ?? 0
+            if (sessionSnapshot.exists() && expiresAt > Date.now() && sessionData?.role === saved.role) verifiedRole = saved.role
+          }
           setSchool(saved.school)
           setName(saved.name)
+          setStaffRole(verifiedRole)
           setPin('')
           setEntered(true)
           setActiveSession(null)
@@ -835,9 +910,14 @@ function App() {
         if (!functions) throw new Error('Firebase Functions configuration is missing')
         await signInAnonymously(auth)
         const loginStaff = httpsCallable<{ name: string; pin: string }, { role: 'mentor' | 'teacher' | 'admin'; displayName: string }>(functions, 'staffLogin')
-        await loginStaff({ name: name.trim(), pin: pin.trim() })
-      } else await signInAnonymously(auth)
-      window.localStorage.setItem(savedSessionKey, JSON.stringify({ school, name: name.trim() }))
+        const loginResult = await loginStaff({ name: name.trim(), pin: pin.trim() })
+        setStaffRole(loginResult.data.role)
+        window.localStorage.setItem(savedSessionKey, JSON.stringify({ school, name: name.trim(), role: loginResult.data.role }))
+      } else {
+        await signInAnonymously(auth)
+        setStaffRole(null)
+        window.localStorage.setItem(savedSessionKey, JSON.stringify({ school, name: name.trim() }))
+      }
       setEntered(true)
       setShowMasterUnlock(false)
       window.history.pushState({ cheongsajinView: 'dashboard' }, '', '#dashboard')
@@ -858,10 +938,12 @@ function App() {
     setActiveSession(null)
     setActiveSecondActivity(null)
     setActiveGuide(null)
+    setStaffRole(null)
     setEntered(false)
     window.history.replaceState({ cheongsajinView: 'login' }, '', '#login')
   }
   const openSession = (sessionNumber: number, mode: 'activity' | 'review') => {
+    if (sessionNumber >= 3 && !canPreviewFutureSessions) return
     setSessionPageMode(mode)
     setActiveSession(sessionNumber)
     const view = mode === 'activity' ? `activity-${sessionNumber}` : `session-${sessionNumber}`
@@ -947,6 +1029,10 @@ function App() {
       </main>
       <PartnerFooter />
     </div>
+  }
+
+  if (activeSession && activeSession >= 3 && activeSession <= 5 && sessionPageMode === 'activity' && canPreviewFutureSessions) {
+    return <StaffSessionDetail sessionNumber={activeSession} schoolName={schoolName} displayName={name.trim()} onLeave={leave} />
   }
 
   if (activeSession === 1 && sessionPageMode === 'activity') {
@@ -1103,9 +1189,9 @@ function App() {
           <div className="section-title"><div><p className="eyebrow">전체 여정</p><h2>회기별 활동</h2></div><span>활동은 순서대로 열려요</span></div>
           <div className="session-grid">{sessions.map((session) => (
             <article className={`session-card ${session.status}`} key={session.number}>
-              <div className="session-top"><span className="small-icon">{session.icon}</span><span className="status">{session.status === 'done' ? '완료' : session.status === 'open' ? '진행 중' : '잠김'}</span></div>
+              <div className="session-top"><span className="small-icon">{session.icon}</span><span className="status">{session.status === 'done' ? '완료' : canPreviewFutureSessions && session.number >= 3 ? '미리보기' : session.status === 'open' ? '진행 중' : '잠김'}</span></div>
               <small>{session.number}회기</small><h3>{session.title}</h3><p>{session.subtitle}</p>
-              {session.status === 'done' ? <button type="button" className="card-action" onClick={() => openSession(session.number, 'review')}>활동 다시 보기 <span>→</span></button> : session.status === 'open' ? <button type="button" className="card-action" onClick={() => openSession(session.number, 'activity')}>활동하기 <span>→</span></button> : <div className="card-action">이전 활동을 완료하면 열려요 <span>🔒</span></div>}
+              {session.status === 'done' ? <button type="button" className="card-action" onClick={() => openSession(session.number, 'review')}>활동 다시 보기 <span>→</span></button> : session.status === 'open' ? <button type="button" className="card-action" onClick={() => openSession(session.number, 'activity')}>{canPreviewFutureSessions && session.number >= 3 ? '활동 세부 보기' : '활동하기'} <span>→</span></button> : <div className="card-action">{session.number >= 3 ? '멘토·관리자에게만 공개돼요' : '이전 활동을 완료하면 열려요'} <span>🔒</span></div>}
             </article>
           ))}</div>
         </section>
