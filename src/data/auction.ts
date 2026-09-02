@@ -118,8 +118,14 @@ export const jobStrengthProfiles: Record<string, JobStrengthProfile> = {
 export const auctionJobs = Object.keys(jobStrengthProfiles)
 
 export function createAuctionDeck(job: string, itemCount: number) {
-  const profile = jobStrengthProfiles[job] ?? jobStrengthProfiles['소방관']
-  const candidates = [...profile.core, ...profile.related, ...profile.lower]
+  return createAuctionDeckForJobs([job], itemCount)
+}
+
+export function createAuctionDeckForJobs(jobs: string[], itemCount: number) {
+  const candidates = [...new Set(jobs.flatMap((job) => {
+    const profile = jobStrengthProfiles[job] ?? jobStrengthProfiles['소방관']
+    return [...profile.core, ...profile.related, ...profile.lower]
+  }))]
   const deck = Array.from({ length: itemCount }, (_, index) => candidates[index % candidates.length])
   for (let index = deck.length - 1; index > 0; index -= 1) {
     const swapIndex = Math.floor(Math.random() * (index + 1))
