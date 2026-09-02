@@ -274,7 +274,7 @@ export const startAuctionRound = onCall(async (request) => {
 export const placeAuctionBid = onCall(async (request) => {
   const { uid, roomRef } = requireAuctionUser(request)
   const amount = Number(request.data?.amount)
-  if (!Number.isInteger(amount) || amount < 100) throw new HttpsError('invalid-argument', '입찰 금액이 올바르지 않습니다.')
+  if (!Number.isInteger(amount) || amount < 50) throw new HttpsError('invalid-argument', '입찰 금액이 올바르지 않습니다.')
   await db.runTransaction(async (transaction) => {
     const participantRef = roomRef.collection('participants').doc(uid)
     const [room, participant] = await Promise.all([transaction.get(roomRef), transaction.get(participantRef)])
@@ -286,7 +286,8 @@ export const placeAuctionBid = onCall(async (request) => {
     const strength = data.deck[data.auctionIndex]
     if (data.auctionEndsAt.toMillis() <= now) throw new HttpsError('deadline-exceeded', '입찰 시간이 종료되었습니다.')
     if (data.highestBidderId === uid) throw new HttpsError('failed-precondition', '현재 최고 입찰자는 추가 입찰을 할 수 없습니다.')
-    if (amount <= data.currentPrice || amount > player.balance) throw new HttpsError('failed-precondition', '입찰 금액이나 잔액을 확인해 주세요.')
+    const invalidBid = data.highestBidderId ? amount <= data.currentPrice : amount < data.currentPrice
+    if (invalidBid || amount > player.balance) throw new HttpsError('failed-precondition', '입찰 금액이나 잔액을 확인해 주세요.')
     if ((player.inventory?.[strength] ?? 0) >= 3) throw new HttpsError('failed-precondition', '이미 최고 등급인 강점입니다.')
     const remaining = data.auctionEndsAt.toMillis() - now
     transaction.update(roomRef, { currentPrice: amount, highestBidderId: uid, highestBidderName: player.nickname, auctionEndsAt: remaining <= 2000 ? Timestamp.fromMillis(now + 5000) : data.auctionEndsAt, updatedAt: FieldValue.serverTimestamp() })
