@@ -250,7 +250,7 @@ export const finishAuctionVote = onCall(async (request) => {
   const deck = shuffledAuctionDeck(selectedJobs, room.data().totalItems)
   const batch = db.batch()
   participantDocs.forEach((participant, index) => batch.update(participant.ref, { selectedJob: selectedJobs[index], updatedAt: FieldValue.serverTimestamp() }))
-  batch.update(roomRef, { gameState: 'COUNTDOWN', selectedJob: null, selectedJobs, deck, auctionIndex: 0, currentPrice: 200, highestBidderId: null, highestBidderName: null, countdownEndsAt: Timestamp.fromMillis(Date.now() + 5000), updatedAt: FieldValue.serverTimestamp() })
+  batch.update(roomRef, { gameState: 'COUNTDOWN', selectedJob: null, selectedJobs, deck, auctionIndex: 0, currentPrice: 50, highestBidderId: null, highestBidderName: null, countdownEndsAt: Timestamp.fromMillis(Date.now() + 5000), updatedAt: FieldValue.serverTimestamp() })
   await batch.commit()
   return { selectedJobs }
 })
@@ -274,7 +274,7 @@ export const startAuctionRound = onCall(async (request) => {
 export const placeAuctionBid = onCall(async (request) => {
   const { uid, roomRef } = requireAuctionUser(request)
   const amount = Number(request.data?.amount)
-  if (!Number.isInteger(amount) || amount < 250) throw new HttpsError('invalid-argument', '입찰 금액이 올바르지 않습니다.')
+  if (!Number.isInteger(amount) || amount < 100) throw new HttpsError('invalid-argument', '입찰 금액이 올바르지 않습니다.')
   await db.runTransaction(async (transaction) => {
     const participantRef = roomRef.collection('participants').doc(uid)
     const [room, participant] = await Promise.all([transaction.get(roomRef), transaction.get(participantRef)])
@@ -323,7 +323,7 @@ export const advanceAuctionItem = onCall(async (request) => {
     const data = room.data()
     if (data.gameState !== 'SOLD') throw new HttpsError('failed-precondition', '낙찰 처리가 완료되지 않았습니다.')
     const nextIndex = data.auctionIndex + 1
-    transaction.update(roomRef, nextIndex >= data.totalItems ? { gameState: 'RESULT', updatedAt: FieldValue.serverTimestamp() } : { gameState: 'AUCTION', auctionIndex: nextIndex, currentPrice: 200, highestBidderId: null, highestBidderName: null, auctionEndsAt: Timestamp.fromMillis(Date.now() + data.bidLimit * 1000), updatedAt: FieldValue.serverTimestamp() })
+    transaction.update(roomRef, nextIndex >= data.totalItems ? { gameState: 'RESULT', updatedAt: FieldValue.serverTimestamp() } : { gameState: 'AUCTION', auctionIndex: nextIndex, currentPrice: 50, highestBidderId: null, highestBidderName: null, auctionEndsAt: Timestamp.fromMillis(Date.now() + data.bidLimit * 1000), updatedAt: FieldValue.serverTimestamp() })
   })
   return { advanced: true }
 })

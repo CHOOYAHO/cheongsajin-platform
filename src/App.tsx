@@ -126,7 +126,7 @@ function StrengthAuctionTest({ role, playerName, onExit }: { role: AuctionTestRo
   const [auctionDeck, setAuctionDeck] = useState<string[]>([])
   const [auctionIndex, setAuctionIndex] = useState(0)
   const [auctionTime, setAuctionTime] = useState(10)
-  const [currentPrice, setCurrentPrice] = useState(200)
+  const [currentPrice, setCurrentPrice] = useState(50)
   const [highestBidder, setHighestBidder] = useState('')
   const [balance, setBalance] = useState(1000)
   const [inventory, setInventory] = useState<Record<string, number>>({})
@@ -153,7 +153,7 @@ function StrengthAuctionTest({ role, playerName, onExit }: { role: AuctionTestRo
     setSelectedJob(role === 'participant' ? mySelectedJob : participantJobs[0]?.job || '게임 개발자')
     setAuctionDeck(createAuctionDeckForJobs(participantJobs.map((participant) => participant.job), itemLimit))
     setAuctionIndex(0)
-    setCurrentPrice(200)
+    setCurrentPrice(50)
     setHighestBidder('')
     setAuctionTime(10)
     setCountdownTime(5)
@@ -174,7 +174,7 @@ function StrengthAuctionTest({ role, playerName, onExit }: { role: AuctionTestRo
       return
     }
     setAuctionIndex((current) => current + 1)
-    setCurrentPrice(200)
+    setCurrentPrice(50)
     setHighestBidder('')
     setAuctionTime(10)
     setPhase('auction')
@@ -290,7 +290,7 @@ function StrengthAuctionGame({ studentName }: { studentName: string }) {
   const [testRole, setTestRole] = useState<AuctionTestRole | null>(null)
   const auctionIndex = roomData?.auctionIndex ?? 0
   const itemLimit = roomData?.totalItems ?? 0
-  const currentPrice = roomData?.currentPrice ?? 200
+  const currentPrice = roomData?.currentPrice ?? 50
   const currentStrength = roomData?.deck?.[auctionIndex] ?? '문제해결능력'
   const myName = nickname.trim() || studentName || '참가자'
   const myParticipant = participants.find((item) => item.id === auth?.currentUser?.uid)
