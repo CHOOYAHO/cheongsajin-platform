@@ -113,6 +113,7 @@ type AuctionPhase = 'lobby' | 'waiting' | 'voting' | 'auction' | 'sold' | 'resul
 type AuctionParticipant = { id: string; nickname: string; role: 'host' | 'participant'; connected: boolean; balance?: number; inventory?: Record<string, number> }
 type AuctionRoom = { hostId: string; gameState: 'WAITING' | 'JOB_SELECTION' | 'AUCTION' | 'SOLD' | 'RESULT'; initialMoney?: number; bidLimit?: number; totalItems?: number; voteEndsAt?: { toMillis: () => number }; selectedJob?: string; deck?: string[]; auctionIndex?: number; currentPrice?: number; highestBidderId?: string | null; highestBidderName?: string | null; auctionEndsAt?: { toMillis: () => number } }
 type AuctionTestRole = 'host' | 'participant'
+const auctionTestJobs = ['의사', '소방관', '교사', '경찰관', '유튜브 크리에이터', '게임 개발자', '요리사', '간호사', '웹툰 작가', '반려동물 훈련사', '로봇공학자', '스포츠 트레이너', '심리상담사', '항공 승무원', '건축가', '패션 디자이너', '사회복지사', '데이터 분석가', '환경 연구원', '창업가']
 
 function StrengthAuctionTest({ role, playerName, onExit }: { role: AuctionTestRole; playerName: string; onExit: () => void }) {
   const [phase, setPhase] = useState<Exclude<AuctionPhase, 'lobby'>>('waiting')
@@ -125,6 +126,7 @@ function StrengthAuctionTest({ role, playerName, onExit }: { role: AuctionTestRo
   const [highestBidder, setHighestBidder] = useState('')
   const [balance, setBalance] = useState(1000)
   const [inventory, setInventory] = useState<Record<string, number>>({})
+  const [customJob, setCustomJob] = useState('')
   const testName = playerName.trim() || (role === 'host' ? '테스트 방장' : '나')
   const botNames = role === 'host' ? ['지민', '서준', '하윤'] : ['지민', '서준']
   const participants = role === 'host' ? [testName, ...botNames] : ['가상 방장', testName, ...botNames]
@@ -138,7 +140,8 @@ function StrengthAuctionTest({ role, playerName, onExit }: { role: AuctionTestRo
     setPhase('voting')
   }
   const finishVote = () => {
-    const job = role === 'participant' && selectedJob ? selectedJob : '게임 개발자'
+    const typedJob = customJob.trim()
+    const job = role === 'participant' && (typedJob || selectedJob) ? typedJob || selectedJob : '게임 개발자'
     setSelectedJob(job)
     setAuctionDeck(createAuctionDeck(job, itemLimit))
     setAuctionIndex(0)
@@ -166,6 +169,7 @@ function StrengthAuctionTest({ role, playerName, onExit }: { role: AuctionTestRo
   }
   const restartTest = () => {
     setSelectedJob('')
+    setCustomJob('')
     setAuctionDeck([])
     setAuctionIndex(0)
     setBalance(1000)
@@ -215,7 +219,7 @@ function StrengthAuctionTest({ role, playerName, onExit }: { role: AuctionTestRo
 
   if (phase === 'waiting') return <div className="auction-waiting">{testHeader}<div className="room-summary"><div><span>방 코드</span><strong>TEST</strong></div><div><span>경매 참가자</span><strong>{participants.length - 1}명</strong></div><div><span>내 역할</span><strong>{role === 'host' ? '방장' : '참가자'}</strong></div></div><section className="participant-list-card"><div className="auction-section-title"><h3>테스트 참가자</h3><span>가상 참가자 자동 행동</span></div><ul className="participant-list">{participants.map((name, index) => <li key={name}><i />{name}{(index === 0 && role === 'host') || name === '가상 방장' ? <b>방장</b> : <span>{name === testName ? '나' : 'BOT'}</span>}</li>)}</ul></section><button type="button" className="auction-primary wide" onClick={startTest}>{role === 'host' ? '테스트 게임 시작 →' : '가상 방장에게 시작 요청 →'}</button></div>
 
-  if (phase === 'voting') return <div className="job-vote">{testHeader}<div className="auction-countdown"><b>{voteTime}</b><span>초</span></div><p>이번 게임의 목표 직업</p><h2>{selectedJob || (role === 'host' ? '가상 참가자들이 투표 중이에요' : '어떤 직업의 역량을 모을까요?')}</h2><span>{role === 'host' ? '가상 참가자 3명이 자동으로 투표하고 있어요.' : '원하는 직업을 선택하면 가상 방장이 자동으로 경매를 시작해요.'}</span><div className="job-options">{auctionJobs.map((job) => <button type="button" className={selectedJob === job ? 'selected' : ''} onClick={() => setSelectedJob(job)} disabled={role === 'host' || voteTime <= 0} key={job}>{job}</button>)}</div>{role === 'host' && <div className="vote-actions"><button type="button" className="auction-primary" onClick={finishVote} disabled={voteTime > 0}>투표 결과 확인·경매 시작 →</button></div>}</div>
+  if (phase === 'voting') return <div className="job-vote">{testHeader}<div className="auction-countdown"><b>{voteTime}</b><span>초</span></div><p>이번 게임의 목표 직업</p><h2>{customJob.trim() || selectedJob || (role === 'host' ? '가상 참가자들이 투표 중이에요' : '어떤 직업의 역량을 모을까요?')}</h2><span>{role === 'host' ? '가상 참가자 3명이 자동으로 투표하고 있어요.' : '원하는 직업을 선택하거나 직접 입력하면 가상 방장이 자동으로 경매를 시작해요.'}</span>{role === 'participant' && <label className="custom-job-entry">직접 입력<input value={customJob} onChange={(event) => { setCustomJob(event.target.value); if (event.target.value.trim()) setSelectedJob('') }} maxLength={24} placeholder="예: 댄서, 변호사, 프로게이머" /></label>}<div className="job-options test-job-options">{auctionTestJobs.map((job) => <button type="button" className={selectedJob === job && !customJob.trim() ? 'selected' : ''} onClick={() => { setSelectedJob(job); setCustomJob('') }} disabled={role === 'host' || voteTime <= 0} key={job}>{job}</button>)}</div>{role === 'host' && <div className="vote-actions"><button type="button" className="auction-primary" onClick={finishVote} disabled={voteTime > 0}>투표 결과 확인·경매 시작 →</button></div>}</div>
 
   if (phase === 'sold') {
     const wonByMe = highestBidder === testName
@@ -224,7 +228,7 @@ function StrengthAuctionTest({ role, playerName, onExit }: { role: AuctionTestRo
   }
 
   if (phase === 'result') {
-    const profile = jobStrengthProfiles[selectedJob]
+    const profile = jobStrengthProfiles[selectedJob] ?? jobStrengthProfiles['게임 개발자']
     const groups = [
       { key: 'core' as const, title: '핵심 역량' },
       { key: 'related' as const, title: '관련 역량' },
