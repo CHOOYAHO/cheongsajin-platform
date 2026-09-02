@@ -57,6 +57,12 @@ const shuffledAuctionDeck = (jobs, count) => {
   return deck
 }
 
+const normalizeAuctionJob = (value) => String(value ?? '').trim().replace(/\s+/g, ' ')
+const isValidAuctionJob = (job) => job.length >= 1 && job.length <= 24 && ![...job].some((character) => {
+  const code = character.codePointAt(0)
+  return code < 32 || code === 127
+})
+
 const staffDirectory = {
   '이상구': { number: '10', role: 'mentor' },
   '김민재': { number: '20', role: 'mentor' },
@@ -218,8 +224,8 @@ export const startAuctionVote = onCall(async (request) => {
 
 export const castAuctionVote = onCall(async (request) => {
   const { uid, roomRef } = requireAuctionUser(request)
-  const job = String(request.data?.job ?? '')
-  if (!auctionProfiles[job]) throw new HttpsError('invalid-argument', '선택할 수 없는 직업입니다.')
+  const job = normalizeAuctionJob(request.data?.job)
+  if (!isValidAuctionJob(job)) throw new HttpsError('invalid-argument', '직업은 24자 이내로 입력해 주세요.')
   const [room, participant] = await Promise.all([roomRef.get(), roomRef.collection('participants').doc(uid).get()])
   if (!room.exists || room.data().gameState !== 'JOB_SELECTION' || room.data().voteEndsAt.toMillis() <= Date.now()) throw new HttpsError('failed-precondition', '투표 시간이 종료되었습니다.')
   if (!participant.exists || participant.data().role !== 'participant') throw new HttpsError('permission-denied', '참가자만 투표할 수 있습니다.')
@@ -237,7 +243,10 @@ export const finishAuctionVote = onCall(async (request) => {
   if (room.data().gameState !== 'JOB_SELECTION') throw new HttpsError('failed-precondition', '투표 중인 방이 아닙니다.')
   const participantDocs = participants.docs.filter((item) => item.data().role === 'participant')
   if (!participantDocs.length) throw new HttpsError('failed-precondition', '참가자가 한 명 이상 필요합니다.')
-  const selectedJobs = participantDocs.map((participant) => auctionProfiles[participant.data().selectedJob] ? participant.data().selectedJob : auctionJobNames[randomInt(0, auctionJobNames.length)])
+  const selectedJobs = participantDocs.map((participant) => {
+    const selectedJob = normalizeAuctionJob(participant.data().selectedJob)
+    return isValidAuctionJob(selectedJob) ? selectedJob : auctionJobNames[randomInt(0, auctionJobNames.length)]
+  })
   const deck = shuffledAuctionDeck(selectedJobs, room.data().totalItems)
   const batch = db.batch()
   participantDocs.forEach((participant, index) => batch.update(participant.ref, { selectedJob: selectedJobs[index], updatedAt: FieldValue.serverTimestamp() }))
@@ -276,6 +285,7 @@ export const placeAuctionBid = onCall(async (request) => {
     const now = Date.now()
     const strength = data.deck[data.auctionIndex]
     if (data.auctionEndsAt.toMillis() <= now) throw new HttpsError('deadline-exceeded', '입찰 시간이 종료되었습니다.')
+    if (data.highestBidderId === uid) throw new HttpsError('failed-precondition', '현재 최고 입찰자는 추가 입찰을 할 수 없습니다.')
     if (amount <= data.currentPrice || amount > player.balance) throw new HttpsError('failed-precondition', '입찰 금액이나 잔액을 확인해 주세요.')
     if ((player.inventory?.[strength] ?? 0) >= 3) throw new HttpsError('failed-precondition', '이미 최고 등급인 강점입니다.')
     const remaining = data.auctionEndsAt.toMillis() - now
