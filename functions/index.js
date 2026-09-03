@@ -73,8 +73,8 @@ const staffDirectory = {
   '추규한': { number: '70', role: 'mentor' },
   '관리자1': { number: '80', role: 'admin', storageKey: '80' },
   '관리자2': { number: '90', role: 'admin', storageKey: '90' },
-  '예산고': { number: '80', role: 'teacher', storageKey: 'teacher-yesan-high' },
-  '광시중': { number: '90', role: 'teacher', storageKey: 'teacher-gwangsi-middle' },
+  '예산고': { number: '80', role: 'teacher', schoolName: '예산고등학교', storageKey: 'teacher-yesan-high' },
+  '광시중': { number: '90', role: 'teacher', schoolName: '광시중학교', storageKey: 'teacher-gwangsi-middle' },
 }
 
 const normalizeName = (value) => String(value ?? '').trim().replaceAll(' ', '')
@@ -189,6 +189,7 @@ export const staffLogin = onCall({ secrets: [pinPepper] }, async (request) => {
     accountNumber: account.number,
     displayName,
     role: verified.account.role,
+    schoolName: account.schoolName ?? null,
     createdAt: FieldValue.serverTimestamp(),
     expiresAt: Timestamp.fromMillis(Date.now() + 12 * 60 * 60 * 1000),
   })

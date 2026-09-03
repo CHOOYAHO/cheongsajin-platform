@@ -5,6 +5,11 @@ service cloud.firestore {
     function isAdmin() { return signedIn() && request.auth.token.role == 'admin'; }
     function isMentor() { return signedIn() && request.auth.token.role == 'mentor'; }
     function isOwner(userId) { return signedIn() && request.auth.uid == userId; }
+    function hasActiveStaffSession() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/staffSessions/$(request.auth.uid))
+        && get(/databases/$(database)/documents/staffSessions/$(request.auth.uid)).data.expiresAt > request.time;
+    }
     function isAssignedMentor(studentId) {
       return isMentor()
         && studentId in get(/databases/$(database)/documents/users/$(request.auth.uid)).data.assignedStudentIds;
@@ -39,9 +44,23 @@ service cloud.firestore {
     }
 
     match /preferenceResults/{userId} {
-      allow read: if isOwner(userId);
+      allow read: if isOwner(userId)
+        || (hasActiveStaffSession()
+          && (get(/databases/$(database)/documents/staffSessions/$(request.auth.uid)).data.role in ['mentor', 'admin']
+            || (get(/databases/$(database)/documents/staffSessions/$(request.auth.uid)).data.role == 'teacher'
+              && resource.data.schoolName == get(/databases/$(database)/documents/staffSessions/$(request.auth.uid)).data.schoolName)));
       allow create, update: if isOwner(userId)
-        && request.resource.data.userId == request.auth.uid;
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.displayName is string
+        && request.resource.data.displayName.size() > 0
+        && request.resource.data.displayName.size() <= 30
+        && request.resource.data.schoolName in ['예산고등학교', '광시중학교']
+        && request.resource.data.coreLikes is list
+        && request.resource.data.coreLikes.size() <= 3
+        && request.resource.data.coreDislikes is list
+        && request.resource.data.coreDislikes.size() <= 3
+        && request.resource.data.reflection is string
+        && request.resource.data.reflection.size() <= 400;
       allow delete: if false;
     }
 
