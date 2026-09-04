@@ -50,6 +50,35 @@ const preferenceAreas: PreferenceArea[] = [
   { id: 'organizing', tag: 'C', title: '계획하고 정리하기', icon: '🗂️', guide: '계획을 세우고 꼼꼼하게 정리하는 활동에 대해 나는 어떻게 느끼나요?', questions: ['해야 할 일을 순서대로 계획하기', '자료나 물건을 기준에 맞게 정리하기', '정해진 방법이나 순서에 따라 정확하게 진행하기', '실수한 부분이 없는지 꼼꼼하게 확인하기'] },
 ]
 
+const preferenceQuestionKeywords: Record<string, string[]> = {
+  '도구를 사용해서 무언가 직접 만들기': ['도구', '만들기'],
+  '기계나 장비를 직접 다루어 보기': ['기계', '장비'],
+  '몸을 움직이며 활동하기': ['몸활동', '움직임'],
+  '고장 난 물건의 문제를 찾아 고쳐보기': ['수리', '문제찾기'],
+  '궁금한 것이 생기면 이유나 원인을 찾아보기': ['궁금증', '원인찾기'],
+  '어려운 문제의 해결방법을 생각해 보기': ['탐구', '생각'],
+  '관심 있는 주제의 정보를 찾아보기': ['정보찾기', '관심주제'],
+  '실험이나 관찰을 통해 결과를 확인하기': ['실험', '관찰'],
+  '그림이나 디자인으로 생각을 표현하기': ['그림', '디자인'],
+  '글이나 이야기를 만들어 보기': ['창작'],
+  '사진이나 영상을 직접 만들어 보기': ['사진', '영상'],
+  '정해진 방법보다 내 방식으로 새롭게 만들어 보기': ['내 방식대로', '새롭게'],
+  '다른 사람의 고민이나 이야기를 들어주기': ['경청', '고민듣기'],
+  '내가 알고 있는 것을 다른 사람에게 알려주기': ['알려주기', '나눔'],
+  '친구들과 힘을 합쳐 함께 활동하기': ['협력', '함께하기'],
+  '도움이 필요한 사람을 도와주기': ['도움', '배려'],
+  '사람들 앞에서 내 생각을 이야기하기': ['발표', '표현'],
+  '모둠이나 팀에서 사람들을 이끌어 보기': ['리더십', '이끌기'],
+  '다른 사람에게 내 생각을 설명하고 설득하기': ['설명', '설득'],
+  '목표를 정하고 경쟁하거나 도전하기': ['목표', '도전'],
+  '해야 할 일을 순서대로 계획하기': ['계획', '순서'],
+  '자료나 물건을 기준에 맞게 정리하기': ['정리', '분류'],
+  '정해진 방법이나 순서에 따라 정확하게 진행하기': ['정확성', '절차'],
+  '실수한 부분이 없는지 꼼꼼하게 확인하기': ['꼼꼼함', '확인'],
+}
+
+const preferenceKeywords = (question: string) => preferenceQuestionKeywords[question] ?? [question]
+
 function PartnerFooter() {
   return (
     <footer className="partner-footer">
@@ -501,6 +530,7 @@ function SecondActivityDetail({ step, schoolName, studentName, viewerMode, onLea
   const currentQuestion = area?.questions[questionIndex]
   const choiceLabels: Record<PreferenceChoice, string> = { like: '👍 좋아!', neutral: '😐 그저 그래', dislike: '👎 싫어!', unsure: '🤔 고민돼요' }
   const selectedQuestions = (choice: PreferenceChoice) => preferenceAreas.flatMap((item) => item.questions.filter((question) => responses[`${item.id}:${question}`] === choice))
+  const wordCloudCounts = (key: 'coreLikes' | 'coreDislikes') => groupResults.flatMap((result) => result[key] ?? []).flatMap(preferenceKeywords).reduce<Record<string, number>>((all, item) => ({ ...all, [item]: (all[item] ?? 0) + 1 }), {})
   const toggleCore = (question: string, kind: 'like' | 'dislike') => {
     const selected = kind === 'like' ? coreLikes : coreDislikes
     const update = kind === 'like' ? setCoreLikes : setCoreDislikes
@@ -602,7 +632,7 @@ function SecondActivityDetail({ step, schoolName, studentName, viewerMode, onLea
           <div className="mentor-note"><b>기억해요</b><p>활동 결과는 성격이나 직업을 판정하지 않아요. 선택한 이유와 경험을 편안하게 이야기해 주세요.</p></div>
         </section>}
 
-        {step === 2 && viewerMode !== 'student' && <section className="detail-panel preference-results-board"><div className="detail-heading"><span>지도자용 결과</span><h2>{viewerMode === 'school' ? `${schoolName} 좋아·싫어 결과` : '전체 좋아·싫어 결과'}</h2><p>제출된 결과를 모아 자주 선택된 핵심 활동을 확인해요.</p></div>{resultsLoading ? <div className="empty-activity-note"><p>결과를 불러오는 중이에요.</p></div> : groupResults.length ? <><div className="result-overview"><article><small>제출 인원</small><b>{groupResults.length}명</b></article><article><small>핵심 좋아 활동</small><b>{groupResults.reduce((sum, result) => sum + (result.coreLikes?.length ?? 0), 0)}개</b></article><article><small>핵심 싫어 활동</small><b>{groupResults.reduce((sum, result) => sum + (result.coreDislikes?.length ?? 0), 0)}개</b></article></div><div className="wordcloud-columns">{(['coreLikes', 'coreDislikes'] as const).map((key) => { const counts = groupResults.flatMap((result) => result[key] ?? []).reduce<Record<string, number>>((all, item) => ({ ...all, [item]: (all[item] ?? 0) + 1 }), {}); return <section key={key}><h3>{key === 'coreLikes' ? '👍 좋아 워드클라우드' : '👎 싫어 워드클라우드'}</h3><div className="wordcloud">{Object.entries(counts).sort((a, b) => b[1] - a[1]).map(([word, count]) => <span style={{ fontSize: `${Math.min(25, 12 + count * 3)}px` }} key={word}>{word}<small>{count}</small></span>)}</div></section> })}</div><div className="student-result-list"><h3>학생별 제출 결과</h3>{groupResults.map((result) => <article key={result.id}><b>{result.displayName || '이름 미입력'}</b><small>{result.schoolName}</small><p>좋아: {(result.coreLikes ?? []).join(', ') || '미선택'}</p><p>싫어: {(result.coreDislikes ?? []).join(', ') || '미선택'}</p>{result.reflection && <blockquote>{result.reflection}</blockquote>}</article>)}</div></> : <div className="empty-activity-note"><h2>아직 제출된 결과가 없어요</h2><p>학생들이 결과를 제출하면 이곳에 표시돼요.</p></div>}</section>}
+        {step === 2 && viewerMode !== 'student' && <section className="detail-panel preference-results-board"><div className="detail-heading"><span>지도자용 결과</span><h2>{viewerMode === 'school' ? `${schoolName} 좋아·싫어 결과` : '전체 좋아·싫어 결과'}</h2><p>제출된 결과를 모아 자주 선택된 핵심 활동을 확인해요.</p></div>{resultsLoading ? <div className="empty-activity-note"><p>결과를 불러오는 중이에요.</p></div> : groupResults.length ? <><div className="result-overview"><article><small>제출 인원</small><b>{groupResults.length}명</b></article><article><small>핵심 좋아 활동</small><b>{groupResults.reduce((sum, result) => sum + (result.coreLikes?.length ?? 0), 0)}개</b></article><article><small>핵심 싫어 활동</small><b>{groupResults.reduce((sum, result) => sum + (result.coreDislikes?.length ?? 0), 0)}개</b></article></div><div className="wordcloud-columns">{(['coreLikes', 'coreDislikes'] as const).map((key) => { const counts = wordCloudCounts(key); return <section key={key}><h3>{key === 'coreLikes' ? '👍 좋아 워드클라우드' : '👎 싫어 워드클라우드'}</h3><div className="wordcloud">{Object.entries(counts).sort((a, b) => b[1] - a[1]).map(([word, count]) => <span style={{ fontSize: `${Math.min(25, 12 + count * 3)}px` }} key={word}>{word}<small>{count}</small></span>)}</div></section> })}</div><div className="student-result-list"><h3>학생별 제출 결과</h3>{groupResults.map((result) => <article key={result.id}><b>{result.displayName || '이름 미입력'}</b><small>{result.schoolName}</small><p>좋아: {(result.coreLikes ?? []).join(', ') || '미선택'}</p><p>싫어: {(result.coreDislikes ?? []).join(', ') || '미선택'}</p>{result.reflection && <blockquote>{result.reflection}</blockquote>}</article>)}</div></> : <div className="empty-activity-note"><h2>아직 제출된 결과가 없어요</h2><p>학생들이 결과를 제출하면 이곳에 표시돼요.</p></div>}</section>}
 
         {step === 2 && viewerMode === 'student' && <section className="detail-panel preference-game">
           {savedResult && !gameStarted && <div className="saved-result-preview"><b>저장된 나의 결과</b><p>👍 {(savedResult.coreLikes ?? []).join(', ') || '핵심 좋아 활동 미선택'}</p><p>👎 {(savedResult.coreDislikes ?? []).join(', ') || '핵심 싫어 활동 미선택'}</p>{savedResult.reflection && <span>{savedResult.reflection}</span>}</div>}
