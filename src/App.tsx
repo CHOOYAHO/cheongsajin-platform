@@ -408,19 +408,23 @@ function StrengthAuctionGame({ studentName }: { studentName: string }) {
     void castVote(job)
   }
   const finishVote = async () => {
-    try { await callAuction('finishAuctionVote', { roomCode }) }
+    setRoomError('')
+    try { await callAuction('finishAuctionVote', { roomCode }); setRoomError('') }
     catch (error) { console.error(error); setRoomError('직업 선택을 마감하지 못했어요.') }
   }
   const startAuctionAfterCountdown = async () => {
-    try { await callAuction('startAuctionRound', { roomCode }) }
+    setRoomError('')
+    try { await callAuction('startAuctionRound', { roomCode }); setRoomError('') }
     catch (error) { console.error(error); setRoomError('경매를 시작하지 못했어요.') }
   }
   const placeBid = async (amount: number) => {
-    try { await callAuction('placeAuctionBid', { roomCode, amount }) }
+    setRoomError('')
+    try { await callAuction('placeAuctionBid', { roomCode, amount }); setRoomError('') }
     catch (error) { console.error(error); setRoomError('입찰하지 못했어요. 현재가와 잔액을 확인해 주세요.') }
   }
   const nextAuction = async () => {
-    try { await callAuction('advanceAuctionItem', { roomCode }) }
+    setRoomError('')
+    try { await callAuction('advanceAuctionItem', { roomCode }); setRoomError('') }
     catch (error) { console.error(error); setRoomError('다음 상품으로 진행하지 못했어요.') }
   }
 
@@ -452,6 +456,10 @@ function StrengthAuctionGame({ studentName }: { studentName: string }) {
     if (phase !== 'voting' && phase !== 'countdown' && phase !== 'auction') return
     const timer = window.setInterval(() => setNow(Date.now()), 250)
     return () => window.clearInterval(timer)
+  }, [phase])
+
+  useEffect(() => {
+    setRoomError('')
   }, [phase])
 
   useEffect(() => {
