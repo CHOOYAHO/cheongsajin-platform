@@ -10,6 +10,7 @@ import chungcheongnamdoLogo from './assets/chungcheongnamdo.png'
 import educationOfficeLogo from './assets/chungnam-education-office.png'
 import socialServiceLogo from './assets/chungnam-social-service.png'
 import youthCenterLogo from './assets/yesan-youth-center.png'
+import accessQrImage from './assets/access-qr.jpg'
 
 type Session = { number: number; title: string; subtitle: string; status: 'done' | 'open' | 'locked'; icon: string }
 type SessionTemplate = Omit<Session, 'status'>
@@ -125,6 +126,16 @@ function PartnerFooter() {
       </div>
     </footer>
   )
+}
+
+function AccessQrModal({ onClose }: { onClose: () => void }) {
+  useEffect(() => {
+    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose() }
+    window.addEventListener('keydown', closeOnEscape)
+    return () => window.removeEventListener('keydown', closeOnEscape)
+  }, [onClose])
+
+  return <div className="qr-modal-backdrop" onClick={(event) => { if (event.target === event.currentTarget) onClose() }}><section className="qr-modal" role="dialog" aria-modal="true" aria-labelledby="qr-modal-title"><button type="button" className="qr-modal-close" onClick={onClose} aria-label="QR 팝업 닫기">×</button><span>청·사·진 바로가기</span><h2 id="qr-modal-title">접속 QR</h2><p>휴대폰 카메라로 QR을 인식해 접속해 주세요.</p><img src={accessQrImage} alt="청·사·진 홈페이지 접속 QR 코드" /></section></div>
 }
 
 function ProfileEditor({ kind, displayName, schoolName, existing, onSave }: { kind: 'student' | 'mentor'; displayName: string; schoolName: string; existing?: MentorProfile; onSave: (profile: ProfilePayload) => Promise<void> }) {
@@ -771,6 +782,7 @@ function App() {
   const [showMasterUnlock, setShowMasterUnlock] = useState(false)
   const [masterCode, setMasterCode] = useState('')
   const [isUnlocking, setIsUnlocking] = useState(false)
+  const [showAccessQr, setShowAccessQr] = useState(false)
   const schoolName = school === 'yesan-high' ? '예산고등학교' : school === 'gwangsi-middle' ? '광시중학교' : school === 'staff' ? '멘토/관리자' : ''
   const canPreviewFutureSessions = staffRole === 'mentor' || staffRole === 'admin'
   const completedSessionCount = school === 'yesan-high' || school === 'staff' ? 1 : 0
@@ -993,6 +1005,7 @@ function App() {
 
   if (!entered) return (
     <div className="welcome-page">
+      <button type="button" className="access-qr-button" onClick={() => setShowAccessQr(true)} aria-haspopup="dialog">▦ 접속 QR</button>
       <main className="welcome-shell">
         <section className="welcome-copy">
         <h1 className="program-title">청·사·진 <span>- 청소년의 사기진작 진로멘토링</span></h1>
@@ -1013,6 +1026,7 @@ function App() {
         </section>
       </main>
       <PartnerFooter />
+      {showAccessQr && <AccessQrModal onClose={() => setShowAccessQr(false)} />}
     </div>
   )
 
