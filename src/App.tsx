@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
 import { onAuthStateChanged, signInAnonymously, signOut } from 'firebase/auth'
-import { collection, doc, getDoc, getDocs, onSnapshot, query, serverTimestamp, setDoc, updateDoc, where } from 'firebase/firestore'
+import { collection, deleteDoc, doc, getDoc, getDocs, onSnapshot, query, serverTimestamp, setDoc, updateDoc, where } from 'firebase/firestore'
 import { httpsCallable } from 'firebase/functions'
 import './App.css'
 import { auth, db, functions, isFirebaseConfigured } from './lib/firebase'
@@ -140,7 +140,7 @@ function ProfileEditor({ kind, displayName, schoolName, existing, onSave }: { ki
 }
 
 type AuctionPhase = 'lobby' | 'waiting' | 'voting' | 'countdown' | 'auction' | 'sold' | 'result'
-type AuctionParticipant = { id: string; nickname: string; role: 'host' | 'participant'; connected: boolean; selectedJob?: string | null; balance?: number; inventory?: Record<string, number> }
+type AuctionParticipant = { id: string; nickname: string; role: 'host' | 'participant'; connected: boolean; lastSeenAt?: { toMillis: () => number }; selectedJob?: string | null; balance?: number; inventory?: Record<string, number> }
 type AuctionRoom = { hostId: string; gameState: 'WAITING' | 'JOB_SELECTION' | 'COUNTDOWN' | 'AUCTION' | 'SOLD' | 'RESULT'; initialMoney?: number; bidLimit?: number; totalItems?: number; voteEndsAt?: { toMillis: () => number }; countdownEndsAt?: { toMillis: () => number }; selectedJob?: string | null; selectedJobs?: string[]; deck?: string[]; auctionIndex?: number; currentPrice?: number; highestBidderId?: string | null; highestBidderName?: string | null; auctionEndsAt?: { toMillis: () => number } }
 type AuctionTestRole = 'host' | 'participant'
 const auctionTestJobs = ['의사', '소방관', '교사', '경찰관', '유튜브 크리에이터', '게임 개발자', '요리사', '간호사', '웹툰 작가', '반려동물 훈련사', '로봇공학자', '스포츠 트레이너', '심리상담사', '항공 승무원', '건축가', '패션 디자이너', '사회복지사', '데이터 분석가', '환경 연구원', '창업가']
@@ -161,13 +161,16 @@ function StrengthAuctionTest({ role, playerName, onExit }: { role: AuctionTestRo
   const [balance, setBalance] = useState(1000)
   const [inventory, setInventory] = useState<Record<string, number>>({})
   const [virtualVotes, setVirtualVotes] = useState<{ name: string; job: string }[]>([])
+  const [manualItemCount, setManualItemCount] = useState(false)
+  const [testItemLimit, setTestItemLimit] = useState(30)
   const testName = playerName.trim() || (role === 'host' ? '테스트 방장' : '나')
   const botNames = role === 'host' ? ['지민', '서준', '하윤'] : ['지민', '서준']
   const participants = role === 'host' ? [testName, ...botNames] : ['가상 방장', testName, ...botNames]
   const currentStrength = auctionDeck[auctionIndex] ?? '문제해결능력'
   const myStrengthLevel = inventory[currentStrength] ?? 0
   const rarity = (count: number) => count >= 3 ? 'EPIC' : count === 2 ? 'RARE' : 'NORMAL'
-  const itemLimit = (participants.length - 1) * 10
+  const automaticItemLimit = (participants.length - 1) * 10
+  const itemLimit = manualItemCount ? testItemLimit : automaticItemLimit
 
   const startTest = () => {
     setVoteTime(30)
@@ -280,7 +283,7 @@ function StrengthAuctionTest({ role, playerName, onExit }: { role: AuctionTestRo
 
   const testHeader = <div className="test-mode-bar"><div><b>🧪 {role === 'host' ? '방장용' : '참여자용'} 테스트 게임</b><span>Firebase에 저장되지 않는 연습 모드</span></div><button type="button" onClick={onExit}>테스트 종료</button></div>
 
-  if (phase === 'waiting') return <div className="auction-waiting">{testHeader}<div className="room-summary"><div><span>방 코드</span><strong>TEST</strong></div><div><span>경매 참가자</span><strong>{participants.length - 1}명</strong></div><div><span>내 역할</span><strong>{role === 'host' ? '방장' : '참가자'}</strong></div></div><section className="participant-list-card"><div className="auction-section-title"><h3>테스트 참가자</h3><span>가상 참가자 자동 행동</span></div><ul className="participant-list">{participants.map((name, index) => <li key={name}><i />{name}{(index === 0 && role === 'host') || name === '가상 방장' ? <b>방장</b> : <span>{name === testName ? '나' : 'BOT'}</span>}</li>)}</ul></section><button type="button" className="auction-primary wide" onClick={startTest}>{role === 'host' ? '테스트 게임 시작 →' : '가상 방장에게 시작 요청 →'}</button></div>
+  if (phase === 'waiting') return <div className="auction-waiting">{testHeader}<div className="room-summary"><div><span>방 코드</span><strong>TEST</strong></div><div><span>경매 참가자</span><strong>{participants.length - 1}명</strong></div><div><span>내 역할</span><strong>{role === 'host' ? '방장' : '참가자'}</strong></div></div><section className="participant-list-card"><div className="auction-section-title"><h3>테스트 참가자</h3><span>가상 참가자 자동 행동</span></div><ul className="participant-list">{participants.map((name, index) => <li key={name}><i />{name}{(index === 0 && role === 'host') || name === '가상 방장' ? <b>방장</b> : <span>{name === testName ? '나' : 'BOT'}</span>}</li>)}</ul>{role === 'host' && <div className="test-item-setting"><button type="button" onClick={() => setManualItemCount((current) => !current)}>{manualItemCount ? '자동 계산 사용' : '상품 수 직접 입력'}</button><label>총 상품 수<input type="number" min={1} max={200} value={itemLimit} disabled={!manualItemCount} onChange={(event) => setTestItemLimit(Math.max(1, Math.min(200, Number(event.target.value))))} /></label></div>}</section><button type="button" className="auction-primary wide" onClick={startTest}>{role === 'host' ? '테스트 게임 시작 →' : '가상 방장에게 시작 요청 →'}</button></div>
 
   if (phase === 'voting') return <div className="job-vote">{testHeader}<div className="auction-countdown"><b>{voteTime}</b><span>초</span></div><p>각자의 목표 직업</p><h2>{role === 'host' ? `${virtualVotes.length} / ${botNames.length}명 선택 완료` : selectedJob || '내 직업을 하나 고르세요'}</h2><span>{role === 'host' ? '가상 참가자마다 자기 직업을 하나씩 고릅니다. 선택이 끝나면 실제 게임처럼 10초 뒤 경매가 시작돼요.' : '목록에서 고르거나 직접 입력할 수 있고, 랜덤으로 정할 수도 있어요.'}</span>{role === 'participant' && <><label className="custom-job-entry">직접 입력<div><input value={customJob} onChange={(event) => { setCustomJob(event.target.value); if (event.target.value.trim() !== selectedJob) setSelectedJob('') }} onKeyDown={(event) => { if (event.key === 'Enter') confirmTestCustomJob() }} maxLength={24} placeholder="예: 댄서, 변호사, 프로게이머" /><button type="button" onClick={confirmTestCustomJob} disabled={!customJob.trim() || voteTime <= 0}>확정</button></div></label><button type="button" className="random-job" onClick={() => { setSelectedJob(auctionTestJobs[Math.floor(Math.random() * auctionTestJobs.length)]); setCustomJob('') }} disabled={voteTime <= 0}>🎲 랜덤으로 선택</button></>}<div className="virtual-votes"><b>참가자별 직업 선택 현황</b>{virtualVotes.length ? <ul>{virtualVotes.map((vote) => <li key={vote.name}><span>{vote.name}</span><strong>{vote.job}</strong></li>)}</ul> : <p>잠시 후 가상 참가자들이 각자 직업을 선택해요.</p>}</div><div className="job-options test-job-options">{auctionTestJobs.map((job) => <button type="button" className={selectedJob === job && !customJob.trim() ? 'selected' : ''} onClick={() => { setSelectedJob(job); setCustomJob('') }} disabled={role === 'host' || voteTime <= 0} key={job}>{job}</button>)}</div>{role === 'host' && <div className="vote-actions"><button type="button" className="auction-primary" onClick={finishVote} disabled={voteTime > 0 && virtualVotes.length < botNames.length}>선택 마감·10초 뒤 경매 시작 →</button></div>}</div>
 
@@ -318,6 +321,8 @@ function StrengthAuctionGame({ studentName }: { studentName: string }) {
   const [roomData, setRoomData] = useState<AuctionRoom | null>(null)
   const [initialMoney, setInitialMoney] = useState(1000)
   const [bidLimit, setBidLimit] = useState(10)
+  const [manualItemCount, setManualItemCount] = useState(false)
+  const [customTotalItems, setCustomTotalItems] = useState(30)
   const [selectedJob, setSelectedJob] = useState('')
   const [customJob, setCustomJob] = useState('')
   const [now, setNow] = useState(Date.now())
@@ -331,6 +336,8 @@ function StrengthAuctionGame({ studentName }: { studentName: string }) {
   const myName = nickname.trim() || studentName || '참가자'
   const myParticipant = participants.find((item) => item.id === auth?.currentUser?.uid)
   const participantPlayers = participants.filter((item) => item.role === 'participant')
+  const automaticTotalItems = Math.max(1, participantPlayers.length * 10)
+  const totalItemsSetting = manualItemCount ? customTotalItems : automaticTotalItems
   const selectedParticipantCount = participantPlayers.filter((item) => item.selectedJob).length
   const myJob = myParticipant?.selectedJob ?? selectedJob
   const balance = myParticipant?.balance ?? initialMoney
@@ -341,6 +348,8 @@ function StrengthAuctionGame({ studentName }: { studentName: string }) {
   const voteTime = secondsLeft(roomData?.voteEndsAt)
   const countdownTime = secondsLeft(roomData?.countdownEndsAt)
   const auctionTime = secondsLeft(roomData?.auctionEndsAt)
+  const hostParticipant = participants.find((item) => item.role === 'host')
+  const hostDisconnected = role === 'participant' && !!hostParticipant && (!hostParticipant.connected || (!!hostParticipant.lastSeenAt && now - hostParticipant.lastSeenAt.toMillis() > 35000))
 
   const callAuction = async <T,>(name: string, data: Record<string, unknown>) => {
     if (!functions) throw new Error('Firebase Functions 연결이 필요합니다.')
@@ -389,7 +398,7 @@ function StrengthAuctionGame({ studentName }: { studentName: string }) {
   }
   const startVote = async () => {
     setRoomError('')
-    try { await callAuction('startAuctionVote', { roomCode, initialMoney, bidLimit }) }
+    try { await callAuction('startAuctionVote', { roomCode, initialMoney, bidLimit, totalItems: totalItemsSetting }) }
     catch (error) { console.error(error); setRoomError('게임을 시작하지 못했어요. 설정과 참가자를 확인해 주세요.') }
   }
   const castVote = async (job: string) => {
@@ -427,6 +436,16 @@ function StrengthAuctionGame({ studentName }: { studentName: string }) {
     try { await callAuction('advanceAuctionItem', { roomCode }); setRoomError('') }
     catch (error) { console.error(error); setRoomError('다음 상품으로 진행하지 못했어요.') }
   }
+  const leaveAuctionRoom = async () => {
+    if (db && auth?.currentUser && roomCode) {
+      await deleteDoc(doc(db, 'auctionRooms', roomCode, 'participants', auth.currentUser.uid)).catch((error) => console.error(error))
+    }
+    setRoomCode('')
+    setRoomData(null)
+    setParticipants([])
+    setRoomError('')
+    setPhase('lobby')
+  }
 
   useEffect(() => {
     if (!db || !auth?.currentUser || !roomCode) return
@@ -443,20 +462,20 @@ function StrengthAuctionGame({ studentName }: { studentName: string }) {
     const stopParticipants = onSnapshot(collection(db, 'auctionRooms', roomCode, 'participants'), (snapshot) => {
       setParticipants(snapshot.docs.map((item) => ({ id: item.id, ...(item.data() as Omit<AuctionParticipant, 'id'>) })))
     })
-    const heartbeat = window.setInterval(() => void updateDoc(participantRef, { connected: true, lastSeenAt: serverTimestamp() }), 20000)
+    const heartbeat = window.setInterval(() => void updateDoc(participantRef, { connected: true, lastSeenAt: serverTimestamp() }).catch(() => undefined), 20000)
     return () => {
       stopRoom()
       stopParticipants()
       window.clearInterval(heartbeat)
-      void updateDoc(participantRef, { connected: false, lastSeenAt: serverTimestamp() })
+      void updateDoc(participantRef, { connected: false, lastSeenAt: serverTimestamp() }).catch(() => undefined)
     }
   }, [roomCode])
 
   useEffect(() => {
-    if (phase !== 'voting' && phase !== 'countdown' && phase !== 'auction') return
+    if (!roomCode) return
     const timer = window.setInterval(() => setNow(Date.now()), 250)
     return () => window.clearInterval(timer)
-  }, [phase])
+  }, [roomCode])
 
   useEffect(() => {
     setRoomError('')
@@ -480,6 +499,8 @@ function StrengthAuctionGame({ studentName }: { studentName: string }) {
 
   if (testRole) return <StrengthAuctionTest role={testRole} playerName={myName} onExit={() => setTestRole(null)} />
 
+  if (hostDisconnected) return <div className="host-left-screen"><span>👋</span><h2>방장이 게임을 나갔습니다.</h2><p>현재 게임은 더 이상 진행할 수 없어요.</p><button type="button" className="auction-primary" onClick={leaveAuctionRoom}>강점 경매장 초기 화면으로</button></div>
+
   if (phase === 'lobby') return <div className="auction-lobby">
     <div className="auction-title"><span>🔨</span><h2>강점 경매장</h2><p>선택한 직업에 필요한 강점을 전략적으로 낙찰받아 보세요.</p></div>
     <div className="auction-entry-grid"><article><span>방장</span><h3>새 게임방 만들기</h3><p>참가자를 초대하고 금액·시간 등 게임 설정을 준비해요.</p><input value={nickname} onChange={(event) => setNickname(event.target.value)} placeholder="방장 닉네임" maxLength={12} /><button type="button" onClick={createRoom} disabled={isRoomBusy}>{isRoomBusy ? '연결 중…' : '방 만들기 →'}</button></article><article><span>참가자</span><h3>게임방 입장하기</h3><p>닉네임과 방장이 알려준 코드를 입력해 주세요.</p><input value={nickname} onChange={(event) => setNickname(event.target.value)} placeholder="닉네임" maxLength={12} /><input value={joinCode} onChange={(event) => setJoinCode(event.target.value)} placeholder="방 코드 입력" maxLength={6} /><button type="button" onClick={joinRoom} disabled={isRoomBusy || joinCode.trim().length < 4 || !nickname.trim()}>{isRoomBusy ? '연결 중…' : '입장하기 →'}</button></article></div>
@@ -490,7 +511,7 @@ function StrengthAuctionGame({ studentName }: { studentName: string }) {
 
   if (phase === 'waiting') return <div className="auction-waiting">
     <div className="room-summary"><div><span>방 코드</span><strong>{roomCode}</strong></div><div><span>경매 참가자</span><strong>{participants.filter((item) => item.role === 'participant').length}명</strong></div><div><span>내 닉네임</span><strong>{nickname || myName}</strong></div></div>
-    {role === 'host' ? <><div className="waiting-columns"><section><div className="auction-section-title"><h3>참가자 목록</h3><span>실시간 동기화</span></div><ul className="participant-list">{participants.map((participant) => <li key={participant.id}><i className={participant.connected ? '' : 'offline'} />{participant.nickname}{participant.role === 'host' ? <b>방장</b> : <span>{participant.connected ? '접속' : '연결 끊김'}</span>}</li>)}</ul></section><section><div className="auction-section-title"><h3>게임 설정</h3><span>방장 전용</span></div><div className="auction-settings"><label>경매 참가자 수<input value={participants.filter((item) => item.role === 'participant').length} disabled /></label><label>예상 총 상품 수<input value={participants.filter((item) => item.role === 'participant').length * 10} disabled /></label><label>초기 보유금액<input type="number" min={500} max={10000} value={initialMoney} onChange={(event) => setInitialMoney(Number(event.target.value))} /></label><label>상품당 제한시간<select value={bidLimit} onChange={(event) => setBidLimit(Number(event.target.value))}><option value={7}>7초</option><option value={10}>10초</option><option value={15}>15초</option></select></label><label>직업 선택 방식<input value="참가자 투표" disabled /></label></div></section></div><button type="button" className="auction-primary wide" onClick={startVote} disabled={!participants.some((item) => item.role === 'participant')}>게임 시작 →</button>{roomError && <p className="auction-error" role="alert">{roomError}</p>}</> : <><section className="participant-list-card"><div className="auction-section-title"><h3>참가자 목록</h3><span>실시간 동기화</span></div><ul className="participant-list">{participants.map((participant) => <li key={participant.id}><i className={participant.connected ? '' : 'offline'} />{participant.nickname}{participant.role === 'host' ? <b>방장</b> : <span>{participant.connected ? '접속' : '연결 끊김'}</span>}</li>)}</ul></section><div className="participant-wait"><div className="waiting-pulse">●</div><h3>방장이 게임을 준비하고 있습니다.</h3><p>참가자 {participants.filter((item) => item.role === 'participant').length}명 · 방 코드 {roomCode}</p></div></>}
+    {role === 'host' ? <><div className="waiting-columns"><section><div className="auction-section-title"><h3>참가자 목록</h3><span>실시간 동기화</span></div><ul className="participant-list">{participants.map((participant) => <li key={participant.id}><i className={participant.connected ? '' : 'offline'} />{participant.nickname}{participant.role === 'host' ? <b>방장</b> : <span>{participant.connected ? '접속' : '연결 끊김'}</span>}</li>)}</ul></section><section><div className="auction-section-title"><h3>게임 설정</h3><span>방장 전용</span></div><div className="auction-settings"><label>경매 참가자 수<input value={participantPlayers.length} disabled /></label><label>총 상품 수<div className="item-count-control"><input type="number" min={1} max={200} value={totalItemsSetting} disabled={!manualItemCount} onChange={(event) => setCustomTotalItems(Math.max(1, Math.min(200, Number(event.target.value))))} /><button type="button" onClick={() => { setManualItemCount((current) => !current); setCustomTotalItems(automaticTotalItems) }}>{manualItemCount ? '자동' : '직접 입력'}</button></div></label><label>초기 보유금액<input type="number" min={500} max={10000} value={initialMoney} onChange={(event) => setInitialMoney(Number(event.target.value))} /></label><label>상품당 제한시간<select value={bidLimit} onChange={(event) => setBidLimit(Number(event.target.value))}><option value={7}>7초</option><option value={10}>10초</option><option value={15}>15초</option></select></label><label>직업 선택 방식<input value="참가자 투표" disabled /></label></div></section></div><button type="button" className="auction-primary wide" onClick={startVote} disabled={!participantPlayers.length}>게임 시작 →</button>{roomError && <p className="auction-error" role="alert">{roomError}</p>}</> : <><section className="participant-list-card"><div className="auction-section-title"><h3>참가자 목록</h3><span>실시간 동기화</span></div><ul className="participant-list">{participants.map((participant) => <li key={participant.id}><i className={participant.connected ? '' : 'offline'} />{participant.nickname}{participant.role === 'host' ? <b>방장</b> : <span>{participant.connected ? '접속' : '연결 끊김'}</span>}</li>)}</ul></section><div className="participant-wait"><div className="waiting-pulse">●</div><h3>방장이 게임을 준비하고 있습니다.</h3><p>참가자 {participantPlayers.length}명 · 방 코드 {roomCode}</p></div></>}
   </div>
 
   if (phase === 'voting') return <div className="job-vote"><div className="auction-countdown"><b>{voteTime}</b><span>초</span></div><p>각자의 목표 직업</p><h2>{role === 'host' ? `${selectedParticipantCount} / ${participantPlayers.length}명 선택 완료` : myJob || '내 직업을 하나 고르세요'}</h2><span>{role === 'host' ? '참가자마다 자기 직업을 하나씩 고릅니다. 시간이 끝나면 미선택 참가자는 자동으로 배정돼요.' : '목록에서 고르거나 직접 입력할 수 있고, 랜덤 선택도 가능해요. 중복 선택도 가능해요.'}</span>{role === 'participant' && <><label className="custom-job-entry">직접 입력<div><input value={customJob} onChange={(event) => setCustomJob(event.target.value)} onKeyDown={(event) => { if (event.key === 'Enter') submitCustomJob() }} maxLength={24} placeholder="예: 댄서, 변호사, 프로게이머" /><button type="button" onClick={submitCustomJob} disabled={!customJob.trim() || voteTime <= 0}>확정</button></div></label><button type="button" className="random-job" onClick={castRandomJob} disabled={voteTime <= 0}>🎲 랜덤으로 선택</button></>}<div className="job-options">{auctionJobs.map((job) => <button type="button" className={myJob === job ? 'selected' : ''} onClick={() => { setCustomJob(''); void castVote(job) }} disabled={role === 'host' || voteTime <= 0} key={job}>{job}</button>)}</div><div className="job-choice-list"><b>직업 선택 현황</b><ul>{participantPlayers.map((participant) => <li key={participant.id}><span>{participant.nickname}</span><strong>{participant.selectedJob || '고르는 중'}</strong></li>)}</ul></div>{role === 'host' ? <div className="vote-actions"><button type="button" className="auction-primary" onClick={finishVote} disabled={participantPlayers.length === 0 || (voteTime > 0 && selectedParticipantCount < participantPlayers.length)}>선택 마감·10초 뒤 경매 시작 →</button></div> : <div className="participant-wait"><p>선택한 직업: <b>{myJob || '아직 선택하지 않음'}</b></p></div>}{roomError && <p className="auction-error" role="alert">{roomError}</p>}</div>

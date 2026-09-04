@@ -209,7 +209,8 @@ export const startAuctionVote = onCall(async (request) => {
   const { uid, roomRef } = requireAuctionUser(request)
   const initialMoney = Number(request.data?.initialMoney)
   const bidLimit = Number(request.data?.bidLimit)
-  if (!Number.isInteger(initialMoney) || initialMoney < 500 || initialMoney > 10000 || ![7, 10, 15].includes(bidLimit)) throw new HttpsError('invalid-argument', '게임 설정값이 올바르지 않습니다.')
+  const requestedTotalItems = Number(request.data?.totalItems)
+  if (!Number.isInteger(initialMoney) || initialMoney < 500 || initialMoney > 10000 || ![7, 10, 15].includes(bidLimit) || !Number.isInteger(requestedTotalItems) || requestedTotalItems < 1 || requestedTotalItems > 200) throw new HttpsError('invalid-argument', '게임 설정값이 올바르지 않습니다.')
   const participants = await roomRef.collection('participants').get()
   const playerCount = participants.docs.filter((item) => item.data().role === 'participant').length
   if (!playerCount) throw new HttpsError('failed-precondition', '참가자가 한 명 이상 필요합니다.')
@@ -217,7 +218,7 @@ export const startAuctionVote = onCall(async (request) => {
     const room = await transaction.get(roomRef)
     if (!room.exists || room.data().hostId !== uid) throw new HttpsError('permission-denied', '방장만 게임을 시작할 수 있습니다.')
     if (room.data().gameState !== 'WAITING') throw new HttpsError('failed-precondition', '이미 시작된 게임입니다.')
-    transaction.update(roomRef, { gameState: 'JOB_SELECTION', initialMoney, bidLimit, totalItems: playerCount * 10, voteEndsAt: Timestamp.fromMillis(Date.now() + 30000), updatedAt: FieldValue.serverTimestamp() })
+    transaction.update(roomRef, { gameState: 'JOB_SELECTION', initialMoney, bidLimit, totalItems: requestedTotalItems, voteEndsAt: Timestamp.fromMillis(Date.now() + 30000), updatedAt: FieldValue.serverTimestamp() })
     for (const participant of participants.docs) transaction.update(participant.ref, { balance: initialMoney, inventory: {}, selectedJob: null, updatedAt: FieldValue.serverTimestamp() })
   })
   return { started: true }
