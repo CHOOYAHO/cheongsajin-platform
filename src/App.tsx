@@ -21,6 +21,7 @@ type GuidePage = 'program' | 'profile' | 'mentors' | 'center'
 type ProfilePayload = { introduction: string; interests: string; hopeJob: string; oneLineIntro: string; schoolMajor: string; majorReason: string; careerInterests: string; campusLife: string; strengths: string; message: string }
 type MentorProfile = { id: string; displayName: string; oneLineIntro?: string; schoolMajor?: string; interests?: string; majorReason?: string; careerInterests?: string; campusLife?: string; strengths?: string; message?: string; major?: string; university?: string; introduction?: string; careerStory?: string }
 type StaffRole = 'mentor' | 'teacher' | 'admin'
+type IssuedStudentPin = { accountNumber: string; pin: string }
 type StaffSessionPlan = { title: string; subtitle: string; description: string; icon: string; theme: string; activities: { duration: string; title: string; description: string; mentorTip: string }[] }
 const sessionTemplates: SessionTemplate[] = [
   { number: 1, title: '청사진을 위한 첫 만남', subtitle: '나와 멘토, 새로운 가능성을 만나요', icon: '👋' },
@@ -783,7 +784,14 @@ function App() {
   const [masterCode, setMasterCode] = useState('')
   const [isUnlocking, setIsUnlocking] = useState(false)
   const [showAccessQr, setShowAccessQr] = useState(false)
+  const [useTeacherLogin, setUseTeacherLogin] = useState(false)
+  const [needsStudentName, setNeedsStudentName] = useState(false)
+  const [studentIssueCode, setStudentIssueCode] = useState('')
+  const [issuedStudentPins, setIssuedStudentPins] = useState<IssuedStudentPin[]>([])
+  const [studentIssueError, setStudentIssueError] = useState('')
+  const [isIssuingStudentPins, setIsIssuingStudentPins] = useState(false)
   const schoolName = school === 'yesan-high' ? '예산고등학교' : school === 'gwangsi-middle' ? '광시중학교' : school === 'staff' ? '멘토/관리자' : ''
+  const isYesanStudentMode = school === 'yesan-high' && !useTeacherLogin
   const canPreviewFutureSessions = staffRole === 'mentor' || staffRole === 'admin'
   const completedSessionCount = school === 'yesan-high' || school === 'staff' ? 1 : 0
   const sessions: Session[] = sessionTemplates.map((session) => ({
@@ -898,7 +906,7 @@ function App() {
       setEntryError('학교를 선택해 주세요.')
       return
     }
-    if (!name.trim()) {
+    if ((!isYesanStudentMode || needsStudentName) && !name.trim()) {
       setEntryError('이름을 입력해 주세요.')
       return
     }
@@ -907,11 +915,16 @@ function App() {
       return
     }
     const normalizedName = name.trim().replaceAll(' ', '')
-    const isSchoolTeacher = (school === 'yesan-high' && normalizedName === '예산고') || (school === 'gwangsi-middle' && normalizedName === '광시중')
+    const isSchoolTeacher = (school === 'yesan-high' && useTeacherLogin && normalizedName === '예산고') || (school === 'gwangsi-middle' && normalizedName === '광시중')
     const isStaff = school === 'staff' || isSchoolTeacher
     const isRegistered = testParticipants.some((participant) => participant.school === school && participant.name === name.trim() && participant.pin === pin.trim())
-    if (!isStaff && !isRegistered) {
+    const isYesanTestLogin = isYesanStudentMode && pin.trim() === '1'
+    if (!isStaff && !isRegistered && !isYesanStudentMode) {
       setEntryError('등록된 정보와 일치하지 않습니다. 학교, 이름, PIN 번호를 확인해 주세요.')
+      return
+    }
+    if (isYesanStudentMode && !isYesanTestLogin && !/^\d{6}$/.test(pin.trim())) {
+      setEntryError('예산고 학생 PIN은 6자리 숫자예요.')
       return
     }
     setIsEntering(true)
@@ -925,6 +938,26 @@ function App() {
         const loginResult = await loginStaff({ name: name.trim(), pin: pin.trim() })
         setStaffRole(loginResult.data.role)
         window.localStorage.setItem(savedSessionKey, JSON.stringify({ school, name: name.trim(), role: loginResult.data.role }))
+      } else if (isYesanStudentMode) {
+        await signInAnonymously(auth)
+        if (isYesanTestLogin) {
+          setName('1')
+          setStaffRole(null)
+          window.localStorage.setItem(savedSessionKey, JSON.stringify({ school, name: '1' }))
+        } else {
+          if (!functions) throw new Error('Firebase Functions configuration is missing')
+          const loginStudent = httpsCallable<{ school: string; pin: string; name?: string }, { needsName: boolean; displayName?: string; schoolName?: string }>(functions, 'studentLogin')
+          const loginResult = await loginStudent({ school, pin: pin.trim(), name: needsStudentName ? name.trim() : undefined })
+          if (loginResult.data.needsName) {
+            setNeedsStudentName(true)
+            setEntryError('처음 사용하는 PIN입니다. 이름을 입력해 주세요.')
+            return
+          }
+          const displayName = loginResult.data.displayName ?? name.trim()
+          setName(displayName)
+          setStaffRole(null)
+          window.localStorage.setItem(savedSessionKey, JSON.stringify({ school, name: displayName }))
+        }
       } else {
         await signInAnonymously(auth)
         setStaffRole(null)
@@ -951,6 +984,8 @@ function App() {
     setActiveSecondActivity(null)
     setActiveGuide(null)
     setStaffRole(null)
+    setUseTeacherLogin(false)
+    setNeedsStudentName(false)
     setEntered(false)
     window.history.replaceState({ cheongsajinView: 'login' }, '', '#login')
   }
@@ -975,6 +1010,25 @@ function App() {
       console.error(error)
       setEntryError('관리자 코드를 확인해 주세요.')
     } finally { setIsUnlocking(false) }
+  }
+  const issueYesanStudentPins = async () => {
+    if (!functions || !studentIssueCode.trim()) return
+    setIsIssuingStudentPins(true)
+    setStudentIssueError('')
+    setIssuedStudentPins([])
+    try {
+      if (auth && !auth.currentUser) await signInAnonymously(auth)
+      const issuePins = httpsCallable<{ masterCode: string }, { credentials: IssuedStudentPin[] }>(functions, 'bootstrapYesanStudentAccounts')
+      const result = await issuePins({ masterCode: studentIssueCode.trim() })
+      setIssuedStudentPins(result.data.credentials)
+      setStudentIssueCode('')
+    } catch (error) {
+      console.error(error)
+      const code = typeof error === 'object' && error && 'code' in error ? String(error.code) : ''
+      setStudentIssueError(code.includes('already-exists') ? '예산고 학생 PIN은 이미 발급됐어요.' : '관리자 코드 또는 Firebase 권한을 확인해 주세요.')
+    } finally {
+      setIsIssuingStudentPins(false)
+    }
   }
   const openSecondActivity = (step: number) => {
     setActiveSecondActivity(step)
@@ -1015,12 +1069,15 @@ function App() {
         <section className="entry-card">
         <div className="entry-heading"><span className="entry-icon">↗</span><div><h2>활동 시작하기</h2><p>선생님께 받은 참가 정보를 입력해 주세요.</p></div></div>
         <form onSubmit={enter}>
-          <label>학교<select value={school} onChange={(e) => { setSchool(e.target.value); setEntryError('') }}><option value="">학교를 선택하세요</option><option value="yesan-high">예산고등학교</option><option value="gwangsi-middle">광시중학교</option><option value="staff">멘토/관리자</option></select></label>
-          <label>이름<input value={name} onChange={(e) => { setName(e.target.value); setEntryError('') }} placeholder="이름을 입력해 주세요" autoComplete="name" /></label>
-          <label>PIN 번호<input value={pin} onChange={(e) => { setPin(e.target.value.replace(/\D/g, '')); setEntryError('') }} placeholder={school === 'staff' ? '6자리 PIN 번호' : 'PIN 번호를 입력해 주세요'} maxLength={6} inputMode="numeric" type="password" autoComplete="current-password" /></label>
-          <button type="submit" disabled={isEntering || !isFirebaseConfigured}>{isEntering ? '안전하게 연결하는 중…' : '나의 활동실로 들어가기'} {!isEntering && <span>→</span>}</button>
+          <label>학교<select value={school} onChange={(e) => { setSchool(e.target.value); setName(''); setPin(''); setUseTeacherLogin(false); setNeedsStudentName(false); setEntryError('') }}><option value="">학교를 선택하세요</option><option value="yesan-high">예산고등학교</option><option value="gwangsi-middle">광시중학교</option><option value="staff">멘토/관리자</option></select></label>
+          {school === 'yesan-high' && !useTeacherLogin && <button className="teacher-login-toggle" type="button" onClick={() => { setUseTeacherLogin(true); setNeedsStudentName(false); setEntryError('') }}>예산고 교사 로그인</button>}
+          {school === 'yesan-high' && useTeacherLogin && <button className="teacher-login-toggle secondary" type="button" onClick={() => { setUseTeacherLogin(false); setName(''); setPin(''); setEntryError('') }}>학생 PIN 로그인으로 돌아가기</button>}
+          {(!isYesanStudentMode || needsStudentName) && <label>{needsStudentName ? '이름 등록' : '이름'}<input value={name} onChange={(e) => { setName(e.target.value); setEntryError('') }} placeholder={needsStudentName ? '이 PIN에 등록할 이름' : '이름을 입력해 주세요'} autoComplete="name" /></label>}
+          <label>PIN 번호<input value={pin} onChange={(e) => { setPin(e.target.value.replace(/\D/g, '')); setNeedsStudentName(false); setEntryError('') }} placeholder={isYesanStudentMode ? '6자리 학생 PIN' : school === 'staff' ? '6자리 PIN 번호' : 'PIN 번호를 입력해 주세요'} maxLength={6} inputMode="numeric" type="password" autoComplete="current-password" /></label>
+          <button type="submit" disabled={isEntering || !isFirebaseConfigured}>{isEntering ? '안전하게 연결하는 중…' : needsStudentName ? '이름 등록하고 로그인' : '나의 활동실로 들어가기'} {!isEntering && <span>→</span>}</button>
           {entryError && <p className="entry-error" role="alert">{entryError}</p>}
           {school === 'staff' && showMasterUnlock && <div className="master-unlock"><label>관리자 잠금 해제 코드<input value={masterCode} onChange={(event) => setMasterCode(event.target.value.replace(/\D/g, ''))} type="password" inputMode="numeric" maxLength={8} placeholder="관리자 코드" /></label><button type="button" onClick={unlockStaff} disabled={isUnlocking || !masterCode}>{isUnlocking ? '잠금 해제 중…' : '잠금 바로 해제하기'}</button></div>}
+          {school === 'staff' && <details className="pin-issuer"><summary>예산고 학생 PIN 발급</summary><label>관리자 코드<input value={studentIssueCode} onChange={(event) => { setStudentIssueCode(event.target.value.replace(/\D/g, '')); setStudentIssueError('') }} type="password" inputMode="numeric" maxLength={8} placeholder="관리자 코드" /></label><button type="button" onClick={issueYesanStudentPins} disabled={isIssuingStudentPins || !studentIssueCode.trim()}>{isIssuingStudentPins ? '발급 중…' : '예산고 학생 PIN 22개 발급'}</button>{studentIssueError && <p className="entry-error" role="alert">{studentIssueError}</p>}{issuedStudentPins.length > 0 && <ol className="issued-pin-list">{issuedStudentPins.map((credential) => <li key={credential.accountNumber}><span>{credential.accountNumber}번</span><b>{credential.pin}</b></li>)}</ol>}</details>}
         </form>
         <p className="privacy-note">🔒 입력한 정보는 활동 참여 확인에만 사용해요.</p>
         </section>

@@ -69,6 +69,15 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    match /studentSessions/{userId} {
+      allow read: if isOwner(userId);
+      allow write: if false;
+    }
+
+    match /studentAccounts/{accountId} {
+      allow read, write: if false;
+    }
+
     match /studentProfiles/{userId} {
       allow read: if isOwner(userId);
       allow create, update: if isOwner(userId)

@@ -84,12 +84,21 @@ const safeEqual = (left, right) => {
   return leftBuffer.length === rightBuffer.length && timingSafeEqual(leftBuffer, rightBuffer)
 }
 const hashPin = async (pin, salt) => (await scrypt(`${pin}:${pinPepper.value()}`, salt, 64)).toString('hex')
+const studentPinCount = 22
+const yesanStudentSchool = { key: 'yesan-high', name: '예산고등학교' }
+const rejectedPinPatterns = new Set(['000000', '111111', '222222', '333333', '444444', '555555', '666666', '777777', '888888', '999999', '012345', '123456', '234567', '345678', '456789', '987654', '876543', '765432', '654321', '543210'])
 const createPin = (number, used) => {
   const rejected = new Set(['0000', '1111', '2222', '3333', '4444', '5555', '6666', '7777', '8888', '9999', '0123', '1234', '2345', '3456', '4567', '5678', '6789', '9876', '8765', '7654', '6543', '5432', '4321', '3210'])
   while (true) {
     const suffix = String(randomInt(0, 10000)).padStart(4, '0')
     const pin = `${number}${suffix}`
     if (!rejected.has(suffix) && !used.has(pin)) return pin
+  }
+}
+const createStudentPin = (used) => {
+  while (true) {
+    const pin = String(randomInt(0, 1000000)).padStart(6, '0')
+    if (!rejectedPinPatterns.has(pin) && !used.has(pin)) return pin
   }
 }
 
@@ -152,6 +161,38 @@ export const bootstrapTeacherAccounts = onCall({ secrets: [pinPepper, masterUnlo
   return { credentials }
 })
 
+export const bootstrapYesanStudentAccounts = onCall({ secrets: [pinPepper, masterUnlockCode] }, async (request) => {
+  if (!safeEqual(request.data?.masterCode, masterUnlockCode.value())) throw new HttpsError('permission-denied', '관리자 코드가 올바르지 않습니다.')
+  const setupRef = db.doc('system/yesanStudentAccountSetup')
+  if ((await setupRef.get()).exists) throw new HttpsError('already-exists', '예산고 학생 PIN 발급이 이미 완료되었습니다.')
+
+  const used = new Set()
+  const credentials = []
+  const batch = db.batch()
+  for (let index = 1; index <= studentPinCount; index += 1) {
+    const pin = createStudentPin(used)
+    used.add(pin)
+    const pinSalt = randomBytes(16).toString('hex')
+    const pinHash = await hashPin(pin, pinSalt)
+    const accountNumber = String(index).padStart(2, '0')
+    batch.create(db.doc(`studentAccounts/yesan-${accountNumber}`), {
+      accountNumber,
+      school: yesanStudentSchool.key,
+      schoolName: yesanStudentSchool.name,
+      displayName: null,
+      pinSalt,
+      pinHash,
+      active: true,
+      createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    })
+    credentials.push({ accountNumber, pin })
+  }
+  batch.create(setupRef, { completedAt: FieldValue.serverTimestamp(), accountCount: credentials.length, school: yesanStudentSchool.key })
+  await batch.commit()
+  return { credentials }
+})
+
 export const staffLogin = onCall({ secrets: [pinPepper] }, async (request) => {
   if (!request.auth?.uid) throw new HttpsError('unauthenticated', 'Firebase 로그인이 필요합니다.')
   const displayName = normalizeName(request.data?.name)
@@ -194,6 +235,62 @@ export const staffLogin = onCall({ secrets: [pinPepper] }, async (request) => {
     expiresAt: Timestamp.fromMillis(Date.now() + 12 * 60 * 60 * 1000),
   })
   return { role: verified.account.role, displayName }
+})
+
+export const studentLogin = onCall({ secrets: [pinPepper] }, async (request) => {
+  if (!request.auth?.uid) throw new HttpsError('unauthenticated', 'Firebase 로그인이 필요합니다.')
+  const school = String(request.data?.school ?? '')
+  const pin = String(request.data?.pin ?? '')
+  const requestedName = String(request.data?.name ?? '').trim().replace(/\s+/g, ' ')
+  if (school !== yesanStudentSchool.key || !/^\d{6}$/.test(pin)) throw new HttpsError('invalid-argument', '학교 또는 PIN이 올바르지 않습니다.')
+  if (requestedName && (requestedName.length < 2 || requestedName.length > 20)) throw new HttpsError('invalid-argument', '이름은 2~20자로 입력해 주세요.')
+
+  const accounts = await db.collection('studentAccounts').where('school', '==', yesanStudentSchool.key).where('active', '==', true).get()
+  let matched = null
+  for (const account of accounts.docs) {
+    const data = account.data()
+    if (!data.pinSalt || !data.pinHash) continue
+    const candidateHash = await hashPin(pin, data.pinSalt)
+    if (safeEqual(candidateHash, data.pinHash)) {
+      matched = { ref: account.ref, data }
+      break
+    }
+  }
+  if (!matched) throw new HttpsError('permission-denied', 'PIN이 올바르지 않습니다.')
+
+  const sessionRef = db.doc(`studentSessions/${request.auth.uid}`)
+  if (matched.data.displayName) {
+    await sessionRef.set({
+      userId: request.auth.uid,
+      accountNumber: matched.data.accountNumber,
+      displayName: matched.data.displayName,
+      school: yesanStudentSchool.key,
+      schoolName: yesanStudentSchool.name,
+      createdAt: FieldValue.serverTimestamp(),
+      expiresAt: Timestamp.fromMillis(Date.now() + 30 * 24 * 60 * 60 * 1000),
+    })
+    return { needsName: false, displayName: matched.data.displayName, schoolName: yesanStudentSchool.name }
+  }
+  if (!requestedName) return { needsName: true }
+
+  const displayName = await db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(matched.ref)
+    if (!snapshot.exists || !snapshot.data().active) throw new HttpsError('permission-denied', '사용할 수 없는 PIN입니다.')
+    const currentName = snapshot.data().displayName
+    if (currentName && currentName !== requestedName) throw new HttpsError('already-exists', '이미 다른 이름으로 등록된 PIN입니다.')
+    if (!currentName) transaction.update(matched.ref, { displayName: requestedName, registeredBy: request.auth.uid, registeredAt: FieldValue.serverTimestamp(), updatedAt: FieldValue.serverTimestamp() })
+    transaction.set(sessionRef, {
+      userId: request.auth.uid,
+      accountNumber: snapshot.data().accountNumber,
+      displayName: currentName || requestedName,
+      school: yesanStudentSchool.key,
+      schoolName: yesanStudentSchool.name,
+      createdAt: FieldValue.serverTimestamp(),
+      expiresAt: Timestamp.fromMillis(Date.now() + 30 * 24 * 60 * 60 * 1000),
+    })
+    return currentName || requestedName
+  })
+  return { needsName: false, displayName, schoolName: yesanStudentSchool.name }
 })
 
 export const unlockStaffAccount = onCall({ secrets: [masterUnlockCode] }, async (request) => {
