@@ -77,7 +77,7 @@ const staffDirectory = {
   '안지윤': { number: '40', role: 'mentor' },
   '김승주': { number: '50', role: 'mentor' },
   '이영우': { number: '60', role: 'mentor' },
-  '추규한': { number: '70', role: 'mentor' },
+  '추규한': { number: '70', role: 'admin' },
   '관리자1': { number: '80', role: 'admin', storageKey: '80' },
   '관리자2': { number: '90', role: 'admin', storageKey: '90' },
   '예산고': { number: '80', role: 'teacher', schoolName: '예산고등학교', storageKey: 'teacher-yesan-high' },
