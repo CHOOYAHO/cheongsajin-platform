@@ -82,7 +82,6 @@ const staffDirectory = {
   '관리자2': { number: '90', role: 'admin', storageKey: '90' },
   '예산고': { number: '80', role: 'teacher', schoolName: '예산고등학교', storageKey: 'teacher-yesan-high' },
   '광시중': { number: '90', role: 'teacher', schoolName: '광시중학교', storageKey: 'teacher-gwangsi-middle' },
-  '조경옥': { number: '90', role: 'teacher', schoolName: '광시중학교', storageKey: 'teacher-gwangsi-middle' },
 }
 
 const normalizeName = (value) => String(value ?? '').trim().replaceAll(' ', '')
