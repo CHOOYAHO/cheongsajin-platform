@@ -69,6 +69,26 @@ const allParticipantMoneySpent = (participants, winnerId, winningPrice) => {
     return balance <= 0
   })
 }
+const writeAuctionResults = (transaction, roomRef, roomData, participants, overrides = {}) => {
+  const roomCode = roomRef.id
+  for (const participant of participants.docs.filter((item) => item.data().role === 'participant')) {
+    const data = { ...participant.data(), ...(overrides[participant.id] ?? {}) }
+    transaction.set(db.doc(`auctionResults/${roomCode}_${participant.id}`), {
+      userId: participant.id,
+      roomCode,
+      displayName: data.nickname ?? '참가자',
+      selectedJob: data.selectedJob ?? '',
+      balance: Number(data.balance ?? 0),
+      inventory: data.inventory ?? {},
+      selectedJobs: roomData.selectedJobs ?? [],
+      deck: roomData.deck ?? [],
+      auctionIndex: Number(roomData.auctionIndex ?? 0),
+      totalItems: Number(roomData.totalItems ?? 0),
+      endedByHost: roomData.endedByHost === true,
+      savedAt: FieldValue.serverTimestamp(),
+    }, { merge: true })
+  }
+}
 
 const staffDirectory = {
   '이상구': { number: '10', role: 'mentor' },
@@ -476,16 +496,21 @@ export const settleAuctionItem = onCall(async (request) => {
     if (!room.exists || room.data().gameState !== 'AUCTION') return
     const data = room.data()
     if (data.auctionEndsAt.toMillis() > Date.now()) throw new HttpsError('failed-precondition', '아직 입찰 시간이 남아 있습니다.')
+    const participantOverrides = {}
     if (data.highestBidderId) {
       const winnerRef = roomRef.collection('participants').doc(data.highestBidderId)
       const winner = await transaction.get(winnerRef)
       if (winner.exists) {
         const strength = data.deck[data.auctionIndex]
         const inventory = { ...winner.data().inventory, [strength]: Math.min(3, (winner.data().inventory?.[strength] ?? 0) + 1) }
-        transaction.update(winnerRef, { balance: winner.data().balance - data.currentPrice, inventory, updatedAt: FieldValue.serverTimestamp() })
+        const balance = winner.data().balance - data.currentPrice
+        participantOverrides[data.highestBidderId] = { balance, inventory }
+        transaction.update(winnerRef, { balance, inventory, updatedAt: FieldValue.serverTimestamp() })
       }
     }
-    transaction.update(roomRef, { gameState: allParticipantMoneySpent(participants, data.highestBidderId, data.highestBidderId ? data.currentPrice : 0) ? 'RESULT' : 'SOLD', updatedAt: FieldValue.serverTimestamp() })
+    const gameState = allParticipantMoneySpent(participants, data.highestBidderId, data.highestBidderId ? data.currentPrice : 0) ? 'RESULT' : 'SOLD'
+    transaction.update(roomRef, { gameState, updatedAt: FieldValue.serverTimestamp() })
+    if (gameState === 'RESULT') writeAuctionResults(transaction, roomRef, data, participants, participantOverrides)
   })
   return { settled: true }
 })
@@ -498,7 +523,9 @@ export const advanceAuctionItem = onCall(async (request) => {
     const data = room.data()
     if (data.gameState !== 'SOLD') throw new HttpsError('failed-precondition', '낙찰 처리가 완료되지 않았습니다.')
     const nextIndex = data.auctionIndex + 1
-    transaction.update(roomRef, nextIndex >= data.totalItems || allParticipantMoneySpent(participants, null, 0) ? { gameState: 'RESULT', updatedAt: FieldValue.serverTimestamp() } : { gameState: 'COUNTDOWN', auctionIndex: nextIndex, currentPrice: 50, highestBidderId: null, highestBidderName: null, countdownEndsAt: Timestamp.fromMillis(Date.now() + 10000), updatedAt: FieldValue.serverTimestamp() })
+    const shouldEnd = nextIndex >= data.totalItems || allParticipantMoneySpent(participants, null, 0)
+    transaction.update(roomRef, shouldEnd ? { gameState: 'RESULT', auctionIndex: nextIndex, updatedAt: FieldValue.serverTimestamp() } : { gameState: 'COUNTDOWN', auctionIndex: nextIndex, currentPrice: 50, highestBidderId: null, highestBidderName: null, countdownEndsAt: Timestamp.fromMillis(Date.now() + 10000), updatedAt: FieldValue.serverTimestamp() })
+    if (shouldEnd) writeAuctionResults(transaction, roomRef, { ...data, auctionIndex: nextIndex }, participants)
   })
   return { advanced: true }
 })
@@ -506,10 +533,11 @@ export const advanceAuctionItem = onCall(async (request) => {
 export const endAuctionGame = onCall(async (request) => {
   const { uid, roomRef } = requireAuctionUser(request)
   await db.runTransaction(async (transaction) => {
-    const room = await transaction.get(roomRef)
+    const [room, participants] = await Promise.all([transaction.get(roomRef), transaction.get(roomRef.collection('participants'))])
     if (!room.exists || room.data().hostId !== uid) throw new HttpsError('permission-denied', '방장만 게임을 종료할 수 있습니다.')
     if (room.data().gameState === 'WAITING') throw new HttpsError('failed-precondition', '게임 시작 후 종료할 수 있습니다.')
     transaction.update(roomRef, { gameState: 'RESULT', endedByHost: true, updatedAt: FieldValue.serverTimestamp() })
+    writeAuctionResults(transaction, roomRef, { ...room.data(), endedByHost: true }, participants)
   })
   return { ended: true }
 })

@@ -187,6 +187,7 @@ function ProfileEditor({ kind, displayName, schoolName, existing, onSave }: { ki
 type AuctionPhase = 'lobby' | 'waiting' | 'voting' | 'countdown' | 'auction' | 'sold' | 'result'
 type AuctionParticipant = { id: string; nickname: string; role: 'host' | 'participant'; connected: boolean; lastSeenAt?: { toMillis: () => number }; selectedJob?: string | null; balance?: number; inventory?: Record<string, number> }
 type AuctionRoom = { hostId: string; gameState: 'WAITING' | 'JOB_SELECTION' | 'COUNTDOWN' | 'AUCTION' | 'SOLD' | 'RESULT'; initialMoney?: number; bidLimit?: number; totalItems?: number; voteEndsAt?: { toMillis: () => number }; countdownEndsAt?: { toMillis: () => number }; selectedJob?: string | null; selectedJobs?: string[]; deck?: string[]; auctionIndex?: number; currentPrice?: number; highestBidderId?: string | null; highestBidderName?: string | null; auctionEndsAt?: { toMillis: () => number } }
+type AuctionResultRecord = { id: string; roomCode: string; displayName: string; selectedJob: string; balance: number; inventory: Record<string, number>; auctionIndex: number; totalItems: number; endedByHost?: boolean; savedAt?: { toMillis: () => number } }
 type AuctionTestRole = 'host' | 'participant'
 const auctionTestJobs = ['의사', '소방관', '교사', '경찰관', '유튜브 크리에이터', '게임 개발자', '요리사', '간호사', '웹툰 작가', '반려동물 훈련사', '로봇공학자', '스포츠 트레이너', '심리상담사', '항공 승무원', '건축가', '패션 디자이너', '사회복지사', '데이터 분석가', '환경 연구원', '창업가']
 const savedSessionKey = 'cheongsajin-session'
@@ -374,6 +375,10 @@ function StrengthAuctionGame({ studentName }: { studentName: string }) {
   const [settleRequestedFor, setSettleRequestedFor] = useState('')
   const [countdownRequestedFor, setCountdownRequestedFor] = useState('')
   const [testRole, setTestRole] = useState<AuctionTestRole | null>(null)
+  const [showResultRecords, setShowResultRecords] = useState(false)
+  const [auctionResults, setAuctionResults] = useState<AuctionResultRecord[]>([])
+  const [auctionResultsLoading, setAuctionResultsLoading] = useState(false)
+  const [auctionResultsError, setAuctionResultsError] = useState('')
   const auctionIndex = roomData?.auctionIndex ?? 0
   const itemLimit = roomData?.totalItems ?? 0
   const currentPrice = roomData?.currentPrice ?? 50
@@ -399,6 +404,23 @@ function StrengthAuctionGame({ studentName }: { studentName: string }) {
   const callAuction = async <T,>(name: string, data: Record<string, unknown>) => {
     if (!functions) throw new Error('Firebase Functions 연결이 필요합니다.')
     return (await httpsCallable<Record<string, unknown>, T>(functions, name)(data)).data
+  }
+  const loadAuctionResults = async () => {
+    if (!db || !auth?.currentUser) return setAuctionResultsError('Firebase 연결을 확인해 주세요.')
+    setAuctionResultsLoading(true)
+    setAuctionResultsError('')
+    try {
+      const snapshot = await getDocs(query(collection(db, 'auctionResults'), where('userId', '==', auth.currentUser.uid)))
+      const records = snapshot.docs.map((item) => ({ id: item.id, ...(item.data() as Omit<AuctionResultRecord, 'id'>) }))
+        .sort((left, right) => (right.savedAt?.toMillis?.() ?? 0) - (left.savedAt?.toMillis?.() ?? 0))
+      setAuctionResults(records)
+      setShowResultRecords(true)
+    } catch (error) {
+      console.error(error)
+      setAuctionResultsError('결과 기록을 불러오지 못했어요.')
+    } finally {
+      setAuctionResultsLoading(false)
+    }
   }
 
   const createRoom = async () => {
@@ -551,8 +573,11 @@ function StrengthAuctionGame({ studentName }: { studentName: string }) {
 
   if (hostDisconnected) return <div className="host-left-screen"><span>👋</span><h2>방장이 게임을 나갔습니다.</h2><p>현재 게임은 더 이상 진행할 수 없어요.</p><button type="button" className="auction-primary" onClick={leaveAuctionRoom}>강점 경매장 초기 화면으로</button></div>
 
+  if (showResultRecords) return <div className="auction-records"><div className="auction-section-title"><div><span>내 계정 기록</span><h3>강점 경매장 결과 기록</h3></div><button type="button" onClick={() => setShowResultRecords(false)}>돌아가기</button></div>{auctionResultsError && <p className="auction-error" role="alert">{auctionResultsError}</p>}{auctionResults.length ? <div className="auction-record-list">{auctionResults.map((record) => { const strengths = Object.entries(record.inventory ?? {}); const date = record.savedAt?.toMillis ? new Date(record.savedAt.toMillis()).toLocaleString('ko-KR') : '저장 시간 확인 중'; return <article key={record.id}><div><span>방 {record.roomCode}</span><b>{record.selectedJob || '직업 미기록'}</b><small>{date}</small></div><dl><dt>진행</dt><dd>{record.auctionIndex} / {record.totalItems}</dd><dt>잔액</dt><dd>{record.balance}P</dd><dt>종료</dt><dd>{record.endedByHost ? '방장 종료' : '게임 종료'}</dd></dl><ul>{strengths.length ? strengths.map(([strength, count]) => <li key={strength}><span>{strength}</span><b className={`rarity-${rarity(count).toLowerCase()}`}>{rarity(count)}</b></li>) : <li><span>낙찰받은 강점 없음</span></li>}</ul></article> })}</div> : <div className="empty-auction-records"><b>아직 저장된 경매 결과가 없어요.</b><p>실시간 강점 경매가 결과 화면까지 끝나면 이곳에 내 기록이 남아요.</p></div>}</div>
+
   if (phase === 'lobby') return <div className="auction-lobby">
     <div className="auction-title"><span>🔨</span><h2>강점 경매장</h2><p>선택한 직업에 필요한 강점을 전략적으로 낙찰받아 보세요.</p></div>
+    <button type="button" className="auction-record-button" onClick={loadAuctionResults} disabled={auctionResultsLoading}>{auctionResultsLoading ? '기록 불러오는 중…' : '결과 기록 보기'}</button>
     <div className="auction-entry-grid"><article><span>방장</span><h3>새 게임방 만들기</h3><p>참가자를 초대하고 금액·시간 등 게임 설정을 준비해요.</p><input value={nickname} onChange={(event) => setNickname(event.target.value)} placeholder="방장 닉네임" maxLength={12} /><button type="button" onClick={createRoom} disabled={isRoomBusy}>{isRoomBusy ? '연결 중…' : '방 만들기 →'}</button></article><article><span>참가자</span><h3>게임방 입장하기</h3><p>닉네임과 방장이 알려준 코드를 입력해 주세요.</p><input value={nickname} onChange={(event) => setNickname(event.target.value)} placeholder="닉네임" maxLength={12} /><input value={joinCode} onChange={(event) => setJoinCode(event.target.value)} placeholder="방 코드 입력" maxLength={6} /><button type="button" onClick={joinRoom} disabled={isRoomBusy || joinCode.trim().length < 4 || !nickname.trim()}>{isRoomBusy ? '연결 중…' : '입장하기 →'}</button></article></div>
     {roomError && <p className="auction-error" role="alert">{roomError}</p>}
     <div className="prototype-notice"><b>실시간 게임</b><p>방 입장부터 직업 투표, 입찰, 낙찰과 결과까지 여러 기기에 실시간으로 동기화돼요.</p></div>
