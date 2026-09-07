@@ -134,6 +134,10 @@ function PartnerFooter() {
   )
 }
 
+function MasterViewBanner({ label }: { label: string }) {
+  return <div className="master-view-banner" role="status">{label}</div>
+}
+
 function AccessQrModal({ onClose }: { onClose: () => void }) {
   useEffect(() => {
     const closeOnEscape = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose() }
@@ -618,7 +622,7 @@ function StrengthAuctionGame({ studentName }: { studentName: string }) {
   return <div className="auction-stage"><div className="auction-topline"><span>{auctionIndex + 1} / {itemLimit} 상품</span><b>내 직업 · {myJob || '방장 진행 화면'}</b></div><div className="auction-product"><div className={`auction-clock ${auctionTime <= 3 ? 'urgent' : ''}`}><b>{auctionTime}</b><span>초</span></div><span>지금 필요한 강점</span><h2>🔨 {currentStrength}</h2>{myStrengthLevel >= 3 && <p className="epic-block">🌟 최고 등급을 보유하고 있어 입찰할 수 없어요.</p>}{roomData?.highestBidderId === auth?.currentUser?.uid && <p className="epic-block">현재 내가 최고 입찰자예요. 다른 참가자가 입찰할 때까지 기다려 주세요.</p>}<div className="current-bid"><span>현재가</span><strong>{currentPrice}P</strong><small>최고 입찰자 · {roomData?.highestBidderName || '아직 없음'}</small></div><div className="bid-buttons">{bidOptions.map((amount) => <button type="button" onClick={() => placeBid(amount)} disabled={role === 'host' || roomData?.highestBidderId === auth?.currentUser?.uid || auctionTime <= 0 || amount > balance || myStrengthLevel >= 3} key={amount}>{amount}P</button>)}</div><p className="anti-snipe">종료 2초 전 새 입찰이 들어오면 시간이 5초로 연장돼요.</p>{role === 'host' && <button type="button" className="host-end-button wide" onClick={endAuction}>게임 종료하고 결과 보기</button>}{roomError && <p className="auction-error" role="alert">{roomError}</p>}</div><aside className="auction-player"><div><span>{myName}</span><strong>💰 {balance}P</strong></div><h3>{myJob ? `${myJob} 목표` : '보유 역량'}</h3>{Object.keys(inventory).length ? <ul>{Object.entries(inventory).map(([strength, count]) => <li key={strength}><span>{strength}</span><b className={`rarity-${rarity(count).toLowerCase()}`}>{rarity(count)}</b></li>)}</ul> : <p>아직 낙찰받은 역량이 없어요.</p>}</aside></div>
 }
 
-function SecondActivityDetail({ step, schoolName, studentName, viewerMode, onLeave, onHome }: { step: number; schoolName: string; studentName: string; viewerMode: 'student' | 'school' | 'all'; onLeave: () => void; onHome: () => void }) {
+function SecondActivityDetail({ step, schoolName, studentName, viewerMode, masterViewLabel, onLeave, onHome }: { step: number; schoolName: string; studentName: string; viewerMode: 'student' | 'school' | 'all'; masterViewLabel?: string; onLeave: () => void; onHome: () => void }) {
   const [gameStarted, setGameStarted] = useState(false)
   const [questionDuration, setQuestionDuration] = useState<5 | 7 | 10>(7)
   const [isPaused, setIsPaused] = useState(false)
@@ -734,6 +738,7 @@ function SecondActivityDetail({ step, schoolName, studentName, viewerMode, onLea
   return (
     <div className="app-shell">
       <header className="topbar"><div className="brand"><span className="brand-mark">청</span><span>청·사·진</span></div><div className="student-chip"><span>{schoolName}</span><b>{studentName}</b><button className="logout-button" onClick={onLeave}>로그아웃</button></div></header>
+      {masterViewLabel && <MasterViewBanner label={masterViewLabel} />}
       <main className="session-review activity-detail-page">
         <button className="back-button" type="button" onClick={() => window.history.back()}>← 2회기 활동 목록으로</button>
         <section className="review-hero second-session-hero detail-hero">
@@ -778,11 +783,12 @@ function SecondActivityDetail({ step, schoolName, studentName, viewerMode, onLea
   )
 }
 
-function StaffSessionDetail({ sessionNumber, schoolName, displayName, onLeave }: { sessionNumber: number; schoolName: string; displayName: string; onLeave: () => void }) {
+function StaffSessionDetail({ sessionNumber, schoolName, displayName, masterViewLabel, onLeave }: { sessionNumber: number; schoolName: string; displayName: string; masterViewLabel?: string; onLeave: () => void }) {
   const plan = staffSessionPlans[sessionNumber]
   return (
     <div className="app-shell">
       <header className="topbar"><div className="brand"><span className="brand-mark">청</span><span>청·사·진</span></div><div className="student-chip"><span>{schoolName}</span><b>{displayName}</b><button className="logout-button" onClick={onLeave}>로그아웃</button></div></header>
+      {masterViewLabel && <MasterViewBanner label={masterViewLabel} />}
       <main className="session-review staff-session-detail">
         <button className="back-button" type="button" onClick={() => window.history.back()}>← 나의 활동실로</button>
         <section className={`review-hero staff-session-hero ${plan.theme}`}>
@@ -813,6 +819,7 @@ function AdminPage({ displayName, accountTools, sessionLocks, sessionLockBusy, s
   return (
     <div className="app-shell">
       <header className="topbar"><div className="brand"><span className="brand-mark">청</span><span>청·사·진</span></div><div className="student-chip"><span>관리자(마스터)</span><b>{displayName}</b><button className="logout-button" onClick={onLeave}>로그아웃</button></div></header>
+      <MasterViewBanner label="관리자 페이지로 보는 중입니다" />
       <main className="admin-page">
         <button className="back-button" type="button" onClick={activeSection ? () => setActiveSection(null) : onBack}>{activeSection ? '← 관리자 페이지로' : '← 나의 활동실로'}</button>
         <section className="admin-hero">
@@ -872,6 +879,7 @@ function App() {
   const viewSchoolName = isMasterAccount ? masterViewMode === 'yesan-high' ? '예산고등학교' : masterViewMode === 'gwangsi-middle' ? '광시중학교' : '멘토' : schoolName
   const viewDisplayName = isMasterAccount && masterViewMode !== 'mentor' ? `${name.trim()} · 학생 화면` : name.trim()
   const isMasterStudentView = isMasterAccount && masterViewMode !== 'mentor'
+  const masterViewLabel = isMasterAccount ? masterViewMode === 'yesan-high' ? '예산고 학생 화면으로 보는 중입니다' : masterViewMode === 'gwangsi-middle' ? '광시중 학생 화면으로 보는 중입니다' : '멘토 화면으로 보는 중입니다' : ''
   const canPreviewFutureSessions = isMasterAccount && adminSessionPreview !== null
   const completedSessionCount = viewSchool === 'yesan-high' || (isStaffAccount && !isMasterStudentView) ? 1 : 0
   const sessions: Session[] = sessionTemplates.map((session) => ({
@@ -1313,6 +1321,7 @@ function App() {
     const ownMentorProfile = mentorProfiles.find((profile) => profile.displayName === name.trim())
     return <div className="app-shell">
       <header className="topbar"><div className="brand"><span className="brand-mark">청</span><span>청·사·진</span></div><div className="student-chip"><span>{viewSchoolName}</span><b>{viewDisplayName}</b><button className="logout-button" onClick={leave}>로그아웃</button></div></header>
+      {masterViewLabel && <MasterViewBanner label={masterViewLabel} />}
       <main className="guide-detail-page">
         <button className="back-button" type="button" onClick={() => window.history.back()}>← 나의 활동실로</button>
         {activeGuide === 'program' && <><section className="guide-detail-hero blue"><span>🗺️</span><div><small>프로그램 안내</small><h1>청사진이란?</h1><p>청소년의 가능성을 발견하고 미래의 모습을 구체적으로 그려 가는 진로 멘토링 여정이에요.</p></div></section><section className="guide-content-card"><h2>청·사·진의 의미</h2><p><b>청소년의 사기진작 진로멘토링</b>의 줄임말로, 내가 좋아하는 것과 잘하는 것을 찾고 다양한 직업과 진로를 탐색하는 프로그램이에요.</p><div className="program-journey"><article><b>1</b><h3>서로 만나기</h3><p>멘토와 인사하고 진로의 의미를 알아봐요.</p></article><article><b>2</b><h3>나를 발견하기</h3><p>선호와 강점을 재미있는 활동으로 찾아봐요.</p></article><article><b>3</b><h3>역량 키우기</h3><p>희망 직업에 필요한 힘을 탐색해요.</p></article><article><b>4</b><h3>직업 연습하기</h3><p>직업 정보를 찾고 AI 면접을 경험해요.</p></article><article><b>5</b><h3>청사진 완성하기</h3><p>활동 결과를 모아 나만의 포트폴리오를 만들어요.</p></article></div></section></>}
@@ -1325,13 +1334,14 @@ function App() {
   }
 
   if (activeSession && activeSession >= 3 && activeSession <= 5 && sessionPageMode === 'activity' && (canPreviewFutureSessions || sessionLocks[activeSession] === true)) {
-    return <StaffSessionDetail sessionNumber={activeSession} schoolName={viewSchoolName} displayName={viewDisplayName} onLeave={leave} />
+    return <StaffSessionDetail sessionNumber={activeSession} schoolName={viewSchoolName} displayName={viewDisplayName} masterViewLabel={masterViewLabel} onLeave={leave} />
   }
 
   if (activeSession === 1 && sessionPageMode === 'activity') {
     return (
       <div className="app-shell">
         <header className="topbar"><div className="brand"><span className="brand-mark">청</span><span>청·사·진</span></div><div className="student-chip"><span>{viewSchoolName}</span><b>{viewDisplayName}</b><button className="logout-button" onClick={leave}>로그아웃</button></div></header>
+        {masterViewLabel && <MasterViewBanner label={masterViewLabel} />}
         <main className="session-review">
           <button className="back-button" type="button" onClick={() => window.history.back()}>← 나의 활동실로</button>
           <section className="review-hero activity-hero">
@@ -1376,7 +1386,7 @@ function App() {
   if (activeSession === 2 && sessionPageMode === 'activity' && activeSecondActivity) {
     const normalizedName = name.trim().replaceAll(' ', '')
     const viewerMode = isMasterStudentView ? 'student' : isAdminMode ? 'all' : isTeacherMode || normalizedName === '예산고' || normalizedName === '광시중' ? 'school' : 'student'
-    return <SecondActivityDetail step={activeSecondActivity} schoolName={viewSchoolName} studentName={viewDisplayName} viewerMode={viewerMode} onLeave={leave} onHome={goDashboard} />
+    return <SecondActivityDetail step={activeSecondActivity} schoolName={viewSchoolName} studentName={viewDisplayName} viewerMode={viewerMode} masterViewLabel={masterViewLabel} onLeave={leave} onHome={goDashboard} />
   }
 
   if (activeSession === 2 && sessionPageMode === 'activity') {
@@ -1386,6 +1396,7 @@ function App() {
     return (
       <div className="app-shell">
         <header className="topbar"><div className="brand"><span className="brand-mark">청</span><span>청·사·진</span></div><div className="student-chip"><span>{viewSchoolName}</span><b>{viewDisplayName}</b><button className="logout-button" onClick={leave}>로그아웃</button></div></header>
+        {masterViewLabel && <MasterViewBanner label={masterViewLabel} />}
         <main className="session-review">
           <button className="back-button" type="button" onClick={() => window.history.back()}>← 나의 활동실로</button>
           <section className="review-hero second-session-hero">
@@ -1426,6 +1437,7 @@ function App() {
     return (
       <div className="app-shell">
         <header className="topbar"><div className="brand"><span className="brand-mark">청</span><span>청·사·진</span></div><div className="student-chip"><span>{viewSchoolName}</span><b>{viewDisplayName}</b><button className="logout-button" onClick={leave}>로그아웃</button></div></header>
+        {masterViewLabel && <MasterViewBanner label={masterViewLabel} />}
         <main className="session-review">
           <button className="back-button" type="button" onClick={() => window.history.back()}>← 나의 활동실로</button>
           <section className="review-hero">
@@ -1467,6 +1479,7 @@ function App() {
   return (
     <div className="app-shell">
       <header className="topbar"><div className="brand"><span className="brand-mark">청</span><span>청·사·진</span></div><div className="student-chip">{staffRole === 'admin' && <div className="master-view-switch"><button className={masterViewMode === 'mentor' ? 'active' : ''} type="button" onClick={() => switchMasterView('mentor')}>멘토 화면으로 보기</button><button className={masterViewMode === 'yesan-high' ? 'active' : ''} type="button" onClick={() => switchMasterView('yesan-high')}>예산고</button><button className={masterViewMode === 'gwangsi-middle' ? 'active' : ''} type="button" onClick={() => switchMasterView('gwangsi-middle')}>광시중</button></div>}{staffRole === 'admin' && <button className="admin-entry-button" type="button" onClick={openAdminPage}>관리자 페이지 들어가기</button>}<span>{staffRole === 'admin' ? '관리자(마스터)' : schoolName}</span><b>{name.trim()}</b><button className="logout-button" onClick={leave}>로그아웃</button></div></header>
+      {masterViewLabel && <MasterViewBanner label={masterViewLabel} />}
       <main className="dashboard">
         <section className="dashboard-intro">
           <div><p className="eyebrow">나의 활동실</p><h1>안녕, <em>{viewDisplayName}</em>!</h1><p>오늘도 나만의 가능성을 하나씩 발견해 볼까요?</p></div>
