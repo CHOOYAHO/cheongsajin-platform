@@ -782,7 +782,7 @@ function StaffSessionDetail({ sessionNumber, schoolName, displayName, onLeave }:
       <main className="session-review staff-session-detail">
         <button className="back-button" type="button" onClick={() => window.history.back()}>← 나의 활동실로</button>
         <section className={`review-hero staff-session-hero ${plan.theme}`}>
-          <div><span className="staff-preview-badge">멘토·관리자 미리보기 · {sessionNumber}회기</span><p className="eyebrow">활동 세부 안내</p><h1>{plan.title}</h1><p>{plan.description}</p></div>
+          <div><span className="staff-preview-badge">관리자(마스터) 미리보기 · {sessionNumber}회기</span><p className="eyebrow">활동 세부 안내</p><h1>{plan.title}</h1><p>{plan.description}</p></div>
           <div className="review-icon" aria-hidden="true">{plan.icon}</div>
         </section>
         <section className="staff-session-summary"><div><small>회기</small><b>{sessionNumber}회기</b></div><div><small>활동 주제</small><b>{plan.subtitle}</b></div><div><small>예상 시간</small><b>총 100분</b></div></section>
@@ -856,7 +856,7 @@ function App() {
   const [isIssuingStudentPins, setIsIssuingStudentPins] = useState(false)
   const schoolName = school === 'yesan-high' ? '예산고등학교' : school === 'gwangsi-middle' ? '광시중학교' : school === 'staff' ? '멘토/관리자' : ''
   const isPinStudentMode = (school === 'yesan-high' || school === 'gwangsi-middle') && !useTeacherLogin
-  const canPreviewFutureSessions = staffRole === 'mentor' || staffRole === 'admin'
+  const canPreviewFutureSessions = staffRole === 'admin'
   const completedSessionCount = school === 'yesan-high' || school === 'staff' ? 1 : 0
   const sessions: Session[] = sessionTemplates.map((session) => ({
     ...session,
@@ -910,7 +910,7 @@ function App() {
       }
       if (sessionMatch) {
         const requestedSession = Number(sessionMatch[2])
-        if (requestedSession >= 3 && staffRole !== 'mentor' && staffRole !== 'admin') {
+        if (requestedSession >= 3 && staffRole !== 'admin') {
           setActiveSession(null)
           setActiveSecondActivity(null)
           setActiveGuide(null)
@@ -1402,7 +1402,7 @@ function App() {
             <article className={`session-card ${session.status}`} key={session.number}>
               <div className="session-top"><span className="small-icon">{session.icon}</span><span className="status">{session.status === 'done' ? '완료' : canPreviewFutureSessions && session.number >= 3 ? '미리보기' : session.status === 'open' ? '진행 중' : '잠김'}</span></div>
               <small>{session.number}회기</small><h3>{session.title}</h3><p>{session.subtitle}</p>
-              {session.status === 'done' ? <button type="button" className="card-action" onClick={() => openSession(session.number, 'review')}>활동 다시 보기 <span>→</span></button> : session.status === 'open' ? <button type="button" className="card-action" onClick={() => openSession(session.number, 'activity')}>{canPreviewFutureSessions && session.number >= 3 ? '활동 세부 보기' : '활동하기'} <span>→</span></button> : <div className="card-action">{session.number >= 3 ? '멘토·관리자에게만 공개돼요' : '이전 활동을 완료하면 열려요'} <span>🔒</span></div>}
+              {session.status === 'done' ? <button type="button" className="card-action" onClick={() => openSession(session.number, 'review')}>활동 다시 보기 <span>→</span></button> : session.status === 'open' ? <button type="button" className="card-action" onClick={() => openSession(session.number, 'activity')}>{canPreviewFutureSessions && session.number >= 3 ? '활동 세부 보기' : '활동하기'} <span>→</span></button> : <div className="card-action">{session.number >= 3 ? '관리자(마스터)에게만 공개돼요' : '이전 활동을 완료하면 열려요'} <span>🔒</span></div>}
             </article>
           ))}</div>
         </section>
