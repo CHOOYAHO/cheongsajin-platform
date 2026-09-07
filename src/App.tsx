@@ -857,7 +857,6 @@ function App() {
   const [showAccessQr, setShowAccessQr] = useState(false)
   const [useTeacherLogin, setUseTeacherLogin] = useState(false)
   const [needsStudentName, setNeedsStudentName] = useState(false)
-  const [studentIssueCode, setStudentIssueCode] = useState('')
   const [studentIssueSchool, setStudentIssueSchool] = useState<'yesan-high' | 'gwangsi-middle'>('yesan-high')
   const [issuedStudentPins, setIssuedStudentPins] = useState<IssuedStudentPin[]>([])
   const [managedStudentAccounts, setManagedStudentAccounts] = useState<ManagedStudentAccount[]>([])
@@ -1141,45 +1140,45 @@ function App() {
     } finally { setIsUnlocking(false) }
   }
   const loadStudentPinAccounts = async () => {
-    if (!functions || !studentIssueCode.trim()) return
+    if (!functions) return
     setIsIssuingStudentPins(true)
     setStudentIssueError('')
     try {
       if (auth && !auth.currentUser) await signInAnonymously(auth)
-      const listAccounts = httpsCallable<{ masterCode: string; school: string }, { accounts: ManagedStudentAccount[] }>(functions, 'listStudentPinAccounts')
-      const result = await listAccounts({ masterCode: studentIssueCode.trim(), school: studentIssueSchool })
+      const listAccounts = httpsCallable<{ school: string }, { accounts: ManagedStudentAccount[] }>(functions, 'listStudentPinAccounts')
+      const result = await listAccounts({ school: studentIssueSchool })
       setManagedStudentAccounts(result.data.accounts)
     } catch (error) {
       console.error(error)
-      setStudentIssueError('관리자 코드 또는 Firebase 권한을 확인해 주세요.')
+      setStudentIssueError('마스터 로그인 상태 또는 Firebase 권한을 확인해 주세요.')
     } finally {
       setIsIssuingStudentPins(false)
     }
   }
   const issueStudentPins = async () => {
-    if (!functions || !studentIssueCode.trim()) return
+    if (!functions) return
     setIsIssuingStudentPins(true)
     setStudentIssueError('')
     setIssuedStudentPins([])
     try {
       if (auth && !auth.currentUser) await signInAnonymously(auth)
-      const issuePins = httpsCallable<{ masterCode: string; school: string }, { credentials: IssuedStudentPin[] }>(functions, 'bootstrapStudentAccounts')
-      const result = await issuePins({ masterCode: studentIssueCode.trim(), school: studentIssueSchool })
+      const issuePins = httpsCallable<{ school: string }, { credentials: IssuedStudentPin[] }>(functions, 'bootstrapStudentAccounts')
+      const result = await issuePins({ school: studentIssueSchool })
       setIssuedStudentPins(result.data.credentials)
       await loadStudentPinAccounts()
     } catch (error) {
       console.error(error)
-      setStudentIssueError('관리자 코드 또는 Firebase 권한을 확인해 주세요.')
+      setStudentIssueError('마스터 로그인 상태 또는 Firebase 권한을 확인해 주세요.')
     } finally {
       setIsIssuingStudentPins(false)
     }
   }
   const resetStudentPin = async (accountId: string) => {
-    if (!functions || !studentIssueCode.trim()) return
+    if (!functions) return
     setStudentIssueError('')
     try {
-      const resetPin = httpsCallable<{ masterCode: string; accountId: string }, { account: ManagedStudentAccount }>(functions, 'resetStudentPinAccount')
-      const result = await resetPin({ masterCode: studentIssueCode.trim(), accountId })
+      const resetPin = httpsCallable<{ accountId: string }, { account: ManagedStudentAccount }>(functions, 'resetStudentPinAccount')
+      const result = await resetPin({ accountId })
       setManagedStudentAccounts((accounts) => accounts.map((account) => account.id === accountId ? result.data.account : account))
       setIssuedStudentPins([{ accountNumber: result.data.account.accountNumber, displayName: result.data.account.displayName, pin: result.data.account.currentPin }])
     } catch (error) {
@@ -1188,12 +1187,12 @@ function App() {
     }
   }
   const resetAllStudentPins = async () => {
-    if (!functions || !studentIssueCode.trim()) return
+    if (!functions) return
     setIsIssuingStudentPins(true)
     setStudentIssueError('')
     try {
-      const resetPins = httpsCallable<{ masterCode: string; school: string }, { credentials: IssuedStudentPin[] }>(functions, 'resetStudentPinAccounts')
-      const result = await resetPins({ masterCode: studentIssueCode.trim(), school: studentIssueSchool })
+      const resetPins = httpsCallable<{ school: string }, { credentials: IssuedStudentPin[] }>(functions, 'resetStudentPinAccounts')
+      const result = await resetPins({ school: studentIssueSchool })
       setIssuedStudentPins(result.data.credentials)
       await loadStudentPinAccounts()
     } catch (error) {
@@ -1285,7 +1284,7 @@ function App() {
       await setDoc(doc(db, 'studentProfiles', auth.currentUser.uid), { userId: auth.currentUser.uid, displayName: name.trim(), school, introduction: profile.introduction.trim(), interests: profile.interests.trim(), hopeJob: profile.hopeJob.trim(), updatedAt: serverTimestamp() }, { merge: true })
     }
   }
-  const accountManagementTools = <div className="admin-account-tools"><label>대상 학교<select value={studentIssueSchool} onChange={(event) => { setStudentIssueSchool(event.target.value as 'yesan-high' | 'gwangsi-middle'); setManagedStudentAccounts([]); setIssuedStudentPins([]); setStudentIssueError('') }}><option value="yesan-high">예산고등학교</option><option value="gwangsi-middle">광시중학교</option></select></label><label>관리자 코드<input value={studentIssueCode} onChange={(event) => { setStudentIssueCode(event.target.value.replace(/\D/g, '')); setStudentIssueError('') }} type="password" inputMode="numeric" maxLength={8} placeholder="관리자 코드" /></label><div className="pin-admin-actions"><button type="button" onClick={loadStudentPinAccounts} disabled={isIssuingStudentPins || !studentIssueCode.trim()}>계정 목록 보기</button><button type="button" onClick={issueStudentPins} disabled={isIssuingStudentPins || !studentIssueCode.trim()}>{isIssuingStudentPins ? '처리 중…' : '없는 계정 발급'}</button><button type="button" onClick={resetAllStudentPins} disabled={isIssuingStudentPins || !studentIssueCode.trim()}>전체 PIN 재발급</button></div>{studentIssueError && <p className="entry-error" role="alert">{studentIssueError}</p>}{issuedStudentPins.length > 0 && <ol className="issued-pin-list">{issuedStudentPins.map((credential) => <li key={`${credential.accountNumber}-${credential.pin}`}><span>{credential.accountNumber}번{credential.displayName ? ` · ${credential.displayName}` : ''}</span><b>{credential.pin}</b></li>)}</ol>}{managedStudentAccounts.length > 0 && <div className="student-pin-table"><div><b>번호</b><b>이름</b><b>현재 PIN</b><b>관리</b></div>{managedStudentAccounts.map((account) => <div key={account.id}><span>{account.accountNumber}</span><span>{account.displayName || '이름 미등록'}</span><strong>{account.currentPin || '재발급 필요'}</strong><button type="button" onClick={() => resetStudentPin(account.id)}>PIN 재발급</button></div>)}</div>}</div>
+  const accountManagementTools = <div className="admin-account-tools"><label>대상 학교<select value={studentIssueSchool} onChange={(event) => { setStudentIssueSchool(event.target.value as 'yesan-high' | 'gwangsi-middle'); setManagedStudentAccounts([]); setIssuedStudentPins([]); setStudentIssueError('') }}><option value="yesan-high">예산고등학교</option><option value="gwangsi-middle">광시중학교</option></select></label><div className="pin-admin-actions"><button type="button" onClick={loadStudentPinAccounts} disabled={isIssuingStudentPins}>계정 목록 보기</button><button type="button" onClick={issueStudentPins} disabled={isIssuingStudentPins}>{isIssuingStudentPins ? '처리 중…' : '없는 계정 발급'}</button><button type="button" onClick={resetAllStudentPins} disabled={isIssuingStudentPins}>전체 PIN 재발급</button></div>{studentIssueError && <p className="entry-error" role="alert">{studentIssueError}</p>}{issuedStudentPins.length > 0 && <ol className="issued-pin-list">{issuedStudentPins.map((credential) => <li key={`${credential.accountNumber}-${credential.pin}`}><span>{credential.accountNumber}번{credential.displayName ? ` · ${credential.displayName}` : ''}</span><b>{credential.pin}</b></li>)}</ol>}{managedStudentAccounts.length > 0 && <div className="student-pin-table"><div><b>번호</b><b>이름</b><b>현재 PIN</b><b>관리</b></div>{managedStudentAccounts.map((account) => <div key={account.id}><span>{account.accountNumber}</span><span>{account.displayName || '이름 미등록'}</span><strong>{account.currentPin || '재발급 필요'}</strong><button type="button" onClick={() => resetStudentPin(account.id)}>PIN 재발급</button></div>)}</div>}</div>
 
   if (!entered) return (
     <div className="welcome-page">

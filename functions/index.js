@@ -231,7 +231,7 @@ export const bootstrapTeacherAccounts = onCall({ secrets: [pinPepper, masterUnlo
 })
 
 const bootstrapStudentAccountsForSchool = async (request, targetSchool = request.data?.school) => {
-  requireMasterCode(request)
+  await requireActiveAdminSession(request)
   const { school, schoolConfig } = requireStudentSchool(targetSchool)
   const used = new Set()
   const credentials = []
@@ -248,12 +248,12 @@ const bootstrapStudentAccountsForSchool = async (request, targetSchool = request
   return { credentials }
 }
 
-export const bootstrapYesanStudentAccounts = onCall({ secrets: [pinPepper, masterUnlockCode] }, async (request) => bootstrapStudentAccountsForSchool(request, 'yesan-high'))
+export const bootstrapYesanStudentAccounts = onCall({ secrets: [pinPepper] }, async (request) => bootstrapStudentAccountsForSchool(request, 'yesan-high'))
 
-export const bootstrapStudentAccounts = onCall({ secrets: [pinPepper, masterUnlockCode] }, async (request) => bootstrapStudentAccountsForSchool(request))
+export const bootstrapStudentAccounts = onCall({ secrets: [pinPepper] }, async (request) => bootstrapStudentAccountsForSchool(request))
 
-export const listStudentPinAccounts = onCall({ secrets: [masterUnlockCode] }, async (request) => {
-  requireMasterCode(request)
+export const listStudentPinAccounts = onCall(async (request) => {
+  await requireActiveAdminSession(request)
   const { school } = requireStudentSchool(request.data?.school)
   const accounts = await db.collection('studentAccounts').where('school', '==', school).get()
   return {
@@ -264,8 +264,8 @@ export const listStudentPinAccounts = onCall({ secrets: [masterUnlockCode] }, as
   }
 })
 
-export const resetStudentPinAccount = onCall({ secrets: [pinPepper, masterUnlockCode] }, async (request) => {
-  requireMasterCode(request)
+export const resetStudentPinAccount = onCall({ secrets: [pinPepper] }, async (request) => {
+  await requireActiveAdminSession(request)
   const accountId = String(request.data?.accountId ?? '')
   const accountRef = db.doc(`studentAccounts/${accountId}`)
   const snapshot = await accountRef.get()
@@ -278,8 +278,8 @@ export const resetStudentPinAccount = onCall({ secrets: [pinPepper, masterUnlock
   return { account: { id: accountId, accountNumber: data.accountNumber, displayName: data.displayName ?? '', currentPin: created.pin, active: true } }
 })
 
-export const resetStudentPinAccounts = onCall({ secrets: [pinPepper, masterUnlockCode] }, async (request) => {
-  requireMasterCode(request)
+export const resetStudentPinAccounts = onCall({ secrets: [pinPepper] }, async (request) => {
+  await requireActiveAdminSession(request)
   const { school, schoolConfig } = requireStudentSchool(request.data?.school)
   const accounts = await db.collection('studentAccounts').where('school', '==', school).get()
   const used = new Set()
