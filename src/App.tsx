@@ -798,11 +798,42 @@ function StaffSessionDetail({ sessionNumber, schoolName, displayName, onLeave }:
   )
 }
 
+function AdminPage({ displayName, onBack, onLeave }: { displayName: string; onBack: () => void; onLeave: () => void }) {
+  const accountGroups = [
+    { title: '학생 계정', value: '48개', detail: '예산고 22개 · 광시중 26개', tone: 'blue' },
+    { title: '멘토 계정', value: '6개', detail: 'PIN 원문 조회 가능 상태로 정비', tone: 'green' },
+    { title: '교사 계정', value: '2개', detail: '예산고 · 광시중', tone: 'orange' },
+    { title: '마스터 등급', value: '3개', detail: '추규한 · 관리자1 · 관리자2', tone: 'purple' },
+  ]
+  const workCards = [
+    { title: '계정·PIN 관리', description: '학생, 교사, 멘토, 관리자(마스터) 계정의 PIN 조회와 재발급 기능을 이곳으로 모을 예정이에요.', action: '관리 도구 준비 중' },
+    { title: '2회기 활동 결과', description: '선호 탐색 결과와 강점 경매장 기록을 학교·학생별로 모아 보는 화면으로 확장할 수 있어요.', action: '결과 보기 준비 중' },
+    { title: '강점 경매장 운영', description: '방별 진행 기록, 참가자별 직업, 잔액, 보유 강점을 확인하는 관리자용 보기로 이어질 자리예요.', action: '기록 관리 준비 중' },
+  ]
+  return (
+    <div className="app-shell">
+      <header className="topbar"><div className="brand"><span className="brand-mark">청</span><span>청·사·진</span></div><div className="student-chip"><span>관리자(마스터)</span><b>{displayName}</b><button className="logout-button" onClick={onLeave}>로그아웃</button></div></header>
+      <main className="admin-page">
+        <button className="back-button" type="button" onClick={onBack}>← 나의 활동실로</button>
+        <section className="admin-hero">
+          <div><p className="eyebrow">MASTER CONSOLE</p><h1>관리자 페이지</h1><p>계정, PIN, 활동 결과, 강점 경매장 기록을 한곳에서 정리하기 위한 운영 화면이에요.</p></div>
+          <span aria-hidden="true">↗</span>
+        </section>
+        <section className="admin-stat-grid">{accountGroups.map((group) => <article className={`admin-stat ${group.tone}`} key={group.title}><small>{group.title}</small><b>{group.value}</b><p>{group.detail}</p></article>)}</section>
+        <section className="admin-work-grid">{workCards.map((card) => <article key={card.title}><h2>{card.title}</h2><p>{card.description}</p><button type="button" disabled>{card.action}</button></article>)}</section>
+        <section className="admin-note"><b>운영 원칙</b><p>학생 PIN은 담당자에게 조회 가능해야 하며, 마스터 코드와 Firebase 설정값은 화면·문서·코드에 노출하지 않습니다.</p></section>
+      </main>
+      <PartnerFooter />
+    </div>
+  )
+}
+
 function App() {
   const [entered, setEntered] = useState(false)
   const [activeSession, setActiveSession] = useState<number | null>(null)
   const [activeSecondActivity, setActiveSecondActivity] = useState<number | null>(null)
   const [activeGuide, setActiveGuide] = useState<GuidePage | null>(null)
+  const [activeAdminPage, setActiveAdminPage] = useState(false)
   const [mentorProfiles, setMentorProfiles] = useState<MentorProfile[]>([])
   const [sessionPageMode, setSessionPageMode] = useState<'activity' | 'review'>('review')
   const [staffRole, setStaffRole] = useState<StaffRole | null>(null)
@@ -840,12 +871,25 @@ function App() {
       const secondActivityMatch = /^activity-2-step-([1-4])$/.exec(view)
       const sessionMatch = /^(activity|session)-(\d+)$/.exec(view)
       const guideMatch = /^guide-(program|profile|mentors|center)$/.exec(view)
-      if ((view === 'dashboard' || sessionMatch || secondActivityMatch || guideMatch) && !auth?.currentUser) {
+      if ((view === 'dashboard' || view === 'admin' || sessionMatch || secondActivityMatch || guideMatch) && !auth?.currentUser) {
         setActiveSession(null)
         setActiveSecondActivity(null)
         setActiveGuide(null)
+        setActiveAdminPage(false)
         setEntered(false)
         window.history.replaceState({ cheongsajinView: 'login' }, '', '#login')
+        return
+      }
+      if (view === 'admin') {
+        if (staffRole !== 'admin') {
+          window.history.replaceState({ cheongsajinView: 'dashboard' }, '', '#dashboard')
+          return
+        }
+        setEntered(true)
+        setActiveSession(null)
+        setActiveSecondActivity(null)
+        setActiveGuide(null)
+        setActiveAdminPage(true)
         return
       }
       if (secondActivityMatch) {
@@ -853,6 +897,7 @@ function App() {
         setSessionPageMode('activity')
         setActiveSession(2)
         setActiveSecondActivity(Number(secondActivityMatch[1]))
+        setActiveAdminPage(false)
         return
       }
       if (guideMatch) {
@@ -860,6 +905,7 @@ function App() {
         setActiveSession(null)
         setActiveSecondActivity(null)
         setActiveGuide(guideMatch[1] as GuidePage)
+        setActiveAdminPage(false)
         return
       }
       if (sessionMatch) {
@@ -875,6 +921,7 @@ function App() {
         setSessionPageMode(sessionMatch[1] === 'activity' ? 'activity' : 'review')
         setActiveSession(requestedSession)
         setActiveSecondActivity(null)
+        setActiveAdminPage(false)
         return
       }
       if (view === 'dashboard') {
@@ -882,11 +929,13 @@ function App() {
         setActiveSession(null)
         setActiveSecondActivity(null)
         setActiveGuide(null)
+        setActiveAdminPage(false)
         return
       }
       setActiveSession(null)
       setActiveSecondActivity(null)
       setActiveGuide(null)
+      setActiveAdminPage(false)
       setEntered(false)
       if (auth?.currentUser) void signOut(auth)
     }
@@ -917,6 +966,7 @@ function App() {
           setActiveSession(null)
           setActiveSecondActivity(null)
           setActiveGuide(null)
+          setActiveAdminPage(false)
           window.history.replaceState({ cheongsajinView: 'dashboard' }, '', '#dashboard')
         }
       } catch (error) {
@@ -1016,6 +1066,7 @@ function App() {
     setActiveSession(null)
     setActiveSecondActivity(null)
     setActiveGuide(null)
+    setActiveAdminPage(false)
     setStaffRole(null)
     setUseTeacherLogin(false)
     setNeedsStudentName(false)
@@ -1116,11 +1167,21 @@ function App() {
     setActiveSession(null)
     setActiveSecondActivity(null)
     setActiveGuide(null)
+    setActiveAdminPage(false)
     window.history.pushState({ cheongsajinView: 'dashboard' }, '', '#dashboard')
   }
   const openGuide = (guide: GuidePage) => {
     setActiveGuide(guide)
+    setActiveAdminPage(false)
     window.history.pushState({ cheongsajinView: `guide-${guide}` }, '', `#guide-${guide}`)
+  }
+  const openAdminPage = () => {
+    if (staffRole !== 'admin') return
+    setActiveSession(null)
+    setActiveSecondActivity(null)
+    setActiveGuide(null)
+    setActiveAdminPage(true)
+    window.history.pushState({ cheongsajinView: 'admin' }, '', '#admin')
   }
   const saveProfile = async (profile: ProfilePayload) => {
     if (!db || !auth?.currentUser) throw new Error('Firebase 연결이 필요합니다.')
@@ -1163,6 +1224,8 @@ function App() {
       {showAccessQr && <AccessQrModal onClose={() => setShowAccessQr(false)} />}
     </div>
   )
+
+  if (activeAdminPage && staffRole === 'admin') return <AdminPage displayName={name.trim()} onBack={goDashboard} onLeave={leave} />
 
   if (activeGuide) {
     const ownMentorProfile = mentorProfiles.find((profile) => profile.displayName === name.trim())
@@ -1321,7 +1384,7 @@ function App() {
 
   return (
     <div className="app-shell">
-      <header className="topbar"><div className="brand"><span className="brand-mark">청</span><span>청·사·진</span></div><div className="student-chip"><span>{schoolName}</span><b>{name.trim()}</b><button className="logout-button" onClick={leave}>로그아웃</button></div></header>
+      <header className="topbar"><div className="brand"><span className="brand-mark">청</span><span>청·사·진</span></div><div className="student-chip">{staffRole === 'admin' && <button className="admin-entry-button" type="button" onClick={openAdminPage}>관리자 페이지 들어가기</button>}<span>{staffRole === 'admin' ? '관리자(마스터)' : schoolName}</span><b>{name.trim()}</b><button className="logout-button" onClick={leave}>로그아웃</button></div></header>
       <main className="dashboard">
         <section className="dashboard-intro">
           <div><p className="eyebrow">나의 활동실</p><h1>안녕, <em>{name.trim()}</em>!</h1><p>오늘도 나만의 가능성을 하나씩 발견해 볼까요?</p></div>
