@@ -78,6 +78,11 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    match /system/{documentId} {
+      allow read: if signedIn() && documentId == 'sessionLocks';
+      allow write: if false;
+    }
+
     match /studentProfiles/{userId} {
       allow read: if isOwner(userId);
       allow create, update: if isOwner(userId)

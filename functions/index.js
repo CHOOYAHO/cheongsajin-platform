@@ -140,6 +140,14 @@ const requireStudentSchool = (value) => {
   if (!schoolConfig) throw new HttpsError('invalid-argument', '학교가 올바르지 않습니다.')
   return { school, schoolConfig }
 }
+const requireActiveAdminSession = async (request) => {
+  if (!request.auth?.uid) throw new HttpsError('unauthenticated', 'Firebase 로그인이 필요합니다.')
+  const session = await db.doc(`staffSessions/${request.auth.uid}`).get()
+  const sessionData = session.data()
+  if (!session.exists || sessionData?.role !== 'admin' || sessionData?.expiresAt?.toMillis?.() <= Date.now()) {
+    throw new HttpsError('permission-denied', '마스터 권한이 필요합니다.')
+  }
+}
 const createStudentAccountRecord = async (school, schoolConfig, accountNumber, used) => {
   const pin = createStudentPin(used)
   used.add(pin)
@@ -285,6 +293,24 @@ export const resetStudentPinAccounts = onCall({ secrets: [pinPepper, masterUnloc
   }
   if (credentials.length) await batch.commit()
   return { credentials: credentials.sort((left, right) => String(left.accountNumber).localeCompare(String(right.accountNumber), 'ko')) }
+})
+
+export const updateSessionLock = onCall(async (request) => {
+  await requireActiveAdminSession(request)
+  const sessionNumber = Number(request.data?.sessionNumber)
+  const unlocked = request.data?.unlocked === true
+  if (!Number.isInteger(sessionNumber) || sessionNumber < 1 || sessionNumber > 5) {
+    throw new HttpsError('invalid-argument', '회기 번호가 올바르지 않습니다.')
+  }
+  const lockRef = db.doc('system/sessionLocks')
+  const snapshot = await lockRef.get()
+  const current = snapshot.data()?.sessions ?? {}
+  await lockRef.set({
+    sessions: { ...current, [String(sessionNumber)]: unlocked },
+    updatedAt: FieldValue.serverTimestamp(),
+    updatedBy: request.auth.uid,
+  }, { merge: true })
+  return { sessionNumber, unlocked }
 })
 
 export const staffLogin = onCall({ secrets: [pinPepper] }, async (request) => {
