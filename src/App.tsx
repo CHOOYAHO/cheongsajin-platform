@@ -31,9 +31,9 @@ const defaultSessionLocks: SessionLockMap = { 1: true, 2: true, 3: false, 4: fal
 const sessionTemplates: SessionTemplate[] = [
   { number: 1, title: '청사진을 위한 첫 만남', subtitle: '나와 멘토, 새로운 가능성을 만나요', icon: '👋' },
   { number: 2, title: '선호와 강점 탐색', subtitle: '좋아하는 것과 나만의 강점을 발견해요', icon: '✨' },
-  { number: 3, title: '진로 역량 갖추기', subtitle: '희망 직업에 필요한 힘을 찾아봐요', icon: '🧩' },
-  { number: 4, title: '직업 탐색과 AI 면접', subtitle: 'AI 면접관과 미래의 나를 연습해요', icon: '💬' },
-  { number: 5, title: '나만의 청사진 만들기', subtitle: '활동을 모아 미래 포트폴리오를 완성해요', icon: '🗺️' },
+  { number: 3, title: '진로 역량 갖추기', subtitle: '관심 직업의 실제 업무와 AI 채용면접을 경험해요', icon: '🧩' },
+  { number: 4, title: '직업 탐색', subtitle: '전문강사와 함께 진로와 직업을 넓게 탐색해요', icon: '💬' },
+  { number: 5, title: '나만의 청사진', subtitle: 'Notion 미래 포트폴리오로 나의 미래를 정리해요', icon: '🗺️' },
 ]
 
 const firstSessionActivities = [
@@ -47,30 +47,33 @@ const firstSessionActivities = [
 
 const staffSessionPlans: Record<number, StaffSessionPlan> = {
   3: {
-    title: '진로 역량 갖추기', subtitle: '흥미와 강점을 희망 직업의 역량으로 연결해요.', description: '2회기에서 발견한 선호와 강점을 바탕으로 관심 직업을 구체화하고, 그 직업에 필요한 역량을 찾아보는 회기예요.', icon: '🧩', theme: 'competency',
+    title: '진로 역량 갖추기', subtitle: '나의 선호와 경험을 관심 직업, 실제 업무, AI 채용면접으로 연결해요.', description: '2회기에서 발견한 선호와 역량을 관심 직업과 연결하고, 그 직업의 실제 업무를 비교한 뒤 희망 직업에 지원했다고 가정한 AI 채용면접을 경험하는 회기예요.', icon: '🧩', theme: 'competency',
     activities: [
-      { duration: '15분', title: '지난 활동 돌아보기', description: '선호 탐색과 강점 경매 결과에서 나를 잘 보여 주는 키워드를 골라요.', mentorTip: '결과를 평가하기보다 청소년이 선택한 이유를 질문해 주세요.' },
-      { duration: '25분', title: '관심 직업 후보 찾기', description: '흥미와 강점이 연결되는 직업을 탐색하고 관심 직업 후보를 정해요.', mentorTip: '직업을 하나로 확정하기보다 여러 가능성을 비교하도록 도와주세요.' },
-      { duration: '35분', title: '직업의 핵심 역량 연결하기', description: '관심 직업이 하는 일과 필요한 역량을 조사하고 나의 강점과 연결해요.', mentorTip: '막연한 성격보다 실제 행동과 경험을 근거로 연결해 주세요.' },
-      { duration: '25분', title: '나의 역량 성장 계획', description: '이미 가진 역량과 더 키우고 싶은 역량을 나누고 작은 실천을 정해요.', mentorTip: '다음 회기 전까지 실천할 수 있는 구체적인 행동으로 마무리해 주세요.' },
+      { duration: '10분', title: '2회기 결과 돌아보기', description: '자기이해검사, 좋아! 싫어!, 강점 경매장에서 발견한 선호와 역량을 다시 확인해요.', mentorTip: '결과를 점수처럼 해석하지 말고 학생이 고른 이유와 연결해 주세요.' },
+      { duration: '15분', title: '내 경험 속 역량 찾기', description: '일상 경험을 떠올리고 경험, 내가 한 행동, 그 과정에서 드러난 역량을 연결해요.', mentorTip: '추상적인 장점보다 실제 행동과 근거가 나오도록 질문해 주세요.' },
+      { duration: '15분', title: '관심 직업 연결하기', description: '나의 선호와 경험 속 역량을 바탕으로 더 알아보고 싶은 직업을 선택하고, 현재 알고 있는 내용을 정리해요.', mentorTip: '직업을 확정시키기보다 알아보고 싶은 이유를 말하게 해 주세요.' },
+      { duration: '20분', title: '이 직업, 무슨 일을 할까?', description: '홈페이지를 활용해 선택한 직업이 실제로 어떤 일을 할지 먼저 자유롭게 예상하고 다른 학생들의 생각도 확인해요.', mentorTip: '틀린 답을 찾기보다 직업에 대한 현재 이미지를 충분히 꺼내게 해 주세요.' },
+      { duration: '20분', title: '실제 업무 들여다보기', description: '브레인스토밍 결과와 실제 직업정보를 비교하며 알고 있던 업무, 새로 알게 된 업무, 다르게 알고 있던 내용을 확인해요.', mentorTip: '업무와 필요한 역량이 왜 연결되는지 한 번 더 짚어 주세요.' },
+      { duration: '20분', title: 'AI 가상면접', description: '희망 직업에 실제 지원했다고 가정하고 AI 면접관의 질문과 후속 질문에 지원자처럼 답변해요.', mentorTip: '직업정보 Q&A나 역할극이 아니라 채용면접 시뮬레이션으로 안내해 주세요.' },
     ],
   },
   4: {
-    title: '직업 탐색과 AI 면접', subtitle: '직업을 깊이 알아보고 미래의 나를 연습해요.', description: '관심 직업의 실제 업무와 진입 과정을 조사하고, AI 모의면접을 통해 나의 경험과 강점을 말로 표현해 보는 회기예요.', icon: '💬', theme: 'interview',
+    title: '직업 탐색', subtitle: '전문강사와 함께 다양한 진로와 직업을 탐색해요.', description: '전문강사와 협의해 확정되는 참여형 진로·직업 탐색 회기예요. 현재 웹페이지에서는 특정 세부 활동을 임의로 확정하지 않고, 생각을 넓히고 나에게 다시 연결하는 방향을 안내해요.', icon: '💬', theme: 'interview',
     activities: [
-      { duration: '20분', title: '직업 정보 깊이 탐색하기', description: '주요 업무, 필요한 준비, 관련 학과와 자격 등 직업 정보를 확인해요.', mentorTip: '출처가 분명한 정보인지 함께 확인하고 어려운 용어를 풀어 주세요.' },
-      { duration: '20분', title: '면접 질문과 답변 준비하기', description: '지원 동기, 나의 강점, 경험을 묻는 질문에 답변의 핵심을 적어요.', mentorTip: '완성된 문장을 대신 써주기보다 청소년의 실제 경험을 끌어내 주세요.' },
-      { duration: '35분', title: 'AI 모의면접 체험하기', description: 'AI 면접관의 질문을 듣고 준비한 내용을 직접 말하며 면접을 연습해요.', mentorTip: '촬영·음성 이용 안내를 먼저 확인하고 참여를 강요하지 않아요.' },
-      { duration: '25분', title: '피드백으로 답변 다듬기', description: '잘 전달된 점과 보완할 점을 찾아 답변을 한 번 더 개선해요.', mentorTip: '구체적인 장점을 먼저 말한 뒤 한 가지 개선점만 제안해 주세요.' },
+      { duration: '협의', title: '전문강사와 함께하는 참여형 진로·직업 탐색', description: '강사의 전문영역과 실제 운영 가능한 프로그램에 맞춰 다양한 진로와 직업을 탐색해요.', mentorTip: '세부 활동은 확정 전까지 임의로 고정하지 않아요.' },
+      { duration: '협의', title: '청소년 간 의견 공유', description: '활동 과정에서 떠오른 생각과 관점을 서로 나누며 직업을 바라보는 폭을 넓혀요.', mentorTip: '학생들의 의견이 비교나 평가가 아니라 확장으로 이어지게 도와주세요.' },
+      { duration: '협의', title: '다양한 진로·직업 관점 확장', description: '익숙한 직업명 너머의 역할, 일하는 방식, 필요한 태도를 살펴봐요.', mentorTip: '하나의 정답보다 다양한 가능성을 발견하도록 안내해 주세요.' },
+      { duration: '협의', title: '새롭게 알게 된 내용 기록', description: '활동을 통해 새롭게 알게 된 내용과 관심 분야를 자신의 언어로 남겨요.', mentorTip: '5회기 미래설계로 가져갈 개인별 발견을 정리해 주세요.' },
     ],
   },
   5: {
-    title: '나만의 청사진 만들기', subtitle: '지금까지의 발견을 모아 미래의 모습을 그려요.', description: '전체 활동 결과를 돌아보고 나의 흥미·강점·관심 직업·성장 계획을 한 장의 진로 청사진으로 완성하는 회기예요.', icon: '🗺️', theme: 'blueprint',
+    title: '나만의 청사진', subtitle: '1~4회기 기록을 종합해 Notion 미래 포트폴리오를 만들어요.', description: '지금까지 발견한 흥미, 역량, 관심 직업, 새롭게 알게 된 내용을 종합해 10년 뒤의 나를 구체화하고 개인별 Notion 미래 포트폴리오로 정리하는 회기예요.', icon: '🗺️', theme: 'blueprint',
     activities: [
-      { duration: '20분', title: '활동 결과 모아보기', description: '1~4회기의 기록에서 나를 잘 보여 주는 결과와 문장을 골라요.', mentorTip: '좋은 결과만 고르기보다 생각이 달라진 지점도 발견하도록 도와주세요.' },
-      { duration: '20분', title: '나의 변화 돌아보기', description: '처음 생각과 지금 생각을 비교하고 새롭게 알게 된 나의 모습을 정리해요.', mentorTip: '작은 변화도 청소년의 언어로 표현할 수 있도록 기다려 주세요.' },
-      { duration: '35분', title: '진로 청사진 완성하기', description: '나의 흥미, 강점, 관심 직업과 앞으로의 실천을 하나의 이야기로 연결해요.', mentorTip: '정답처럼 보이는 진로보다 지금의 방향과 다음 행동이 드러나게 해 주세요.' },
-      { duration: '25분', title: '청사진 나누기와 마무리', description: '완성한 청사진을 소개하고 서로의 가능성과 도전을 응원해요.', mentorTip: '공개 범위를 청소년이 선택하게 하고 구체적인 응원의 말을 전해 주세요.' },
+      { duration: '20분', title: '지금까지의 활동 돌아보기', description: '내가 좋아하는 것, 내가 가진 역량, 관심 직업, 새롭게 발견한 내용을 1~4회기 기록에서 골라요.', mentorTip: '모든 기록을 옮기기보다 자신에게 중요한 내용을 선택하게 해 주세요.' },
+      { duration: '20분', title: '10년 뒤의 나 상상하기', description: '지금까지의 기록을 바탕으로 미래의 내 모습과 일하는 장면을 구체적으로 떠올려요.', mentorTip: '막연한 꿈보다 어디서, 누구와, 무엇을 하는지 장면으로 말하게 해 주세요.' },
+      { duration: '35분', title: 'Notion 미래 포트폴리오 제작', description: '활동책자와 홈페이지에 축적한 내용을 활용해 개인별 Notion 포트폴리오를 만들어요.', mentorTip: '기존 기록을 단순 복사하지 않고 자기 언어로 재구성하도록 안내해 주세요.' },
+      { duration: '15분', title: '미래 모습을 표현하는 결과물 제작', description: '미래 명함 등 나의 미래 모습을 보여 주는 결과물을 만들어 청사진을 구체화해요.', mentorTip: '형식보다 학생이 선택한 미래 모습이 드러나는지 봐 주세요.' },
+      { duration: '10분', title: '전체 활동과 변화 돌아보기', description: '프로그램 전체 활동을 되돌아보고 처음과 달라진 생각, 새로 생긴 관심을 정리해요.', mentorTip: '작은 변화도 의미 있는 발견으로 인정해 주세요.' },
     ],
   },
 }
@@ -785,6 +788,8 @@ function SecondActivityDetail({ step, schoolName, studentName, viewerMode, maste
 
 function StaffSessionDetail({ sessionNumber, schoolName, displayName, masterViewLabel, onLeave }: { sessionNumber: number; schoolName: string; displayName: string; masterViewLabel?: string; onLeave: () => void }) {
   const plan = staffSessionPlans[sessionNumber]
+  const summaryTime = sessionNumber === 4 ? '전문강사 협의 후 확정' : '총 100분'
+  const flowLabel = sessionNumber === 4 ? `${plan.activities.length}개 운영 방향 · 세부 활동 협의 중` : `${plan.activities.length}개 활동 · 100분`
   return (
     <div className="app-shell">
       <header className="topbar"><div className="brand"><span className="brand-mark">청</span><span>청·사·진</span></div><div className="student-chip"><span>{schoolName}</span><b>{displayName}</b><button className="logout-button" onClick={onLeave}>로그아웃</button></div></header>
@@ -795,10 +800,10 @@ function StaffSessionDetail({ sessionNumber, schoolName, displayName, masterView
           <div><span className="staff-preview-badge">관리자(마스터) 미리보기 · {sessionNumber}회기</span><p className="eyebrow">활동 세부 안내</p><h1>{plan.title}</h1><p>{plan.description}</p></div>
           <div className="review-icon" aria-hidden="true">{plan.icon}</div>
         </section>
-        <section className="staff-session-summary"><div><small>회기</small><b>{sessionNumber}회기</b></div><div><small>활동 주제</small><b>{plan.subtitle}</b></div><div><small>예상 시간</small><b>총 100분</b></div></section>
-        <section className="activity-notice staff-notice"><span aria-hidden="true">📌</span><div><h2>멘토 진행 안내</h2><p>현재 페이지는 멘토와 관리자가 수업 흐름을 미리 확인하는 용도예요. 세부 활동 기능과 학생용 입력 화면은 회기별 개발 단계에서 연결됩니다.</p></div></section>
+        <section className="staff-session-summary"><div><small>회기</small><b>{sessionNumber}회기</b></div><div><small>활동 주제</small><b>{plan.subtitle}</b></div><div><small>예상 시간</small><b>{summaryTime}</b></div></section>
+        <section className="activity-notice staff-notice"><span aria-hidden="true">📌</span><div><h2>멘토 진행 안내</h2><p>{sessionNumber === 3 ? 'AI 가상면접은 희망 직업에 지원한 지원자와 AI 면접관의 채용면접 시뮬레이션으로 운영합니다.' : sessionNumber === 4 ? '4회기 세부 활동은 전문강사와 협의해 확정되며, 웹페이지에서는 운영 방향만 안내합니다.' : '5회기는 1~4회기 기록을 종합해 Notion 미래 포트폴리오와 나만의 청사진으로 정리하는 흐름입니다.'}</p></div></section>
         <section className="review-section">
-          <div className="review-section-heading"><div><p className="eyebrow">활동 흐름</p><h2>이 순서대로 진행해요</h2></div><span>4개 활동 · 100분</span></div>
+          <div className="review-section-heading"><div><p className="eyebrow">활동 흐름</p><h2>{sessionNumber === 4 ? '이 방향으로 운영해요' : '이 순서대로 진행해요'}</h2></div><span>{flowLabel}</span></div>
           <div className="staff-activity-list">{plan.activities.map((activity, index) => <article key={activity.title}><div className="staff-activity-number">{index + 1}</div><div className="staff-activity-body"><div><h3>{activity.title}</h3><span>{activity.duration}</span></div><p>{activity.description}</p><aside><b>멘토 포인트</b><span>{activity.mentorTip}</span></aside></div></article>)}</div>
         </section>
         <section className="activity-help"><div><p>활동 설계 확인</p><h2>세부 기능을 만들기 전 전체 진행 흐름을 먼저 확인해 주세요.</h2></div><button type="button" onClick={() => window.history.back()}>활동실로 돌아가기 →</button></section>
@@ -1325,7 +1330,7 @@ function App() {
       {masterViewLabel && <MasterViewBanner label={masterViewLabel} />}
       <main className="guide-detail-page">
         <button className="back-button" type="button" onClick={() => window.history.back()}>← 나의 활동실로</button>
-        {activeGuide === 'program' && <><section className="guide-detail-hero blue"><span>🗺️</span><div><small>프로그램 안내</small><h1>청사진이란?</h1><p>청소년의 가능성을 발견하고 미래의 모습을 구체적으로 그려 가는 진로 멘토링 여정이에요.</p></div></section><section className="guide-content-card"><h2>청·사·진의 의미</h2><p><b>청소년의 사기진작 진로멘토링</b>의 줄임말로, 내가 좋아하는 것과 잘하는 것을 찾고 다양한 직업과 진로를 탐색하는 프로그램이에요.</p><div className="program-journey"><article><b>1</b><h3>서로 만나기</h3><p>멘토와 인사하고 진로의 의미를 알아봐요.</p></article><article><b>2</b><h3>나를 발견하기</h3><p>선호와 강점을 재미있는 활동으로 찾아봐요.</p></article><article><b>3</b><h3>역량 키우기</h3><p>희망 직업에 필요한 힘을 탐색해요.</p></article><article><b>4</b><h3>직업 연습하기</h3><p>직업 정보를 찾고 AI 면접을 경험해요.</p></article><article><b>5</b><h3>청사진 완성하기</h3><p>활동 결과를 모아 나만의 포트폴리오를 만들어요.</p></article></div></section></>}
+        {activeGuide === 'program' && <><section className="guide-detail-hero blue"><span>🗺️</span><div><small>프로그램 안내</small><h1>청사진이란?</h1><p>청소년의 가능성을 발견하고 미래의 모습을 구체적으로 그려 가는 진로 멘토링 여정이에요.</p></div></section><section className="guide-content-card"><h2>청·사·진의 의미</h2><p><b>청소년의 사기진작 진로멘토링</b>의 줄임말로, 내가 좋아하는 것과 잘하는 것을 찾고 다양한 직업과 진로를 탐색하는 프로그램이에요.</p><div className="program-journey"><article><b>1</b><h3>서로 만나기</h3><p>멘토와 인사하고 진로와 직업의 의미를 알아봐요.</p></article><article><b>2</b><h3>나를 발견하기</h3><p>선호와 강점을 탐색하고 직업과 역량의 관계를 살펴봐요.</p></article><article><b>3</b><h3>진로 역량 갖추기</h3><p>관심 직업의 실제 업무를 비교하고 AI 채용면접을 경험해요.</p></article><article><b>4</b><h3>직업 탐색</h3><p>전문강사와 함께 다양한 진로와 직업 관점을 넓혀요.</p></article><article><b>5</b><h3>나만의 청사진</h3><p>Notion 미래 포트폴리오로 나의 미래를 정리해요.</p></article></div></section></>}
         {activeGuide === 'profile' && <><section className="guide-detail-hero green"><span>👤</span><div><small>{isMasterStudentView || (!isMentorMode && !isAdminMode) ? '나의 정보' : '멘토 정보'}</small><h1>{isMasterStudentView || (!isMentorMode && !isAdminMode) ? '학생 프로필 작성' : '멘토 프로필 작성'}</h1><p>{isMasterStudentView || (!isMentorMode && !isAdminMode) ? '관심 분야와 희망 진로를 기록하고 나의 변화를 쌓아 가요.' : '작성한 내용은 멘토 소개 화면에 표시돼요.'}</p></div></section><section className="guide-content-card"><ProfileEditor kind={isMasterStudentView || (!isMentorMode && !isAdminMode) ? 'student' : 'mentor'} displayName={viewDisplayName} schoolName={viewSchoolName} existing={isMasterStudentView ? undefined : isMentorMode || isAdminMode ? ownMentorProfile : undefined} onSave={saveProfile} /></section></>}
         {activeGuide === 'mentors' && <><section className="guide-detail-hero orange"><span>🤝</span><div><small>함께하는 사람</small><h1>멘토 소개</h1><p>청·사·진의 여정을 함께할 멘토들의 전공과 진로 이야기를 만나 보세요.</p></div></section><section className="guide-content-card"><div className="mentor-page-heading"><div><h2>우리의 멘토</h2><p>멘토가 프로필을 저장하면 이곳에 바로 표시돼요.</p></div>{!isMasterStudentView && (isMentorMode || isAdminMode) && <button type="button" onClick={() => openGuide('profile')}>내 멘토 프로필 작성 →</button>}</div>{mentorProfiles.length ? <div className="mentor-profile-grid">{mentorProfiles.map((profile) => { const schoolMajor = profile.schoolMajor || [profile.university, profile.major].filter(Boolean).join(' / '); const message = profile.message || profile.introduction; return <article key={profile.id}><div className="mentor-avatar">{profile.displayName.slice(0, 1)}</div><small>{schoolMajor || '학교와 전공을 준비 중이에요'}</small><h2>{profile.displayName} 멘토</h2><p className="mentor-one-line">{profile.oneLineIntro || '한 줄 소개를 준비하고 있어요.'}</p><dl className="mentor-profile-details">{profile.interests && <><dt>관심 분야</dt><dd>{profile.interests}</dd></>}{profile.majorReason && <><dt>전공 선택 이유</dt><dd>{profile.majorReason}</dd></>}{profile.careerInterests && <><dt>관심 진로·직업</dt><dd>{profile.careerInterests}</dd></>}{profile.campusLife && <><dt>대학생활</dt><dd>{profile.campusLife}</dd></>}{profile.strengths && <><dt>나의 강점</dt><dd>{profile.strengths}</dd></>}{!profile.campusLife && profile.careerStory && <><dt>나의 진로 이야기</dt><dd>{profile.careerStory}</dd></>}{message && <><dt>전하고 싶은 말</dt><dd>{message}</dd></>}</dl></article> })}</div> : <div className="empty-mentor-list"><span>🤝</span><h2>멘토 소개를 준비하고 있어요</h2><p>멘토가 프로필을 작성하면 이곳에서 확인할 수 있어요.</p></div>}</section></>}
         {activeGuide === 'center' && <><section className="guide-detail-hero purple"><span>🏫</span><div><small>운영기관 안내</small><h1>예산군청소년수련관 소개</h1><p>청소년의 꿈과 끼를 펼치고, 청소년이 직접 활동을 기획하며 함께 성장하는 열린 공간이에요.</p></div></section><section className="guide-content-card center-intro"><div><span className="center-opened">2013년 12월 개관</span><h2>예산군 최초의 청소년 전용 공간</h2><p>예산군청소년수련관은 미래를 이끌어 갈 청소년을 위해 다양한 활동과 쾌적한 이용 공간을 제공하고 있어요. 청소년의 작은 목소리에도 귀 기울이며, 청소년이 함께 운영하고 기획하는 활동과 복지를 지원합니다.</p></div><div className="center-values"><article><span>🎨</span><h3>청소년활동</h3><p>연간 프로그램과 특별 프로그램, 청소년수련활동인증제 등 다양한 경험을 만나요.</p></article><article><span>🙋</span><h3>청소년참여</h3><p>청소년운영위원회, 참여위원회, 어울림마당기획단과 동아리에서 직접 목소리를 내요.</p></article><article><span>🌱</span><h3>꿈과 성장</h3><p>문화·진로·체험과 건전한 여가활동을 통해 나의 가능성과 꿈을 키워요.</p></article></div><div className="center-info"><div><b>운영시간</b><span>화~금 09:00~21:00<br />토·일 09:00~18:00</span></div><div><b>휴관일</b><span>월요일 및 공휴일</span></div><div><b>문의</b><a href="tel:041-331-8228">041-331-8228</a></div></div><div className="center-links"><a href="http://www.yesanyouth.or.kr/main_sub/sub.php?folder_idx=2&folder_page_idx=69" target="_blank" rel="noreferrer">수련관 홈페이지 ↗</a><a href="http://www.yesanyouth.or.kr/edu/edu_list.php?folder_idx=2&folder_page_idx=40" target="_blank" rel="noreferrer">프로그램 접수 ↗</a></div><div className="center-contact"><b>청·사·진 운영</b><span>예산군청소년수련관</span></div></section></>}
