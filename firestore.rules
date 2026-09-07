@@ -122,6 +122,16 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    match /aiInterviewLogs/{recordId} {
+      allow read: if signedIn()
+        && (resource.data.userId == request.auth.uid
+          || (hasActiveStaffSession()
+            && (get(/databases/$(database)/documents/staffSessions/$(request.auth.uid)).data.role in ['mentor', 'admin']
+              || (get(/databases/$(database)/documents/staffSessions/$(request.auth.uid)).data.role == 'teacher'
+                && resource.data.schoolName == get(/databases/$(database)/documents/staffSessions/$(request.auth.uid)).data.schoolName))));
+      allow write: if false;
+    }
+
     match /mentorProfiles/{accountNumber} {
       allow read: if signedIn();
       allow create, update: if signedIn()

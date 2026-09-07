@@ -13,6 +13,7 @@ const db = getFirestore()
 const scrypt = promisify(scryptCallback)
 const pinPepper = defineSecret('PIN_PEPPER')
 const masterUnlockCode = defineSecret('MASTER_UNLOCK_CODE')
+const openaiApiKey = defineSecret('OPENAI_API_KEY')
 
 const auctionProfiles = {
   '의사': ['판단력', '분석력', '관찰력', '책임감', '의사소통능력', '공감능력', '문제해결능력', '집중력', '리더십', '적응력', '정보활용능력'],
@@ -148,6 +149,113 @@ const requireActiveAdminSession = async (request) => {
     throw new HttpsError('permission-denied', '마스터 권한이 필요합니다.')
   }
 }
+const sanitizeText = (value, max = 800) => String(value ?? '').trim().replace(/\s+/g, ' ').slice(0, max)
+const requireInterviewUser = (request) => {
+  if (!request.auth?.uid) throw new HttpsError('unauthenticated', 'Firebase 로그인이 필요합니다.')
+  return request.auth.uid
+}
+const parseInterviewJson = (text) => {
+  try {
+    const cleaned = String(text ?? '').replace(/^```json\s*/i, '').replace(/```$/i, '').trim()
+    const parsed = JSON.parse(cleaned)
+    return {
+      question: sanitizeText(parsed.question, 500),
+      feedback: sanitizeText(parsed.feedback, 700),
+      closingSummary: sanitizeText(parsed.closingSummary, 900),
+      suggestedStrengths: Array.isArray(parsed.suggestedStrengths) ? parsed.suggestedStrengths.map((item) => sanitizeText(item, 40)).filter(Boolean).slice(0, 5) : [],
+    }
+  } catch {
+    return { question: sanitizeText(text, 500), feedback: '', closingSummary: '', suggestedStrengths: [] }
+  }
+}
+const requireInterviewId = (value) => {
+  const interviewId = sanitizeText(value, 90)
+  if (!/^[a-zA-Z0-9_-]{8,90}$/.test(interviewId)) throw new HttpsError('invalid-argument', '면접 기록 ID가 올바르지 않습니다.')
+  return interviewId
+}
+const sanitizeInterviewApplication = (application = {}) => ({
+  role: sanitizeText(application.role, 80),
+  interestReason: sanitizeText(application.interestReason, 500),
+  strengths: sanitizeText(application.strengths, 500),
+  experience: sanitizeText(application.experience, 500),
+  closingLine: sanitizeText(application.closingLine, 220),
+})
+const sanitizeInterviewTurns = (turns = []) => {
+  if (!Array.isArray(turns)) throw new HttpsError('invalid-argument', '면접 기록 형식이 올바르지 않습니다.')
+  return turns.slice(0, 8).map((turn) => ({
+    question: sanitizeText(turn?.question, 500),
+    answer: sanitizeText(turn?.answer, 1200),
+    feedback: sanitizeText(turn?.feedback, 700),
+  })).filter((turn) => turn.question && turn.answer)
+}
+const callInterviewAi = async ({ company, role, application, turns, finished }) => {
+  const transcript = turns.map((turn, index) => `${index + 1}. 면접관: ${turn.question}\n지원자: ${turn.answer}`).join('\n')
+  const prompt = `청소년 진로 프로그램의 AI 채용면접관으로 행동하세요.
+지원자는 실제 채용면접에 지원했다고 가정합니다. 직업정보 Q&A, 직업인 역할극, 업무상황 체험이 아니라 채용면접입니다.
+평가처럼 겁주지 말고, 짧고 구체적인 한국어로 질문과 피드백을 주세요. 개인정보, 연락처, 주민번호, 실제 주소는 요구하지 마세요.
+회사: ${company}
+지원 직무: ${role}
+간단 지원서: ${JSON.stringify(application)}
+지금까지의 면접:
+${transcript || '아직 답변 없음'}
+${finished ? '면접을 종료하고 최종 피드백을 작성하세요.' : '다음 면접 질문 1개를 작성하세요. 이전 답변이 있다면 짧은 피드백도 함께 주세요.'}
+반드시 JSON만 출력하세요. 형식: {"question":"", "feedback":"", "closingSummary":"", "suggestedStrengths":[""]}`
+  const response = await fetch('https://api.openai.com/v1/responses', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${openaiApiKey.value()}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: 'gpt-4.1-mini',
+      input: [{ role: 'user', content: prompt }],
+      temperature: 0.7,
+      max_output_tokens: 700,
+    }),
+  })
+  if (!response.ok) throw new HttpsError('internal', 'AI 면접 질문을 만들지 못했습니다.')
+  const data = await response.json()
+  const outputText = data.output_text ?? data.output?.flatMap((item) => item.content ?? []).map((item) => item.text ?? '').join('\n') ?? ''
+  return parseInterviewJson(outputText)
+}
+
+export const runAiInterviewStep = onCall({ secrets: [openaiApiKey] }, async (request) => {
+  const uid = requireInterviewUser(request)
+  const interviewId = requireInterviewId(request.data?.interviewId)
+  const company = sanitizeText(request.data?.company, 80)
+  const schoolName = sanitizeText(request.data?.schoolName, 40)
+  const displayName = sanitizeText(request.data?.displayName, 40)
+  const application = sanitizeInterviewApplication(request.data?.application)
+  const turns = sanitizeInterviewTurns(request.data?.turns)
+  const finished = request.data?.finished === true
+  if (!company || !application.role) throw new HttpsError('invalid-argument', '회사와 지원 직무를 선택해 주세요.')
+  if (finished && !turns.length) throw new HttpsError('failed-precondition', '면접 답변이 아직 없습니다.')
+
+  const aiResult = await callInterviewAi({ company, role: application.role, application, turns, finished })
+  const recordRef = db.doc(`aiInterviewLogs/${uid}_${interviewId}`)
+  await recordRef.set({
+    userId: uid,
+    interviewId,
+    company,
+    schoolName,
+    displayName,
+    application,
+    turns,
+    status: finished ? 'completed' : 'inProgress',
+    lastQuestion: finished ? '' : aiResult.question,
+    lastFeedback: aiResult.feedback,
+    closingSummary: aiResult.closingSummary,
+    suggestedStrengths: aiResult.suggestedStrengths,
+    createdAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
+  }, { merge: true })
+
+  return {
+    interviewId,
+    question: finished ? '' : aiResult.question,
+    feedback: aiResult.feedback,
+    closingSummary: aiResult.closingSummary,
+    suggestedStrengths: aiResult.suggestedStrengths,
+    status: finished ? 'completed' : 'inProgress',
+  }
+})
 const createStudentAccountRecord = async (school, schoolConfig, accountNumber, used) => {
   const pin = createStudentPin(used)
   used.add(pin)

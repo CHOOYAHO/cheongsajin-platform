@@ -28,6 +28,10 @@ type StaffSessionPlan = { title: string; subtitle: string; description: string; 
 type AdminSectionId = 'accounts' | 'activities' | 'records' | 'library'
 type SessionLockMap = Record<number, boolean>
 type MasterViewMode = 'mentor' | 'yesan-high' | 'gwangsi-middle'
+type InterviewCompany = { name: string; fields: string[]; description: string; roles: string[]; strengths: string[] }
+type InterviewApplication = { role: string; interestReason: string; strengths: string; experience: string; closingLine: string }
+type InterviewTurn = { question: string; answer: string; feedback?: string }
+type InterviewStepResponse = { interviewId: string; question: string; feedback?: string; closingSummary?: string; suggestedStrengths?: string[]; status: 'inProgress' | 'completed' }
 const defaultSessionLocks: SessionLockMap = { 1: true, 2: true, 3: false, 4: false, 5: false }
 const sessionTemplates: SessionTemplate[] = [
   { number: 1, title: '청사진을 위한 첫 만남', subtitle: '나와 멘토, 새로운 가능성을 만나요', icon: '👋' },
@@ -121,6 +125,20 @@ const preferenceQuestionKeywords: Record<string, string[]> = {
 }
 
 const preferenceKeywords = (question: string) => preferenceQuestionKeywords[question] ?? [question]
+
+const interviewCompanies: InterviewCompany[] = [
+  { name: '예청건설', fields: ['건축', '토목', '현장관리'], description: '건물과 도로, 공공시설을 계획하고 안전하게 완성하는 회사예요. 현장과 사무실을 오가며 일정, 안전, 품질을 함께 관리해요.', roles: ['건축가', '토목기술자', '현장관리자', '안전관리자'], strengths: ['책임감', '공간지각능력', '문제해결능력', '협업능력'] },
+  { name: '예청전자', fields: ['전자제품', '로봇', '데이터'], description: '생활을 편리하게 만드는 전자기기와 디지털 기술을 개발하는 회사예요. 아이디어를 제품으로 만들기 위해 실험과 분석을 반복해요.', roles: ['로봇공학자', '소프트웨어 개발자', '데이터 분석가', '품질관리자'], strengths: ['논리적 사고', '분석력', '디지털 활용능력', '끈기'] },
+  { name: '예청엔터테인먼트', fields: ['콘텐츠', '공연', '영상'], description: '음악, 영상, 공연, 온라인 콘텐츠를 기획하고 제작하는 회사예요. 사람들의 관심을 읽고 새로운 이야기를 매력적으로 보여 줘요.', roles: ['콘텐츠 기획자', '영상 제작자', '공연 연출가', '마케팅 담당자'], strengths: ['창의성', '표현력', '기획력', '의사소통능력'] },
+  { name: '예청모터스', fields: ['자동차', '정비', '모빌리티'], description: '자동차와 이동수단을 만들고 고치며 더 안전한 이동을 고민하는 회사예요. 기계 구조를 이해하고 문제를 정확히 찾아내는 힘이 중요해요.', roles: ['자동차 정비사', '기계공학자', '자동차 디자이너', '서비스 매니저'], strengths: ['손재주', '관찰력', '문제해결능력', '꼼꼼함'] },
+  { name: '예청중학교', fields: ['교육', '상담', '학교 행정'], description: '학생들이 배우고 성장할 수 있도록 수업, 상담, 생활지도, 학교 운영을 함께하는 교육기관이에요.', roles: ['교사', '상담교사', '학교 행정직', '진로전담교사'], strengths: ['공감능력', '책임감', '설명력', '관찰력'] },
+  { name: '예청약품', fields: ['의약품', '연구', '품질'], description: '사람들의 건강을 돕는 의약품과 건강 관련 제품을 연구하고 관리하는 회사예요. 정확함과 윤리의식이 특히 중요해요.', roles: ['약사', '의약품 연구원', '품질관리자', '임상시험 코디네이터'], strengths: ['꼼꼼함', '책임감', '분석력', '집중력'] },
+  { name: '예청은행', fields: ['금융', '상담', '회계'], description: '개인과 기업의 돈을 안전하게 관리하고 필요한 금융 서비스를 제공하는 기관이에요. 신뢰와 숫자 감각, 설명 능력이 필요해요.', roles: ['은행원', '금융상담사', '회계 담당자', '자산관리사'], strengths: ['신뢰감', '수리능력', '설명력', '정확성'] },
+  { name: '예청식품', fields: ['식품개발', '조리', '마케팅'], description: '맛있고 안전한 식품을 개발하고 생산해 사람들에게 전달하는 회사예요. 위생, 창의성, 소비자 이해가 함께 필요해요.', roles: ['요리사', '식품 연구원', '브랜드 마케터', '영양사'], strengths: ['창의성', '위생관리', '관찰력', '실행력'] },
+  { name: '예청군청', fields: ['행정', '복지', '지역정책'], description: '지역 주민의 생활을 돕고 예청 지역의 정책과 공공서비스를 운영하는 기관이에요. 행정직의 다양한 모습을 살펴볼 수 있어요.', roles: ['일반행정직', '사회복지직', '청소년정책 담당자', '문화관광 담당자'], strengths: ['책임감', '문서정리능력', '공정성', '의사소통능력'] },
+]
+
+const blankInterviewApplication: InterviewApplication = { role: '', interestReason: '', strengths: '', experience: '', closingLine: '' }
 
 function PartnerFooter() {
   return (
@@ -870,10 +888,131 @@ function StaffSessionDetail({ sessionNumber, schoolName, displayName, masterView
           <div className="review-section-heading"><div><p className="eyebrow">활동 흐름</p><h2>{sessionNumber === 4 ? '이 방향으로 운영해요' : '이 순서대로 진행해요'}</h2></div><span>{flowLabel}</span></div>
           <div className="staff-activity-list">{plan.activities.map((activity, index) => <article key={activity.title}><div className="staff-activity-number">{index + 1}</div><div className="staff-activity-body"><div><h3>{activity.title}</h3><span>{activity.duration}</span></div><p>{activity.description}</p><aside><b>멘토 포인트</b><span>{activity.mentorTip}</span></aside></div></article>)}</div>
         </section>
+        {sessionNumber === 3 && <AiInterviewActivity schoolName={schoolName} displayName={displayName} />}
         <section className="activity-help"><div><p>활동 설계 확인</p><h2>세부 기능을 만들기 전 전체 진행 흐름을 먼저 확인해 주세요.</h2></div><button type="button" onClick={() => window.history.back()}>활동실로 돌아가기 →</button></section>
       </main>
       <PartnerFooter />
     </div>
+  )
+}
+
+function AiInterviewActivity({ schoolName, displayName }: { schoolName: string; displayName: string }) {
+  const [phase, setPhase] = useState<'intro' | 'company' | 'application' | 'interview' | 'result'>('intro')
+  const [selectedCompany, setSelectedCompany] = useState<InterviewCompany | null>(null)
+  const [detailCompany, setDetailCompany] = useState<InterviewCompany | null>(null)
+  const [application, setApplication] = useState<InterviewApplication>(blankInterviewApplication)
+  const [customRole, setCustomRole] = useState('')
+  const [interviewId, setInterviewId] = useState('')
+  const [turns, setTurns] = useState<InterviewTurn[]>([])
+  const [currentQuestion, setCurrentQuestion] = useState('')
+  const [answer, setAnswer] = useState('')
+  const [lastFeedback, setLastFeedback] = useState('')
+  const [closingSummary, setClosingSummary] = useState('')
+  const [suggestedStrengths, setSuggestedStrengths] = useState<string[]>([])
+  const [isBusy, setIsBusy] = useState(false)
+  const [error, setError] = useState('')
+
+  const runInterviewStep = async (nextTurns: InterviewTurn[], finished: boolean) => {
+    if (!selectedCompany) return null
+    const normalizedApplication = { ...application, role: application.role === '직접 입력' ? customRole.trim() : application.role.trim() }
+    const callable = httpsCallable<{ interviewId: string; company: string; schoolName: string; displayName: string; application: InterviewApplication; turns: InterviewTurn[]; finished: boolean }, InterviewStepResponse>(functions, 'runAiInterviewStep')
+    const id = interviewId || `interview-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
+    if (!interviewId) setInterviewId(id)
+    const result = await callable({ interviewId: id, company: selectedCompany.name, schoolName, displayName, application: normalizedApplication, turns: nextTurns, finished })
+    return result.data
+  }
+
+  const selectCompany = (company: InterviewCompany) => {
+    setSelectedCompany(company)
+    setApplication({ ...blankInterviewApplication, role: company.roles[0] })
+    setCustomRole('')
+    setDetailCompany(null)
+    setPhase('application')
+  }
+
+  const startInterview = async () => {
+    const selectedRole = application.role === '직접 입력' ? customRole.trim() : application.role.trim()
+    if (!selectedCompany || !selectedRole) {
+      setError('회사와 지원 직무를 선택해 주세요.')
+      return
+    }
+    setIsBusy(true)
+    setError('')
+    try {
+      const result = await runInterviewStep([], false)
+      if (!result?.question) throw new Error('question-missing')
+      setCurrentQuestion(result.question)
+      setLastFeedback(result.feedback ?? '')
+      setPhase('interview')
+    } catch (caught) {
+      console.error(caught)
+      setError('AI 면접을 시작하지 못했어요. Firebase Functions와 OPENAI_API_KEY 설정을 확인해 주세요.')
+    } finally {
+      setIsBusy(false)
+    }
+  }
+
+  const submitAnswer = async (finishNow = false) => {
+    const trimmed = answer.trim()
+    if (!trimmed || !currentQuestion) {
+      setError('현재 질문에 대한 답변을 먼저 입력해 주세요.')
+      return
+    }
+    const answeredTurns = [...turns, { question: currentQuestion, answer: trimmed, feedback: lastFeedback }]
+    const shouldFinish = finishNow || answeredTurns.length >= 5
+    setIsBusy(true)
+    setError('')
+    try {
+      const result = await runInterviewStep(answeredTurns, shouldFinish)
+      setTurns(answeredTurns)
+      setAnswer('')
+      setLastFeedback(result?.feedback ?? '')
+      setClosingSummary(result?.closingSummary ?? '')
+      setSuggestedStrengths(result?.suggestedStrengths ?? [])
+      if (shouldFinish) {
+        setCurrentQuestion('')
+        setPhase('result')
+      } else {
+        setCurrentQuestion(result?.question ?? '')
+      }
+    } catch (caught) {
+      console.error(caught)
+      setError('답변을 저장하거나 다음 질문을 만들지 못했어요. 잠시 후 다시 시도해 주세요.')
+    } finally {
+      setIsBusy(false)
+    }
+  }
+
+  const resetInterview = () => {
+    setPhase('intro')
+    setSelectedCompany(null)
+    setDetailCompany(null)
+    setApplication(blankInterviewApplication)
+    setCustomRole('')
+    setInterviewId('')
+    setTurns([])
+    setCurrentQuestion('')
+    setAnswer('')
+    setLastFeedback('')
+    setClosingSummary('')
+    setSuggestedStrengths([])
+    setError('')
+  }
+
+  return (
+    <section className="ai-interview-panel">
+      <div className="ai-interview-heading">
+        <span>AI 가상면접</span>
+        <h2>희망 직업 채용면접 시뮬레이션</h2>
+        <p>회사를 고르고 간단 지원서를 작성하면 AI 면접관이 지원 직무에 맞춰 질문을 이어 가요. 면접 질문과 답변은 활동 기록으로 저장됩니다.</p>
+      </div>
+      {phase === 'intro' && <div className="ai-step-card intro"><h3>활동 안내</h3><p>이 활동은 직업정보를 묻는 Q&A가 아니라, 내가 선택한 직업에 실제 지원했다고 가정하는 채용면접이에요. 답변은 짧아도 괜찮고, 내가 가진 경험과 역량을 내 말로 설명하는 연습이 핵심입니다.</p><div className="ai-guide-list"><span>회사 선택</span><span>간단 지원서 작성</span><span>AI 면접 진행</span><span>답변 돌아보기</span></div><button type="button" onClick={() => setPhase('company')}>회사 선택하러 가기</button></div>}
+      {phase === 'company' && <div className="ai-company-stage"><div className="company-grid">{interviewCompanies.map((company) => <article className="company-card" key={company.name}><span>{company.fields.join(' · ')}</span><h3>{company.name}</h3><p>{company.description}</p><div>{company.roles.slice(0, 3).map((role) => <small key={role}>{role}</small>)}</div><div className="company-actions"><button type="button" className="secondary" onClick={() => setDetailCompany(company)}>상세보기</button><button type="button" onClick={() => selectCompany(company)}>선택하기</button></div></article>)}</div></div>}
+      {phase === 'application' && selectedCompany && <form className="ai-application-form" onSubmit={(event) => { event.preventDefault(); void startInterview() }}><div className="selected-company-strip"><span>{selectedCompany.name}</span><button type="button" onClick={() => setPhase('company')}>회사 다시 선택</button></div><label>지원 직무<select value={application.role} onChange={(event) => setApplication({ ...application, role: event.target.value })}>{selectedCompany.roles.map((role) => <option value={role} key={role}>{role}</option>)}<option value="직접 입력">직접 입력</option></select></label>{application.role === '직접 입력' && <label>직무 직접 입력<input value={customRole} onChange={(event) => setCustomRole(event.target.value)} maxLength={80} placeholder="지원하고 싶은 직무를 적어 주세요." /></label>}<label>지원 동기<textarea value={application.interestReason} onChange={(event) => setApplication({ ...application, interestReason: event.target.value })} maxLength={500} placeholder="이 회사나 직무에 관심을 가진 이유를 적어 주세요." /></label><label>나의 강점<textarea value={application.strengths} onChange={(event) => setApplication({ ...application, strengths: event.target.value })} maxLength={500} placeholder="나에게 있는 역량이나 장점을 적어 주세요." /></label><label>관련 경험<textarea value={application.experience} onChange={(event) => setApplication({ ...application, experience: event.target.value })} maxLength={500} placeholder="학교생활, 동아리, 집에서 해 본 일 등 연결되는 경험을 적어 주세요." /></label><label>마지막으로 하고 싶은 말<input value={application.closingLine} onChange={(event) => setApplication({ ...application, closingLine: event.target.value })} maxLength={220} placeholder="면접에서 꼭 말하고 싶은 한 문장" /></label>{error && <p className="entry-error" role="alert">{error}</p>}<button type="submit" disabled={isBusy}>{isBusy ? '첫 질문 만드는 중' : 'AI 면접 시작하기'}</button></form>}
+      {phase === 'interview' && selectedCompany && <div className="ai-interview-room"><div className="interview-status"><span>{selectedCompany.name}</span><b>{application.role === '직접 입력' ? customRole : application.role} 면접</b><small>{turns.length + 1}/5 질문</small></div>{lastFeedback && <div className="interview-feedback"><b>방금 답변 피드백</b><p>{lastFeedback}</p></div>}<div className="interview-question"><span>AI 면접관</span><h3>{currentQuestion}</h3></div><label>내 답변<textarea value={answer} onChange={(event) => setAnswer(event.target.value)} maxLength={1200} placeholder="지원자처럼 답변해 보세요." /></label>{error && <p className="entry-error" role="alert">{error}</p>}<div className="interview-actions"><button type="button" className="secondary" onClick={() => void submitAnswer(true)} disabled={isBusy}>{isBusy ? '저장 중' : '면접 종료하고 결과 보기'}</button><button type="button" onClick={() => void submitAnswer(false)} disabled={isBusy}>{isBusy ? '다음 질문 만드는 중' : turns.length >= 4 ? '답변 제출하고 결과 보기' : '답변 제출하고 다음 질문'}</button></div></div>}
+      {phase === 'result' && <div className="ai-result-card"><span>면접 완료</span><h3>{selectedCompany?.name} · {application.role === '직접 입력' ? customRole : application.role}</h3>{closingSummary ? <p>{closingSummary}</p> : <p>면접 답변이 활동 기록으로 저장됐어요. 선생님과 멘토가 이후 활동에서 함께 돌아볼 수 있습니다.</p>}{suggestedStrengths.length > 0 && <div className="result-strengths">{suggestedStrengths.map((strength) => <b key={strength}>{strength}</b>)}</div>}<div className="interview-log-preview">{turns.map((turn, index) => <article key={`${turn.question}-${index}`}><strong>Q{index + 1}. {turn.question}</strong><p>{turn.answer}</p></article>)}</div><button type="button" onClick={resetInterview}>새 면접 시작하기</button></div>}
+      {detailCompany && <div className="company-modal-backdrop" onClick={(event) => { if (event.target === event.currentTarget) setDetailCompany(null) }}><section className="company-modal" role="dialog" aria-modal="true"><button type="button" className="qr-modal-close" onClick={() => setDetailCompany(null)} aria-label="회사 상세 닫기">×</button><span>{detailCompany.fields.join(' · ')}</span><h2>{detailCompany.name}</h2><p>{detailCompany.description}</p><h3>지원해 볼 수 있는 직무</h3><div>{detailCompany.roles.map((role) => <small key={role}>{role}</small>)}</div><h3>면접에서 연결할 역량</h3><div>{detailCompany.strengths.map((strength) => <small key={strength}>{strength}</small>)}</div><button type="button" onClick={() => selectCompany(detailCompany)}>이 회사 선택하기</button></section></div>}
+    </section>
   )
 }
 
