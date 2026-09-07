@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import type { FormEvent } from 'react'
+import type { FormEvent, ReactNode } from 'react'
 import { onAuthStateChanged, signInAnonymously, signOut } from 'firebase/auth'
 import { collection, deleteDoc, doc, getDoc, getDocs, onSnapshot, query, serverTimestamp, setDoc, updateDoc, where } from 'firebase/firestore'
 import { httpsCallable } from 'firebase/functions'
@@ -24,6 +24,7 @@ type StaffRole = 'mentor' | 'teacher' | 'admin'
 type IssuedStudentPin = { accountNumber: string; displayName?: string; pin: string }
 type ManagedStudentAccount = { id: string; accountNumber: string; displayName: string; currentPin: string; active: boolean }
 type StaffSessionPlan = { title: string; subtitle: string; description: string; icon: string; theme: string; activities: { duration: string; title: string; description: string; mentorTip: string }[] }
+type AdminSectionId = 'accounts' | 'activities' | 'records'
 const sessionTemplates: SessionTemplate[] = [
   { number: 1, title: '청사진을 위한 첫 만남', subtitle: '나와 멘토, 새로운 가능성을 만나요', icon: '👋' },
   { number: 2, title: '선호와 강점 탐색', subtitle: '좋아하는 것과 나만의 강점을 발견해요', icon: '✨' },
@@ -798,23 +799,28 @@ function StaffSessionDetail({ sessionNumber, schoolName, displayName, onLeave }:
   )
 }
 
-function AdminPage({ displayName, onBack, onLeave }: { displayName: string; onBack: () => void; onLeave: () => void }) {
+function AdminPage({ displayName, accountTools, onOpenPreferenceRecords, onOpenAuctionRecords, onOpenSession, onBack, onLeave }: { displayName: string; accountTools: ReactNode; onOpenPreferenceRecords: () => void; onOpenAuctionRecords: () => void; onOpenSession: (sessionNumber: number) => void; onBack: () => void; onLeave: () => void }) {
+  const [activeSection, setActiveSection] = useState<AdminSectionId | null>(null)
   const adminSections = [
-    { title: '계정 관리', description: '학생, 교사, 멘토, 관리자(마스터) 계정과 PIN을 조회하고 정비하는 영역입니다.', items: ['학교별 학생 PIN', '교사·멘토 계정', '마스터 등급'], action: '계정 관리 준비 중', tone: 'blue' },
-    { title: '활동 관리', description: '회기별 활동 공개 범위와 강점 경매장 운영 흐름을 관리하는 영역입니다.', items: ['회기 잠금 설정', '활동 화면 점검', '경매장 진행 관리'], action: '활동 관리 준비 중', tone: 'green' },
-    { title: '활동 기록', description: '선호 탐색과 강점 경매장 결과를 학교·참가자별로 모아 확인하는 영역입니다.', items: ['2회기 활동 결과', '강점 경매장 기록', '복구 백업 자료'], action: '활동 기록 준비 중', tone: 'orange' },
+    { id: 'accounts' as const, title: '계정 관리', description: '학생, 교사, 멘토, 관리자(마스터) 계정과 PIN을 조회하고 정비하는 영역입니다.', items: ['학교별 학생 PIN', '교사·멘토 계정', '마스터 등급'], action: '계정 관리 열기', tone: 'blue' },
+    { id: 'activities' as const, title: '활동 관리', description: '회기별 활동 공개 범위와 강점 경매장 운영 흐름을 관리하는 영역입니다.', items: ['회기 잠금 설정', '활동 화면 점검', '경매장 진행 관리'], action: '활동 관리 열기', tone: 'green' },
+    { id: 'records' as const, title: '활동 기록', description: '선호 탐색과 강점 경매장 결과를 학교·참가자별로 모아 확인하는 영역입니다.', items: ['2회기 활동 결과', '강점 경매장 기록', '복구 백업 자료'], action: '활동 기록 열기', tone: 'orange' },
   ]
+  const sectionTitle = activeSection === 'accounts' ? '계정 관리' : activeSection === 'activities' ? '활동 관리' : activeSection === 'records' ? '활동 기록' : ''
   return (
     <div className="app-shell">
       <header className="topbar"><div className="brand"><span className="brand-mark">청</span><span>청·사·진</span></div><div className="student-chip"><span>관리자(마스터)</span><b>{displayName}</b><button className="logout-button" onClick={onLeave}>로그아웃</button></div></header>
       <main className="admin-page">
-        <button className="back-button" type="button" onClick={onBack}>← 나의 활동실로</button>
+        <button className="back-button" type="button" onClick={activeSection ? () => setActiveSection(null) : onBack}>{activeSection ? '← 관리자 페이지로' : '← 나의 활동실로'}</button>
         <section className="admin-hero">
-          <div><p className="eyebrow">MASTER CONSOLE</p><h1>관리자 페이지</h1><p>계정, PIN, 활동 결과, 강점 경매장 기록을 한곳에서 정리하기 위한 운영 화면이에요.</p></div>
+          <div><p className="eyebrow">MASTER CONSOLE</p><h1>{sectionTitle || '관리자 페이지'}</h1><p>{activeSection ? '관리자가 현장에서 바로 확인하고 처리할 수 있도록 기능별로 나눈 세부 화면이에요.' : '계정, 활동 업데이트, 활동 결과를 한곳에서 정리하기 위한 운영 화면이에요.'}</p></div>
           <span aria-hidden="true">↗</span>
         </section>
-        <section className="admin-section-grid">{adminSections.map((section) => <article className={`admin-section-card ${section.tone}`} key={section.title}><h2>{section.title}</h2><p>{section.description}</p><ul>{section.items.map((item) => <li key={item}>{item}</li>)}</ul><button type="button" disabled>{section.action}</button></article>)}</section>
-        <section className="admin-note"><b>운영 원칙</b><p>학생 PIN은 담당자에게 조회 가능해야 하며, 마스터 코드와 Firebase 설정값은 화면·문서·코드에 노출하지 않습니다.</p></section>
+        {!activeSection && <section className="admin-section-grid">{adminSections.map((section) => <article className={`admin-section-card ${section.tone}`} key={section.title}><h2>{section.title}</h2><p>{section.description}</p><ul>{section.items.map((item) => <li key={item}>{item}</li>)}</ul><button type="button" onClick={() => setActiveSection(section.id)}>{section.action}</button></article>)}</section>}
+        {activeSection === 'accounts' && <section className="admin-detail-panel account-admin-panel"><div className="admin-detail-heading"><span>계정 관리</span><h2>학생 PIN 관리</h2><p>학교별 학생 계정 목록을 확인하고, 없는 계정 발급이나 PIN 재발급을 처리합니다.</p></div>{accountTools}</section>}
+        {activeSection === 'activities' && <section className="admin-detail-panel"><div className="admin-detail-heading"><span>활동 관리</span><h2>회기별 활동 확인</h2><p>관리자(마스터)는 1~5회기 활동을 모두 열람할 수 있고, 다른 계정은 2회기까지만 열립니다.</p></div><div className="admin-session-list">{sessionTemplates.map((session) => <article key={session.number}><span>{session.number}회기</span><div><h3>{session.title}</h3><p>{session.subtitle}</p></div><button type="button" onClick={() => onOpenSession(session.number)}>활동 확인</button></article>)}</div><div className="admin-placeholder-note"><b>업데이트 관리</b><p>회기별 활동 내용 수정, 공개 상태 변경, 안내문 업데이트 기능을 이 화면에 붙이면 됩니다.</p></div></section>}
+        {activeSection === 'records' && <section className="admin-detail-panel"><div className="admin-detail-heading"><span>활동 기록</span><h2>활동 결과 보기</h2><p>학생들이 제출한 선호 탐색 결과와 강점 경매장 기록을 확인하는 화면입니다.</p></div><div className="admin-record-actions"><button type="button" onClick={onOpenPreferenceRecords}><span>2회기</span><b>선호 탐색 결과 보기</b><small>좋아·싫어 결과와 워드클라우드 확인</small></button><button type="button" onClick={onOpenAuctionRecords}><span>강점 경매장</span><b>경매 결과 기록 보기</b><small>방별 진행 결과와 참가자별 강점 확인</small></button></div><div className="admin-placeholder-note"><b>기록 통합</b><p>현재 저장된 활동 결과를 관리자용으로 모아 보는 출입구입니다. 이후 학교·학생별 필터를 이 화면에 붙이면 됩니다.</p></div></section>}
+        {!activeSection && <section className="admin-note"><b>운영 원칙</b><p>학생 PIN은 담당자에게 조회 가능해야 하며, 마스터 코드와 Firebase 설정값은 화면·문서·코드에 노출하지 않습니다.</p></section>}
       </main>
       <PartnerFooter />
     </div>
@@ -1076,6 +1082,7 @@ function App() {
     if (sessionNumber >= 3 && !canPreviewFutureSessions) return
     setSessionPageMode(mode)
     setActiveSession(sessionNumber)
+    setActiveAdminPage(false)
     const view = mode === 'activity' ? `activity-${sessionNumber}` : `session-${sessionNumber}`
     window.history.pushState({ cheongsajinView: view }, '', `#${view}`)
   }
@@ -1182,6 +1189,14 @@ function App() {
     setActiveAdminPage(true)
     window.history.pushState({ cheongsajinView: 'admin' }, '', '#admin')
   }
+  const openAdminActivityRecord = (step: number) => {
+    setSessionPageMode('activity')
+    setActiveSession(2)
+    setActiveSecondActivity(step)
+    setActiveGuide(null)
+    setActiveAdminPage(false)
+    window.history.pushState({ cheongsajinView: `activity-2-step-${step}` }, '', `#activity-2-step-${step}`)
+  }
   const saveProfile = async (profile: ProfilePayload) => {
     if (!db || !auth?.currentUser) throw new Error('Firebase 연결이 필요합니다.')
     if (isMentorMode || isAdminMode) {
@@ -1193,6 +1208,7 @@ function App() {
       await setDoc(doc(db, 'studentProfiles', auth.currentUser.uid), { userId: auth.currentUser.uid, displayName: name.trim(), school, introduction: profile.introduction.trim(), interests: profile.interests.trim(), hopeJob: profile.hopeJob.trim(), updatedAt: serverTimestamp() }, { merge: true })
     }
   }
+  const accountManagementTools = <div className="admin-account-tools"><label>대상 학교<select value={studentIssueSchool} onChange={(event) => { setStudentIssueSchool(event.target.value as 'yesan-high' | 'gwangsi-middle'); setManagedStudentAccounts([]); setIssuedStudentPins([]); setStudentIssueError('') }}><option value="yesan-high">예산고등학교</option><option value="gwangsi-middle">광시중학교</option></select></label><label>관리자 코드<input value={studentIssueCode} onChange={(event) => { setStudentIssueCode(event.target.value.replace(/\D/g, '')); setStudentIssueError('') }} type="password" inputMode="numeric" maxLength={8} placeholder="관리자 코드" /></label><div className="pin-admin-actions"><button type="button" onClick={loadStudentPinAccounts} disabled={isIssuingStudentPins || !studentIssueCode.trim()}>계정 목록 보기</button><button type="button" onClick={issueStudentPins} disabled={isIssuingStudentPins || !studentIssueCode.trim()}>{isIssuingStudentPins ? '처리 중…' : '없는 계정 발급'}</button><button type="button" onClick={resetAllStudentPins} disabled={isIssuingStudentPins || !studentIssueCode.trim()}>전체 PIN 재발급</button></div>{studentIssueError && <p className="entry-error" role="alert">{studentIssueError}</p>}{issuedStudentPins.length > 0 && <ol className="issued-pin-list">{issuedStudentPins.map((credential) => <li key={`${credential.accountNumber}-${credential.pin}`}><span>{credential.accountNumber}번{credential.displayName ? ` · ${credential.displayName}` : ''}</span><b>{credential.pin}</b></li>)}</ol>}{managedStudentAccounts.length > 0 && <div className="student-pin-table"><div><b>번호</b><b>이름</b><b>현재 PIN</b><b>관리</b></div>{managedStudentAccounts.map((account) => <div key={account.id}><span>{account.accountNumber}</span><span>{account.displayName || '이름 미등록'}</span><strong>{account.currentPin || '재발급 필요'}</strong><button type="button" onClick={() => resetStudentPin(account.id)}>PIN 재발급</button></div>)}</div>}</div>
 
   if (!entered) return (
     <div className="welcome-page">
@@ -1213,7 +1229,6 @@ function App() {
           <button type="submit" disabled={isEntering || !isFirebaseConfigured}>{isEntering ? '안전하게 연결하는 중…' : needsStudentName ? '이름 등록하고 로그인' : '나의 활동실로 들어가기'} {!isEntering && <span>→</span>}</button>
           {entryError && <p className="entry-error" role="alert">{entryError}</p>}
           {isAdminMode && showMasterUnlock && <div className="master-unlock"><label>관리자 잠금 해제 코드<input value={masterCode} onChange={(event) => setMasterCode(event.target.value.replace(/\D/g, ''))} type="password" inputMode="numeric" maxLength={8} placeholder="관리자 코드" /></label><button type="button" onClick={unlockStaff} disabled={isUnlocking || !masterCode}>{isUnlocking ? '잠금 해제 중…' : '잠금 바로 해제하기'}</button></div>}
-          {isAdminMode && <details className="pin-issuer"><summary>학생 PIN 관리</summary><label>대상 학교<select value={studentIssueSchool} onChange={(event) => { setStudentIssueSchool(event.target.value as 'yesan-high' | 'gwangsi-middle'); setManagedStudentAccounts([]); setIssuedStudentPins([]); setStudentIssueError('') }}><option value="yesan-high">예산고등학교</option><option value="gwangsi-middle">광시중학교</option></select></label><label>관리자 코드<input value={studentIssueCode} onChange={(event) => { setStudentIssueCode(event.target.value.replace(/\D/g, '')); setStudentIssueError('') }} type="password" inputMode="numeric" maxLength={8} placeholder="관리자 코드" /></label><div className="pin-admin-actions"><button type="button" onClick={loadStudentPinAccounts} disabled={isIssuingStudentPins || !studentIssueCode.trim()}>계정 목록 보기</button><button type="button" onClick={issueStudentPins} disabled={isIssuingStudentPins || !studentIssueCode.trim()}>{isIssuingStudentPins ? '처리 중…' : '없는 계정 발급'}</button><button type="button" onClick={resetAllStudentPins} disabled={isIssuingStudentPins || !studentIssueCode.trim()}>전체 PIN 재발급</button></div>{studentIssueError && <p className="entry-error" role="alert">{studentIssueError}</p>}{issuedStudentPins.length > 0 && <ol className="issued-pin-list">{issuedStudentPins.map((credential) => <li key={`${credential.accountNumber}-${credential.pin}`}><span>{credential.accountNumber}번{credential.displayName ? ` · ${credential.displayName}` : ''}</span><b>{credential.pin}</b></li>)}</ol>}{managedStudentAccounts.length > 0 && <div className="student-pin-table"><div><b>번호</b><b>이름</b><b>현재 PIN</b><b>관리</b></div>{managedStudentAccounts.map((account) => <div key={account.id}><span>{account.accountNumber}</span><span>{account.displayName || '이름 미등록'}</span><strong>{account.currentPin || '재발급 필요'}</strong><button type="button" onClick={() => resetStudentPin(account.id)}>PIN 재발급</button></div>)}</div>}</details>}
         </form>
         <p className="privacy-note">🔒 입력한 정보는 활동 참여 확인에만 사용해요.</p>
         </section>
@@ -1223,7 +1238,7 @@ function App() {
     </div>
   )
 
-  if (activeAdminPage && staffRole === 'admin') return <AdminPage displayName={name.trim()} onBack={goDashboard} onLeave={leave} />
+  if (activeAdminPage && staffRole === 'admin') return <AdminPage displayName={name.trim()} accountTools={accountManagementTools} onOpenPreferenceRecords={() => openAdminActivityRecord(2)} onOpenAuctionRecords={() => openAdminActivityRecord(3)} onOpenSession={(sessionNumber) => openSession(sessionNumber, 'activity')} onBack={goDashboard} onLeave={leave} />
 
   if (activeGuide) {
     const ownMentorProfile = mentorProfiles.find((profile) => profile.displayName === name.trim())
