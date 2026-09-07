@@ -799,16 +799,10 @@ function StaffSessionDetail({ sessionNumber, schoolName, displayName, onLeave }:
 }
 
 function AdminPage({ displayName, onBack, onLeave }: { displayName: string; onBack: () => void; onLeave: () => void }) {
-  const accountGroups = [
-    { title: '학생 계정', value: '48개', detail: '예산고 22개 · 광시중 26개', tone: 'blue' },
-    { title: '멘토 계정', value: '6개', detail: 'PIN 원문 조회 가능 상태로 정비', tone: 'green' },
-    { title: '교사 계정', value: '2개', detail: '예산고 · 광시중', tone: 'orange' },
-    { title: '마스터 등급', value: '3개', detail: '추규한 · 관리자1 · 관리자2', tone: 'purple' },
-  ]
-  const workCards = [
-    { title: '계정·PIN 관리', description: '학생, 교사, 멘토, 관리자(마스터) 계정의 PIN 조회와 재발급 기능을 이곳으로 모을 예정이에요.', action: '관리 도구 준비 중' },
-    { title: '2회기 활동 결과', description: '선호 탐색 결과와 강점 경매장 기록을 학교·학생별로 모아 보는 화면으로 확장할 수 있어요.', action: '결과 보기 준비 중' },
-    { title: '강점 경매장 운영', description: '방별 진행 기록, 참가자별 직업, 잔액, 보유 강점을 확인하는 관리자용 보기로 이어질 자리예요.', action: '기록 관리 준비 중' },
+  const adminSections = [
+    { title: '계정 관리', description: '학생, 교사, 멘토, 관리자(마스터) 계정과 PIN을 조회하고 정비하는 영역입니다.', items: ['학교별 학생 PIN', '교사·멘토 계정', '마스터 등급'], action: '계정 관리 준비 중', tone: 'blue' },
+    { title: '활동 관리', description: '회기별 활동 공개 범위와 강점 경매장 운영 흐름을 관리하는 영역입니다.', items: ['회기 잠금 설정', '활동 화면 점검', '경매장 진행 관리'], action: '활동 관리 준비 중', tone: 'green' },
+    { title: '활동 기록', description: '선호 탐색과 강점 경매장 결과를 학교·참가자별로 모아 확인하는 영역입니다.', items: ['2회기 활동 결과', '강점 경매장 기록', '복구 백업 자료'], action: '활동 기록 준비 중', tone: 'orange' },
   ]
   return (
     <div className="app-shell">
@@ -819,8 +813,7 @@ function AdminPage({ displayName, onBack, onLeave }: { displayName: string; onBa
           <div><p className="eyebrow">MASTER CONSOLE</p><h1>관리자 페이지</h1><p>계정, PIN, 활동 결과, 강점 경매장 기록을 한곳에서 정리하기 위한 운영 화면이에요.</p></div>
           <span aria-hidden="true">↗</span>
         </section>
-        <section className="admin-stat-grid">{accountGroups.map((group) => <article className={`admin-stat ${group.tone}`} key={group.title}><small>{group.title}</small><b>{group.value}</b><p>{group.detail}</p></article>)}</section>
-        <section className="admin-work-grid">{workCards.map((card) => <article key={card.title}><h2>{card.title}</h2><p>{card.description}</p><button type="button" disabled>{card.action}</button></article>)}</section>
+        <section className="admin-section-grid">{adminSections.map((section) => <article className={`admin-section-card ${section.tone}`} key={section.title}><h2>{section.title}</h2><p>{section.description}</p><ul>{section.items.map((item) => <li key={item}>{item}</li>)}</ul><button type="button" disabled>{section.action}</button></article>)}</section>
         <section className="admin-note"><b>운영 원칙</b><p>학생 PIN은 담당자에게 조회 가능해야 하며, 마스터 코드와 Firebase 설정값은 화면·문서·코드에 노출하지 않습니다.</p></section>
       </main>
       <PartnerFooter />
