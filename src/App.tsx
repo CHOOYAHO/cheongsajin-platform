@@ -20,6 +20,7 @@ type PreferenceResult = { id: string; displayName?: string; schoolName?: string;
 type GuidePage = 'program' | 'profile' | 'mentors' | 'center'
 type ProfilePayload = { introduction: string; interests: string; hopeJob: string; oneLineIntro: string; schoolMajor: string; majorReason: string; careerInterests: string; campusLife: string; strengths: string; message: string }
 type MentorProfile = { id: string; displayName: string; oneLineIntro?: string; schoolMajor?: string; interests?: string; majorReason?: string; careerInterests?: string; campusLife?: string; strengths?: string; message?: string; major?: string; university?: string; introduction?: string; careerStory?: string }
+type MentorQuestion = { id: string; studentName: string; schoolName: string; mentorId: string; mentorName: string; question: string; status: 'waiting' | 'read'; createdAt?: { toMillis: () => number } }
 type StaffRole = 'mentor' | 'teacher' | 'admin'
 type IssuedStudentPin = { accountNumber: string; displayName?: string; pin: string }
 type ManagedStudentAccount = { id: string; accountNumber: string; displayName: string; currentPin: string; active: boolean }
@@ -227,6 +228,10 @@ function MentorQuestionPanel({ profiles, studentName, schoolName, onClose }: { p
     }
   }
   return <section className="mentor-question-panel"><div><span>💬</span><div><small>궁금한 점을 남겨 보세요</small><h2>멘토에게 질문하기</h2></div><button type="button" onClick={onClose} aria-label="질문 작성창 닫기">×</button></div>{saveState === 'saved' ? <div className="question-saved"><b>질문을 저장했어요.</b><p>멘토가 확인할 수 있도록 안전하게 전달됩니다.</p><button type="button" onClick={() => setSaveState('idle')}>질문 하나 더 쓰기</button></div> : <form onSubmit={submit}><label>질문할 멘토<select value={mentorId} onChange={(event) => setMentorId(event.target.value)} required><option value="">멘토를 선택하세요</option>{profiles.map((profile) => <option value={profile.id} key={profile.id}>{profile.displayName} 멘토</option>)}</select></label><label>질문 내용<textarea value={question} onChange={(event) => setQuestion(event.target.value)} maxLength={500} placeholder="전공, 대학생활, 진로 등에 대해 궁금한 점을 적어 주세요." required /></label><div><small>{question.length} / 500자</small><button type="submit" disabled={saveState === 'saving' || !mentorId || !question.trim()}>{saveState === 'saving' ? '저장하는 중…' : '질문 보내기'}</button></div>{saveState === 'error' && <p className="entry-error" role="alert">질문을 저장하지 못했어요. 잠시 후 다시 시도해 주세요.</p>}</form>}</section>
+}
+
+function MentorQuestionInbox({ questions, onClose, onRead }: { questions: MentorQuestion[]; onClose: () => void; onRead: (question: MentorQuestion) => void }) {
+  return <div className="question-inbox-backdrop" onClick={(event) => { if (event.target === event.currentTarget) onClose() }}><section className="question-inbox" role="dialog" aria-modal="true" aria-labelledby="question-inbox-title"><header><div><small>학생들이 보낸 질문</small><h2 id="question-inbox-title">질문 확인하기</h2></div><button type="button" onClick={onClose} aria-label="질문창 닫기">×</button></header>{questions.length ? <div className="question-inbox-list">{questions.map((item) => <article className={item.status === 'waiting' ? 'unread' : ''} key={item.id}><div><span>{item.schoolName}</span><b>{item.studentName}</b><small>{item.createdAt?.toMillis ? new Date(item.createdAt.toMillis()).toLocaleString('ko-KR') : '방금 전'}</small></div><p>{item.question}</p>{item.status === 'waiting' ? <button type="button" onClick={() => onRead(item)}>확인했어요</button> : <span className="question-read">✓ 확인한 질문</span>}</article>)}</div> : <div className="question-inbox-empty"><span>💬</span><b>아직 들어온 질문이 없어요.</b><p>학생이 질문을 보내면 이곳에 바로 표시됩니다.</p></div>}</section></div>
 }
 
 function StudentActivityRecords({ preview = false }: { preview?: boolean }) {
@@ -912,6 +917,8 @@ function App() {
   const [showMentorQuestion, setShowMentorQuestion] = useState(false)
   const [activeAdminPage, setActiveAdminPage] = useState(false)
   const [mentorProfiles, setMentorProfiles] = useState<MentorProfile[]>([])
+  const [mentorQuestions, setMentorQuestions] = useState<MentorQuestion[]>([])
+  const [showQuestionInbox, setShowQuestionInbox] = useState(false)
   const [sessionPageMode, setSessionPageMode] = useState<'activity' | 'review'>('review')
   const [staffRole, setStaffRole] = useState<StaffRole | null>(null)
   const [school, setSchool] = useState('')
@@ -1078,6 +1085,23 @@ function App() {
       setMentorProfiles(snapshot.docs.map((profile) => ({ id: profile.id, ...profile.data() } as MentorProfile)).sort((a, b) => a.displayName.localeCompare(b.displayName, 'ko')))
     }, (error) => console.error(error))
   }, [entered])
+
+  useEffect(() => {
+    if (!entered || !db || !auth?.currentUser || !isMentorMode || staffRole !== 'mentor') { setMentorQuestions([]); return }
+    const firestore = db
+    const userId = auth.currentUser.uid
+    let stopQuestions: () => void = () => {}
+    let cancelled = false
+    void getDoc(doc(firestore, 'staffSessions', userId)).then((sessionSnapshot) => {
+      if (cancelled || !sessionSnapshot.exists()) return
+      const accountNumber = String(sessionSnapshot.data().accountNumber ?? '')
+      if (!accountNumber) return
+      stopQuestions = onSnapshot(query(collection(firestore, 'mentorQuestions'), where('mentorId', '==', accountNumber)), (snapshot) => {
+        setMentorQuestions(snapshot.docs.map((item) => ({ id: item.id, ...(item.data() as Omit<MentorQuestion, 'id'>) })).sort((left, right) => (right.createdAt?.toMillis?.() ?? 0) - (left.createdAt?.toMillis?.() ?? 0)))
+      }, (error) => console.error(error))
+    }).catch((error) => console.error(error))
+    return () => { cancelled = true; stopQuestions() }
+  }, [entered, isMentorMode, staffRole])
 
   useEffect(() => {
     if (!entered || !db) return
@@ -1352,6 +1376,11 @@ function App() {
       await setDoc(doc(db, 'studentProfiles', auth.currentUser.uid), { userId: auth.currentUser.uid, displayName: name.trim(), school, introduction: profile.introduction.trim(), interests: profile.interests.trim(), hopeJob: profile.hopeJob.trim(), updatedAt: serverTimestamp() }, { merge: true })
     }
   }
+  const markMentorQuestionRead = async (question: MentorQuestion) => {
+    if (!db || question.status === 'read') return
+    try { await updateDoc(doc(db, 'mentorQuestions', question.id), { status: 'read', readAt: serverTimestamp() }) }
+    catch (error) { console.error(error) }
+  }
   const accountManagementTools = <div className="admin-account-tools"><label>대상 학교<select value={studentIssueSchool} onChange={(event) => { setStudentIssueSchool(event.target.value as 'yesan-high' | 'gwangsi-middle'); setManagedStudentAccounts([]); setIssuedStudentPins([]); setStudentIssueError('') }}><option value="yesan-high">예산고등학교</option><option value="gwangsi-middle">광시중학교</option></select></label><div className="pin-admin-actions"><button type="button" onClick={loadStudentPinAccounts} disabled={isIssuingStudentPins}>계정 목록 보기</button><button type="button" onClick={issueStudentPins} disabled={isIssuingStudentPins}>{isIssuingStudentPins ? '처리 중…' : '없는 계정 발급'}</button><button type="button" onClick={resetAllStudentPins} disabled={isIssuingStudentPins}>전체 PIN 재발급</button></div>{studentIssueError && <p className="entry-error" role="alert">{studentIssueError}</p>}{issuedStudentPins.length > 0 && <ol className="issued-pin-list">{issuedStudentPins.map((credential) => <li key={`${credential.accountNumber}-${credential.pin}`}><span>{credential.accountNumber}번{credential.displayName ? ` · ${credential.displayName}` : ''}</span><b>{credential.pin}</b></li>)}</ol>}{managedStudentAccounts.length > 0 && <div className="student-pin-table"><div><b>번호</b><b>이름</b><b>현재 PIN</b><b>관리</b></div>{managedStudentAccounts.map((account) => <div key={account.id}><span>{account.accountNumber}</span><span>{account.displayName || '이름 미등록'}</span><strong>{account.currentPin || '재발급 필요'}</strong><button type="button" onClick={() => resetStudentPin(account.id)}>PIN 재발급</button></div>)}</div>}</div>
 
   if (!entered) return (
@@ -1548,10 +1577,12 @@ function App() {
       <header className="topbar"><div className="brand"><span className="brand-mark">청</span><span>청·사·진</span></div><div className="student-chip">{staffRole === 'admin' && <div className="master-view-switch"><button className={masterViewMode === 'mentor' ? 'active' : ''} type="button" onClick={() => switchMasterView('mentor')}>멘토 화면으로 보기</button><button className={masterViewMode === 'yesan-high' ? 'active' : ''} type="button" onClick={() => switchMasterView('yesan-high')}>예산고</button><button className={masterViewMode === 'gwangsi-middle' ? 'active' : ''} type="button" onClick={() => switchMasterView('gwangsi-middle')}>광시중</button></div>}{staffRole === 'admin' && <button className="admin-entry-button" type="button" onClick={openAdminPage}>관리자 페이지 들어가기</button>}<span>{staffRole === 'admin' ? '관리자(마스터)' : schoolName}</span><b>{name.trim()}</b><button className="logout-button" onClick={leave}>로그아웃</button></div></header>
       {masterViewLabel && <MasterViewBanner label={masterViewLabel} />}
       <main className="dashboard">
-        <section className="dashboard-intro">
+        <section className={`dashboard-intro ${isMentorMode ? 'has-question-action' : ''}`}>
           <div><p className="eyebrow">나의 활동실</p><h1>안녕, <em>{viewDisplayName}</em>!</h1><p>오늘도 나만의 가능성을 하나씩 발견해 볼까요?</p></div>
+          {isMentorMode && <button type="button" className="mentor-inbox-button" onClick={() => setShowQuestionInbox(true)}><span>💬</span><div><small>학생 질문</small><b>질문 확인하기</b></div>{mentorQuestions.filter((item) => item.status === 'waiting').length > 0 && <em>{mentorQuestions.filter((item) => item.status === 'waiting').length}</em>}</button>}
           <div className="progress-card"><div className="progress-label"><span>나의 여정</span><b>{progress}%</b></div><div className="progress-track"><span style={{ width: `${progress}%` }} /></div><small>5개 활동 중 {completedSessionCount}개 완료</small></div>
         </section>
+        {showQuestionInbox && isMentorMode && <MentorQuestionInbox questions={mentorQuestions} onClose={() => setShowQuestionInbox(false)} onRead={(question) => void markMentorQuestionRead(question)} />}
         <section className="dashboard-guide" aria-label="청사진 안내 메뉴">
           <button type="button" onClick={() => openGuide('program')}><span className="guide-icon blue">🗺️</span><div><small>프로그램 안내</small><h2>청사진이란?</h2><p>청·사·진의 의미와 전체 활동 여정을 알아봐요.</p></div><b>→</b></button>
           <button type="button" onClick={() => openGuide('profile')}><span className="guide-icon green">{isMasterStudentView || (!isMentorMode && !isAdminMode) ? '📚' : '👤'}</span><div><small>{isMasterStudentView || (!isMentorMode && !isAdminMode) ? '나의 정보와 활동' : '멘토 정보'}</small><h2>{isMasterStudentView || (!isMentorMode && !isAdminMode) ? '나의 기록' : '멘토 프로필 작성'}</h2><p>{isMasterStudentView || (!isMentorMode && !isAdminMode) ? '프로필과 1~5회기 활동 결과를 한곳에서 확인해요.' : '멘토 소개 화면에 표시할 내 정보를 작성해요.'}</p></div><b>→</b></button>
