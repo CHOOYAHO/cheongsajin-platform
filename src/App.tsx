@@ -739,7 +739,8 @@ function StrengthAuctionGame({ studentName }: { studentName: string }) {
   return <div className="auction-stage"><div className="auction-topline"><span>{auctionIndex + 1} / {itemLimit} 상품</span><b>내 직업 · {myJob || '방장 진행 화면'}</b></div><div className="auction-product"><div className={`auction-clock ${auctionTime <= 3 ? 'urgent' : ''}`}><b>{auctionTime}</b><span>초</span></div><span>지금 필요한 강점</span><h2>🔨 {currentStrength}</h2>{myStrengthLevel >= 3 && <p className="epic-block">🌟 최고 등급을 보유하고 있어 입찰할 수 없어요.</p>}{roomData?.highestBidderId === auth?.currentUser?.uid && <p className="epic-block">현재 내가 최고 입찰자예요. 다른 참가자가 입찰할 때까지 기다려 주세요.</p>}<div className="current-bid"><span>현재가</span><strong>{currentPrice}P</strong><small>최고 입찰자 · {roomData?.highestBidderName || '아직 없음'}</small></div><div className="bid-buttons">{bidOptions.map((amount) => <button type="button" onClick={() => placeBid(amount)} disabled={role === 'host' || roomData?.highestBidderId === auth?.currentUser?.uid || auctionTime <= 0 || amount > balance || myStrengthLevel >= 3} key={amount}>{amount}P</button>)}</div><p className="anti-snipe">종료 2초 전 새 입찰이 들어오면 시간이 5초로 연장돼요.</p>{role === 'host' && <button type="button" className="host-end-button wide" onClick={endAuction}>게임 종료하고 결과 보기</button>}{roomError && <p className="auction-error" role="alert">{roomError}</p>}</div><aside className="auction-player"><div><span>{myName}</span><strong>💰 {balance}P</strong></div><h3>{myJob ? `${myJob} 목표` : '보유 역량'}</h3>{Object.keys(inventory).length ? <ul>{Object.entries(inventory).map(([strength, count]) => <li key={strength}><span>{strength}</span><b className={`rarity-${rarity(count).toLowerCase()}`}>{rarity(count)}</b></li>)}</ul> : <p>아직 낙찰받은 역량이 없어요.</p>}</aside></div>
 }
 
-function SecondActivityDetail({ step, schoolName, studentName, viewerMode, masterViewLabel, onLeave, onHome }: { step: number; schoolName: string; studentName: string; viewerMode: 'student' | 'school' | 'all'; masterViewLabel?: string; onLeave: () => void; onHome: () => void }) {
+function SecondActivityDetail({ step, schoolName, studentName, viewerMode, masterViewLabel, onLeave, onHome }: { step: number; schoolName: string; studentName: string; viewerMode: 'student' | 'school' | 'all' | 'mentor'; masterViewLabel?: string; onLeave: () => void; onHome: () => void }) {
+  const [mentorPreferenceMode, setMentorPreferenceMode] = useState<'all' | 'yesan' | 'gwangsi' | 'practice-yesan' | 'practice-gwangsi'>('all')
   const [gameStarted, setGameStarted] = useState(false)
   const [questionDuration, setQuestionDuration] = useState<5 | 7 | 10>(7)
   const [isPaused, setIsPaused] = useState(false)
@@ -754,7 +755,10 @@ function SecondActivityDetail({ step, schoolName, studentName, viewerMode, maste
   const [savedResult, setSavedResult] = useState<PreferenceResult | null>(null)
   const [groupResults, setGroupResults] = useState<PreferenceResult[]>([])
   const [resultsLoading, setResultsLoading] = useState(false)
-  const activePreferenceAreas = schoolName.includes('중학교') ? middleSchoolPreferenceAreas : preferenceAreas
+  const mentorActivitySchoolName = mentorPreferenceMode === 'practice-gwangsi' ? '광시중학교' : '예산고등학교'
+  const activeSchoolName = viewerMode === 'mentor' && mentorPreferenceMode.startsWith('practice') ? mentorActivitySchoolName : schoolName
+  const isPreferenceGameMode = viewerMode === 'student' || (viewerMode === 'mentor' && mentorPreferenceMode.startsWith('practice'))
+  const activePreferenceAreas = activeSchoolName.includes('중학교') ? middleSchoolPreferenceAreas : preferenceAreas
   const area = activePreferenceAreas[areaIndex]
   const isGameComplete = areaIndex >= activePreferenceAreas.length
   const currentQuestion = area?.questions[questionIndex]
@@ -772,6 +776,23 @@ function SecondActivityDetail({ step, schoolName, studentName, viewerMode, maste
     const selected = kind === 'like' ? coreLikes : coreDislikes
     const update = kind === 'like' ? setCoreLikes : setCoreDislikes
     update(selected.includes(question) ? selected.filter((item) => item !== question) : selected.length < 3 ? [...selected, question] : selected)
+  }
+  const resetPreferenceGame = () => {
+    setResponses({})
+    setCoreLikes([])
+    setCoreDislikes([])
+    setReflection('')
+    setAreaIndex(0)
+    setQuestionIndex(0)
+    setRemainingMs(questionDuration * 1000)
+    setIsPaused(false)
+    setResultSaveState('idle')
+    setGameStarted(false)
+  }
+  const changeMentorPreferenceMode = (mode: typeof mentorPreferenceMode) => {
+    setMentorPreferenceMode(mode)
+    setGroupResults([])
+    resetPreferenceGame()
   }
 
   const answerCurrentQuestion = (choice: PreferenceChoice) => {
@@ -793,9 +814,10 @@ function SecondActivityDetail({ step, schoolName, studentName, viewerMode, maste
     }
     setResultSaveState('saving')
     try {
-      await setDoc(doc(db, 'preferenceResults', auth.currentUser.uid), {
+      const resultId = viewerMode === 'mentor' ? `${auth.currentUser.uid}_mentor_${activeSchoolName.includes('중학교') ? 'gwangsi' : 'yesan'}` : auth.currentUser.uid
+      await setDoc(doc(db, 'preferenceResults', resultId), {
         userId: auth.currentUser.uid,
-        schoolName,
+        schoolName: activeSchoolName,
         displayName: studentName,
         responses,
         questionDuration,
@@ -810,7 +832,7 @@ function SecondActivityDetail({ step, schoolName, studentName, viewerMode, maste
         },
         updatedAt: serverTimestamp(),
       })
-      setSavedResult({ id: auth.currentUser.uid, displayName: studentName, schoolName, responses, coreLikes, coreDislikes, reflection: reflection.trim() })
+      setSavedResult({ id: resultId, displayName: studentName, schoolName: activeSchoolName, responses, coreLikes, coreDislikes, reflection: reflection.trim() })
       setResultSaveState('saved')
     } catch (error) {
       console.error(error)
@@ -820,16 +842,19 @@ function SecondActivityDetail({ step, schoolName, studentName, viewerMode, maste
 
   useEffect(() => {
     if (!db || !auth?.currentUser || step !== 2) return
-    if (viewerMode === 'student') {
-      void getDoc(doc(db, 'preferenceResults', auth.currentUser.uid)).then((snapshot) => {
+    setSavedResult(null)
+    if (isPreferenceGameMode) {
+      const resultId = viewerMode === 'mentor' ? `${auth.currentUser.uid}_mentor_${activeSchoolName.includes('중학교') ? 'gwangsi' : 'yesan'}` : auth.currentUser.uid
+      void getDoc(doc(db, 'preferenceResults', resultId)).then((snapshot) => {
         if (snapshot.exists()) setSavedResult({ id: snapshot.id, ...(snapshot.data() as Omit<PreferenceResult, 'id'>) })
       }).catch((error) => console.error(error))
       return
     }
     setResultsLoading(true)
-    const source = viewerMode === 'school' ? query(collection(db, 'preferenceResults'), where('schoolName', '==', schoolName)) : collection(db, 'preferenceResults')
+    const mentorFilteredSchool = viewerMode === 'mentor' && mentorPreferenceMode === 'yesan' ? '예산고등학교' : viewerMode === 'mentor' && mentorPreferenceMode === 'gwangsi' ? '광시중학교' : ''
+    const source = viewerMode === 'school' ? query(collection(db, 'preferenceResults'), where('schoolName', '==', schoolName)) : mentorFilteredSchool ? query(collection(db, 'preferenceResults'), where('schoolName', '==', mentorFilteredSchool)) : collection(db, 'preferenceResults')
     void getDocs(source).then((snapshot) => setGroupResults(snapshot.docs.map((item) => ({ id: item.id, ...(item.data() as Omit<PreferenceResult, 'id'>) })))).catch((error) => console.error(error)).finally(() => setResultsLoading(false))
-  }, [step, schoolName, viewerMode])
+  }, [step, schoolName, activeSchoolName, viewerMode, mentorPreferenceMode, isPreferenceGameMode])
 
   useEffect(() => {
     if (!gameStarted || isGameComplete || step !== 2 || !currentQuestion || isPaused) return
@@ -870,9 +895,10 @@ function SecondActivityDetail({ step, schoolName, studentName, viewerMode, maste
           <div className="mentor-note"><b>기억해요</b><p>활동 결과는 성격이나 직업을 판정하지 않아요. 선택한 이유와 경험을 편안하게 이야기해 주세요.</p></div>
         </section>}
 
-        {step === 2 && viewerMode !== 'student' && <section className="detail-panel preference-results-board"><div className="detail-heading"><span>지도자용 결과</span><h2>{viewerMode === 'school' ? `${schoolName} 좋아·싫어 결과` : '전체 좋아·싫어 결과'}</h2><p>제출된 전체 좋아·싫어 응답을 모아 확인하고, 학생이 고른 핵심 활동도 구분해서 볼 수 있어요.</p></div>{resultsLoading ? <div className="empty-activity-note"><p>결과를 불러오는 중이에요.</p></div> : groupResults.length ? <><div className="result-overview"><article><small>제출 인원</small><b>{groupResults.length}명</b></article><article><small>핵심 좋아 활동</small><b>{groupResults.reduce((sum, result) => sum + (result.coreLikes?.length ?? 0), 0)}개</b></article><article><small>핵심 싫어 활동</small><b>{groupResults.reduce((sum, result) => sum + (result.coreDislikes?.length ?? 0), 0)}개</b></article></div><div className="wordcloud-columns">{(['coreLikes', 'coreDislikes'] as const).map((key) => { const counts = wordCloudCounts(key); return <section key={key}><h3>{key === 'coreLikes' ? '👍 좋아 워드클라우드' : '👎 싫어 워드클라우드'}</h3><div className="wordcloud">{Object.entries(counts).sort((a, b) => b[1] - a[1]).map(([word, count]) => <span style={{ fontSize: `${Math.min(36, 8 + count * 7)}px` }} key={word}>{word}<small>{count}</small></span>)}</div></section> })}</div><div className="student-result-list"><h3>학생별 제출 결과</h3>{groupResults.map((result) => <article key={result.id}><b>{result.displayName || '이름 미입력'}</b><small>{result.schoolName}</small><div className="student-answer-group"><strong>👍 좋아</strong>{resultQuestions(result, 'like').map((question) => <span className={(result.coreLikes ?? []).includes(question) ? 'core-answer' : ''} key={question}>{question}{(result.coreLikes ?? []).includes(question) && <em>핵심 선택</em>}</span>)}</div><div className="student-answer-group"><strong>👎 싫어</strong>{resultQuestions(result, 'dislike').map((question) => <span className={(result.coreDislikes ?? []).includes(question) ? 'core-answer' : ''} key={question}>{question}{(result.coreDislikes ?? []).includes(question) && <em>핵심 선택</em>}</span>)}</div>{result.reflection && <blockquote>{result.reflection}</blockquote>}</article>)}</div></> : <div className="empty-activity-note"><h2>아직 제출된 결과가 없어요</h2><p>학생들이 결과를 제출하면 이곳에 표시돼요.</p></div>}</section>}
+        {step === 2 && !isPreferenceGameMode && <section className="detail-panel preference-results-board"><div className="detail-heading"><span>지도자용 결과</span><h2>{viewerMode === 'school' ? `${schoolName} 좋아·싫어 결과` : viewerMode === 'mentor' && mentorPreferenceMode === 'yesan' ? '예산고등학교 좋아·싫어 결과' : viewerMode === 'mentor' && mentorPreferenceMode === 'gwangsi' ? '광시중학교 좋아·싫어 결과' : '전체 좋아·싫어 결과'}</h2><p>제출된 전체 좋아·싫어 응답을 모아 확인하고, 학생이 고른 핵심 활동도 구분해서 볼 수 있어요.</p></div>{viewerMode === 'mentor' && <div className="mentor-result-tabs"><button type="button" className={mentorPreferenceMode === 'all' ? 'active' : ''} onClick={() => changeMentorPreferenceMode('all')}>전체 결과</button><button type="button" className={mentorPreferenceMode === 'yesan' ? 'active' : ''} onClick={() => changeMentorPreferenceMode('yesan')}>예산고 결과</button><button type="button" className={mentorPreferenceMode === 'gwangsi' ? 'active' : ''} onClick={() => changeMentorPreferenceMode('gwangsi')}>광시중 결과</button><button type="button" onClick={() => changeMentorPreferenceMode('practice-yesan')}>예산고 문항 직접 하기</button><button type="button" onClick={() => changeMentorPreferenceMode('practice-gwangsi')}>광시중 문항 직접 하기</button></div>}{resultsLoading ? <div className="empty-activity-note"><p>결과를 불러오는 중이에요.</p></div> : groupResults.length ? <><div className="result-overview"><article><small>제출 인원</small><b>{groupResults.length}명</b></article><article><small>핵심 좋아 활동</small><b>{groupResults.reduce((sum, result) => sum + (result.coreLikes?.length ?? 0), 0)}개</b></article><article><small>핵심 싫어 활동</small><b>{groupResults.reduce((sum, result) => sum + (result.coreDislikes?.length ?? 0), 0)}개</b></article></div><div className="wordcloud-columns">{(['coreLikes', 'coreDislikes'] as const).map((key) => { const counts = wordCloudCounts(key); return <section key={key}><h3>{key === 'coreLikes' ? '👍 좋아 워드클라우드' : '👎 싫어 워드클라우드'}</h3><div className="wordcloud">{Object.entries(counts).sort((a, b) => b[1] - a[1]).map(([word, count]) => <span style={{ fontSize: `${Math.min(36, 8 + count * 7)}px` }} key={word}>{word}<small>{count}</small></span>)}</div></section> })}</div><div className="student-result-list"><h3>학생별 제출 결과</h3>{groupResults.map((result) => <article key={result.id}><b>{result.displayName || '이름 미입력'}</b><small>{result.schoolName}</small><div className="student-answer-group"><strong>👍 좋아</strong>{resultQuestions(result, 'like').map((question) => <span className={(result.coreLikes ?? []).includes(question) ? 'core-answer' : ''} key={question}>{question}{(result.coreLikes ?? []).includes(question) && <em>핵심 선택</em>}</span>)}</div><div className="student-answer-group"><strong>👎 싫어</strong>{resultQuestions(result, 'dislike').map((question) => <span className={(result.coreDislikes ?? []).includes(question) ? 'core-answer' : ''} key={question}>{question}{(result.coreDislikes ?? []).includes(question) && <em>핵심 선택</em>}</span>)}</div>{result.reflection && <blockquote>{result.reflection}</blockquote>}</article>)}</div></> : <div className="empty-activity-note"><h2>아직 제출된 결과가 없어요</h2><p>학생들이 결과를 제출하면 이곳에 표시돼요.</p></div>}</section>}
 
-        {step === 2 && viewerMode === 'student' && <section className="detail-panel preference-game">
+        {step === 2 && isPreferenceGameMode && <section className="detail-panel preference-game">
+          {viewerMode === 'mentor' && <div className="mentor-practice-bar"><div><b>{activeSchoolName} 문항으로 직접 진행 중</b><span>멘토 계정에도 실제 결과가 저장됩니다.</span></div><button type="button" onClick={() => changeMentorPreferenceMode('all')}>결과 화면으로 돌아가기</button></div>}
           {savedResult && !gameStarted && <div className="saved-result-preview"><b>저장된 나의 결과</b><p>👍 {(savedResult.coreLikes ?? []).join(', ') || '핵심 좋아 활동 미선택'}</p><p>👎 {(savedResult.coreDislikes ?? []).join(', ') || '핵심 싫어 활동 미선택'}</p>{savedResult.reflection && <span>{savedResult.reflection}</span>}</div>}
           {!gameStarted && <div className="game-intro"><span className="game-symbol">👍 👎</span><h2>좋아! 싫어!</h2><p>화면에 나타나는 활동을 하나씩 보고,<br />지금 내 생각과 가장 가까운 답을 빠르게 선택해 보세요.</p><div className="rule-cards"><article><b>1</b><h3>한 번에 한 문항</h3><p>앞 문항으로 돌아가지 않고 지금의 느낌대로 골라요.</p></article><article><b>2</b><h3>세 가지 답변</h3><p>좋아, 그저 그래, 싫어 중 하나를 선택해요.</p></article><article><b>3</b><h3>시간이 지나면</h3><p>응답하지 못한 문항은 자동으로 ‘고민돼요’가 돼요.</p></article></div><fieldset className="duration-picker"><legend>문항당 답변 시간</legend><p>나에게 맞는 속도를 선택하세요.</p><div>{([5, 7, 10] as const).map((seconds) => <button type="button" className={questionDuration === seconds ? 'selected' : ''} onClick={() => setQuestionDuration(seconds)} key={seconds}><b>{seconds}</b>초</button>)}</div></fieldset><div className="game-rules"><span>총 24문항</span><span>선택에는 정답이 없어요</span><span>진행 중 일시정지 가능</span></div><button type="button" onClick={() => { setRemainingMs(questionDuration * 1000); setGameStarted(true) }}>시작하기 →</button></div>}
           {gameStarted && !isGameComplete && area && <div className="question-stage">
@@ -889,7 +915,7 @@ function SecondActivityDetail({ step, schoolName, studentName, viewerMode, maste
               <p>{questionDuration}초 안에 선택하지 않으면 <b>🤔 고민돼요</b>로 기록하고 다음 질문으로 넘어가요.</p>
             </article>
           </div>}
-          {gameStarted && isGameComplete && <div className="preference-summary"><span className="complete-symbol">✓</span><h2>24개 선택을 모두 마쳤어요!</h2><p>좋아·싫어 목록에서 나를 가장 잘 보여주는 활동을 각각 최대 3개 골라 주세요. <b>고민돼요 {selectedQuestions('unsure').length}개</b></p><div className="summary-columns core-selection"><div><h3>👍 핵심 좋아! <small>{coreLikes.length}/3</small></h3>{selectedQuestions('like').length ? <ul>{selectedQuestions('like').map((question) => <li key={question}><button type="button" className={coreLikes.includes(question) ? 'selected' : ''} onClick={() => toggleCore(question, 'like')}>{coreLikes.includes(question) ? '✓ ' : ''}{question}</button></li>)}</ul> : <p>선택한 항목이 없어요.</p>}</div><div><h3>👎 핵심 싫어! <small>{coreDislikes.length}/3</small></h3>{selectedQuestions('dislike').length ? <ul>{selectedQuestions('dislike').map((question) => <li key={question}><button type="button" className={coreDislikes.includes(question) ? 'selected' : ''} onClick={() => toggleCore(question, 'dislike')}>{coreDislikes.includes(question) ? '✓ ' : ''}{question}</button></li>)}</ul> : <p>선택한 항목이 없어요.</p>}</div></div><label className="preference-reflection">선택을 통해 새롭게 알게 된 나<textarea value={reflection} onChange={(event) => setReflection(event.target.value)} maxLength={400} placeholder="왜 이 활동을 좋아하거나 싫어하는지, 떠오르는 경험과 함께 적어 보세요." /></label><div className="personal-result-card"><b>{studentName}님의 선호 발견</b><p>나는 <strong>{coreLikes.join(', ') || '선택한 활동'}</strong>을 좋아하고, <strong>{coreDislikes.join(', ') || '선택한 활동'}</strong>은 별로 좋아하지 않아요.</p>{reflection && <span>{reflection}</span>}</div><div className="result-save-notice"><b>계정당 하나의 결과만 저장돼요.</b><p>이전에 제출한 결과가 있다면 이번 결과로 덮어씌워집니다.</p></div>{resultSaveState === 'saved' && <p className="save-message success" role="status">✓ 결과가 저장됐어요.</p>}{resultSaveState === 'error' && <p className="save-message error" role="alert">결과를 저장하지 못했어요. 잠시 후 다시 시도해 주세요.</p>}<div className="result-actions"><button type="button" className="restart-button" onClick={() => { setResponses({}); setCoreLikes([]); setCoreDislikes([]); setReflection(''); setAreaIndex(0); setQuestionIndex(0); setIsPaused(false); setResultSaveState('idle'); setGameStarted(false) }}>다시 하기</button><button type="button" className="submit-result-button" disabled={resultSaveState === 'saving' || (!coreLikes.length && !coreDislikes.length)} onClick={submitPreferenceResult}>{resultSaveState === 'saving' ? '저장하는 중…' : resultSaveState === 'saved' ? '결과 다시 제출하기' : '결과 제출하기'}</button><button type="button" className="home-result-button" onClick={onHome}>홈으로</button></div></div>}
+          {gameStarted && isGameComplete && <div className="preference-summary"><span className="complete-symbol">✓</span><h2>24개 선택을 모두 마쳤어요!</h2><p>좋아·싫어 목록에서 나를 가장 잘 보여주는 활동을 각각 최대 3개 골라 주세요. <b>고민돼요 {selectedQuestions('unsure').length}개</b></p><div className="summary-columns core-selection"><div><h3>👍 핵심 좋아! <small>{coreLikes.length}/3</small></h3>{selectedQuestions('like').length ? <ul>{selectedQuestions('like').map((question) => <li key={question}><button type="button" className={coreLikes.includes(question) ? 'selected' : ''} onClick={() => toggleCore(question, 'like')}>{coreLikes.includes(question) ? '✓ ' : ''}{question}</button></li>)}</ul> : <p>선택한 항목이 없어요.</p>}</div><div><h3>👎 핵심 싫어! <small>{coreDislikes.length}/3</small></h3>{selectedQuestions('dislike').length ? <ul>{selectedQuestions('dislike').map((question) => <li key={question}><button type="button" className={coreDislikes.includes(question) ? 'selected' : ''} onClick={() => toggleCore(question, 'dislike')}>{coreDislikes.includes(question) ? '✓ ' : ''}{question}</button></li>)}</ul> : <p>선택한 항목이 없어요.</p>}</div></div><label className="preference-reflection">선택을 통해 새롭게 알게 된 나<textarea value={reflection} onChange={(event) => setReflection(event.target.value)} maxLength={400} placeholder="왜 이 활동을 좋아하거나 싫어하는지, 떠오르는 경험과 함께 적어 보세요." /></label><div className="personal-result-card"><b>{studentName}님의 선호 발견</b><p>나는 <strong>{coreLikes.join(', ') || '선택한 활동'}</strong>을 좋아하고, <strong>{coreDislikes.join(', ') || '선택한 활동'}</strong>은 별로 좋아하지 않아요.</p>{reflection && <span>{reflection}</span>}</div><div className="result-save-notice"><b>{viewerMode === 'mentor' ? `${activeSchoolName} 문항 결과로 저장돼요.` : '계정당 하나의 결과만 저장돼요.'}</b><p>{viewerMode === 'mentor' ? '멘토님이 직접 진행한 결과이며, 학생 결과와 함께 지도자용 화면에서 확인됩니다.' : '이전에 제출한 결과가 있다면 이번 결과로 덮어씌워집니다.'}</p></div>{resultSaveState === 'saved' && <p className="save-message success" role="status">✓ 결과가 저장됐어요.</p>}{resultSaveState === 'error' && <p className="save-message error" role="alert">결과를 저장하지 못했어요. 잠시 후 다시 시도해 주세요.</p>}<div className="result-actions"><button type="button" className="restart-button" onClick={resetPreferenceGame}>다시 하기</button><button type="button" className="submit-result-button" disabled={resultSaveState === 'saving' || (!coreLikes.length && !coreDislikes.length)} onClick={submitPreferenceResult}>{resultSaveState === 'saving' ? '저장하는 중…' : resultSaveState === 'saved' ? '결과 다시 제출하기' : '결과 제출하기'}</button><button type="button" className="home-result-button" onClick={viewerMode === 'mentor' ? () => changeMentorPreferenceMode('all') : onHome}>{viewerMode === 'mentor' ? '결과 화면으로' : '홈으로'}</button></div></div>}
         </section>}
 
         {step === 3 && <section className="detail-panel auction-panel"><StrengthAuctionGame studentName={studentName} /></section>}
@@ -1654,7 +1680,7 @@ function App() {
 
   if (activeSession === 2 && sessionPageMode === 'activity' && activeSecondActivity) {
     const normalizedName = name.trim().replaceAll(' ', '')
-    const viewerMode = isMasterStudentView ? 'student' : isAdminMode || isMentorMode ? 'all' : isTeacherMode || normalizedName === '예산고' || normalizedName === '광시중' ? 'school' : 'student'
+    const viewerMode = isMasterStudentView ? 'student' : isAdminMode ? 'all' : isMentorMode ? 'mentor' : isTeacherMode || normalizedName === '예산고' || normalizedName === '광시중' ? 'school' : 'student'
     return <SecondActivityDetail step={activeSecondActivity} schoolName={viewSchoolName} studentName={viewDisplayName} viewerMode={viewerMode} masterViewLabel={masterViewLabel} onLeave={leave} onHome={goDashboard} />
   }
 
