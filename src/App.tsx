@@ -151,7 +151,7 @@ function AccessQrModal({ onClose }: { onClose: () => void }) {
   return <div className="qr-modal-backdrop" onClick={(event) => { if (event.target === event.currentTarget) onClose() }}><section className="qr-modal" role="dialog" aria-modal="true" aria-labelledby="qr-modal-title"><button type="button" className="qr-modal-close" onClick={onClose} aria-label="QR 팝업 닫기">×</button><span>청·사·진 바로가기</span><h2 id="qr-modal-title">접속 QR</h2><p>휴대폰 카메라로 QR을 인식해 접속해 주세요.</p><img src={accessQrImage} alt="청·사·진 홈페이지 접속 QR 코드" /></section></div>
 }
 
-function ProfileEditor({ kind, displayName, schoolName, existing, onSave }: { kind: 'student' | 'mentor'; displayName: string; schoolName: string; existing?: MentorProfile; onSave: (profile: ProfilePayload) => Promise<void> }) {
+function ProfileEditor({ kind, displayName, schoolName, existing, onSave }: { kind: 'student' | 'mentor'; displayName: string; schoolName: string; existing?: Partial<ProfilePayload> & { university?: string; major?: string; careerStory?: string }; onSave: (profile: ProfilePayload) => Promise<void> }) {
   const [introduction, setIntroduction] = useState('')
   const [interests, setInterests] = useState('')
   const [hopeJob, setHopeJob] = useState('')
@@ -166,6 +166,8 @@ function ProfileEditor({ kind, displayName, schoolName, existing, onSave }: { ki
 
   useEffect(() => {
     if (!existing) return
+    setIntroduction(existing.introduction ?? '')
+    setHopeJob(existing.hopeJob ?? '')
     setOneLineIntro(existing.oneLineIntro ?? '')
     setSchoolMajor(existing.schoolMajor ?? [existing.university, existing.major].filter(Boolean).join(' / '))
     setInterests(existing.interests ?? '')
@@ -175,6 +177,17 @@ function ProfileEditor({ kind, displayName, schoolName, existing, onSave }: { ki
     setStrengths(existing.strengths ?? '')
     setMessage(existing.message ?? existing.introduction ?? '')
   }, [existing])
+
+  useEffect(() => {
+    if (kind !== 'student' || existing || !db || !auth?.currentUser) return
+    void getDoc(doc(db, 'studentProfiles', auth.currentUser.uid)).then((snapshot) => {
+      if (!snapshot.exists()) return
+      const profile = snapshot.data() as Partial<ProfilePayload>
+      setIntroduction(profile.introduction ?? '')
+      setInterests(profile.interests ?? '')
+      setHopeJob(profile.hopeJob ?? '')
+    }).catch((error) => console.error(error))
+  }, [kind, existing])
 
   const submit = async (event: FormEvent) => {
     event.preventDefault()
@@ -193,6 +206,32 @@ function ProfileEditor({ kind, displayName, schoolName, existing, onSave }: { ki
     {kind === 'mentor' ? <div className="profile-field-grid mentor-fields"><label className="wide">1. 한 줄 소개 <small>나를 잘 보여주는 짧은 문장을 적어 주세요.</small><input value={oneLineIntro} onChange={(event) => setOneLineIntro(event.target.value)} maxLength={80} placeholder="예: 사람과 이야기를 좋아하는 사회복지학과 멘토입니다." /></label><label className="wide">2. 학교 / 학과(전공)<input value={schoolMajor} onChange={(event) => setSchoolMajor(event.target.value)} maxLength={100} placeholder="예: ○○대학교 / 사회복지학과" /></label><label className="wide">3. 나의 관심 분야 <small>전공 외 관심사도 가능해요.</small><input value={interests} onChange={(event) => setInterests(event.target.value)} maxLength={120} placeholder="예: 청소년 활동, 사진, 여행" /></label><label className="wide">4. 내가 이 전공을 선택한 이유 <small>한두 문장으로 적어 주세요.</small><textarea value={majorReason} onChange={(event) => setMajorReason(event.target.value)} maxLength={300} placeholder="이 전공에 관심을 갖게 된 계기를 적어 주세요." /></label><label className="wide">5. 요즘 내가 관심 있는 진로·직업<input value={careerInterests} onChange={(event) => setCareerInterests(event.target.value)} maxLength={150} placeholder="현재 관심 있게 알아보는 진로나 직업" /></label><label className="wide">6. 나의 대학생활 <small>동아리, 대외활동, 아르바이트, 취미 등을 자유롭게 적어 주세요.</small><textarea value={campusLife} onChange={(event) => setCampusLife(event.target.value)} maxLength={500} placeholder="대학생활에서 경험하고 있는 다양한 이야기를 들려주세요." /></label><label className="wide">7. 나의 강점 <small>3~4개 정도를 쉼표로 구분해 주세요.</small><input value={strengths} onChange={(event) => setStrengths(event.target.value)} maxLength={120} placeholder="예: 경청, 책임감, 도전정신, 친화력" /></label><label className="wide">8. 청소년들에게 해주고 싶은 말<textarea value={message} onChange={(event) => setMessage(event.target.value)} maxLength={300} placeholder="청소년들에게 전하고 싶은 한마디를 적어 주세요." /></label></div> : <div className="profile-field-grid"><label className="wide">나를 소개하는 한마디<textarea value={introduction} onChange={(event) => setIntroduction(event.target.value)} maxLength={240} placeholder="내가 좋아하는 것과 나의 특징을 적어 보세요." /></label><label>관심 분야<input value={interests} onChange={(event) => setInterests(event.target.value)} maxLength={80} placeholder="예: 그림, 운동, 과학" /></label><label>희망 진로<input value={hopeJob} onChange={(event) => setHopeJob(event.target.value)} maxLength={80} placeholder="아직 없다면 관심 직업도 좋아요." /></label></div>}
     <div className="profile-save-row"><button type="submit" disabled={saveState === 'saving'}>{saveState === 'saving' ? '저장하는 중…' : '프로필 저장하기'}</button>{saveState === 'saved' && <p role="status">✓ 프로필이 저장됐어요.</p>}{saveState === 'error' && <p className="error" role="alert">저장하지 못했어요. 잠시 후 다시 시도해 주세요.</p>}</div>
   </form>
+}
+
+function StudentActivityRecords({ preview = false }: { preview?: boolean }) {
+  const [preference, setPreference] = useState<PreferenceResult | null>(null)
+  const [auctions, setAuctions] = useState<AuctionResultRecord[]>([])
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
+
+  useEffect(() => {
+    if (preview) { setLoading(false); return }
+    if (!db || !auth?.currentUser) { setLoading(false); return }
+    const userId = auth.currentUser.uid
+    Promise.all([
+      getDoc(doc(db, 'preferenceResults', userId)),
+      getDocs(query(collection(db, 'auctionResults'), where('userId', '==', userId))),
+    ]).then(([preferenceSnapshot, auctionSnapshot]) => {
+      if (preferenceSnapshot.exists()) setPreference({ id: preferenceSnapshot.id, ...(preferenceSnapshot.data() as Omit<PreferenceResult, 'id'>) })
+      setAuctions(auctionSnapshot.docs.map((item) => ({ id: item.id, ...(item.data() as Omit<AuctionResultRecord, 'id'>) })).sort((left, right) => (right.savedAt?.toMillis?.() ?? 0) - (left.savedAt?.toMillis?.() ?? 0)))
+    }).catch((error) => {
+      console.error(error)
+      setLoadError('활동 기록을 불러오지 못했어요. 잠시 후 다시 열어 주세요.')
+    }).finally(() => setLoading(false))
+  }, [preview])
+
+  const rarity = (count: number) => count >= 3 ? 'EPIC' : count === 2 ? 'RARE' : 'NORMAL'
+  return <section className="student-activity-records"><div className="record-section-heading"><div><small>1~5회기</small><h2>활동 기록</h2></div><span>각 회기에서 저장한 결과가 여기에 차곡차곡 모여요.</span></div>{loading ? <div className="record-empty">활동 기록을 불러오는 중이에요.</div> : loadError ? <p className="entry-error" role="alert">{loadError}</p> : <div className="record-session-list"><article><div className="record-card-title"><span>👋</span><div><small>1회기</small><h3>첫 만남 및 진로·직업 이해</h3></div><b className="record-ready">활동 참여</b></div><p>청·사·진을 알아보고 멘토와 만나 진로와 직업의 의미를 탐색했어요.</p></article><article className="second-session-record"><div className="record-card-title"><span>✨</span><div><small>2회기</small><h3>선호·강점 탐색</h3></div><b className={preference || auctions.length ? 'record-saved' : ''}>{preference || auctions.length ? '기록 있음' : '기록 없음'}</b></div><div className="second-session-record-grid"><section><h4>👍 좋아! 싫어!</h4>{preference ? <><dl><dt>핵심 좋아</dt><dd>{(preference.coreLikes ?? []).join(', ') || '미선택'}</dd><dt>핵심 싫어</dt><dd>{(preference.coreDislikes ?? []).join(', ') || '미선택'}</dd></dl>{preference.reflection && <p>{preference.reflection}</p>}</> : <p>활동 결과를 저장하면 확인할 수 있어요.</p>}</section><section><h4>🔨 강점 경매장</h4>{auctions.length ? <div className="compact-auction-records">{auctions.map((record) => <div key={record.id}><header><strong>{record.selectedJob || '직업 미기록'}</strong><small>{record.savedAt?.toMillis ? new Date(record.savedAt.toMillis()).toLocaleDateString('ko-KR') : '저장일 확인 중'}</small></header><p>남은 포인트 {record.balance}P</p><ul>{Object.entries(record.inventory ?? {}).map(([strength, count]) => <li key={strength}>{strength} <b className={`rarity-${rarity(count).toLowerCase()}`}>{rarity(count)}</b></li>)}</ul></div>)}</div> : <p>경매 결과를 저장하면 확인할 수 있어요.</p>}</section></div></article>{sessionTemplates.slice(2).map((session) => <article className="future-record" key={session.number}><div className="record-card-title"><span>{session.icon}</span><div><small>{session.number}회기</small><h3>{session.title}</h3></div><b>기록 없음</b></div><p>{session.subtitle}</p><small>활동을 완료하고 결과를 저장하면 이곳에 표시됩니다.</small></article>)}</div>}</section>
 }
 
 type AuctionPhase = 'lobby' | 'waiting' | 'voting' | 'countdown' | 'auction' | 'sold' | 'result'
@@ -1331,7 +1370,7 @@ function App() {
       <main className="guide-detail-page">
         <button className="back-button" type="button" onClick={() => window.history.back()}>← 나의 활동실로</button>
         {activeGuide === 'program' && <><section className="guide-detail-hero blue"><span>🗺️</span><div><small>프로그램 안내</small><h1>청사진이란?</h1><p>청소년의 가능성을 발견하고 미래의 모습을 구체적으로 그려 가는 진로 멘토링 여정이에요.</p></div></section><section className="guide-content-card"><h2>청·사·진의 의미</h2><p><b>청소년의 사기진작 진로멘토링</b>의 줄임말로, 내가 좋아하는 것과 잘하는 것을 찾고 다양한 직업과 진로를 탐색하는 프로그램이에요.</p><div className="program-journey"><article><b>1</b><h3>서로 만나기</h3><p>멘토와 인사하고 진로와 직업의 의미를 알아봐요.</p></article><article><b>2</b><h3>나를 발견하기</h3><p>선호와 강점을 탐색하고 직업과 역량의 관계를 살펴봐요.</p></article><article><b>3</b><h3>진로 역량 갖추기</h3><p>관심 직업의 실제 업무를 비교하고 AI 채용면접을 경험해요.</p></article><article><b>4</b><h3>직업 탐색</h3><p>전문강사와 함께 다양한 진로와 직업 관점을 넓혀요.</p></article><article><b>5</b><h3>나만의 청사진</h3><p>Notion 미래 포트폴리오로 나의 미래를 정리해요.</p></article></div></section></>}
-        {activeGuide === 'profile' && <><section className="guide-detail-hero green"><span>👤</span><div><small>{isMasterStudentView || (!isMentorMode && !isAdminMode) ? '나의 정보' : '멘토 정보'}</small><h1>{isMasterStudentView || (!isMentorMode && !isAdminMode) ? '학생 프로필 작성' : '멘토 프로필 작성'}</h1><p>{isMasterStudentView || (!isMentorMode && !isAdminMode) ? '관심 분야와 희망 진로를 기록하고 나의 변화를 쌓아 가요.' : '작성한 내용은 멘토 소개 화면에 표시돼요.'}</p></div></section><section className="guide-content-card"><ProfileEditor kind={isMasterStudentView || (!isMentorMode && !isAdminMode) ? 'student' : 'mentor'} displayName={viewDisplayName} schoolName={viewSchoolName} existing={isMasterStudentView ? undefined : isMentorMode || isAdminMode ? ownMentorProfile : undefined} onSave={saveProfile} /></section></>}
+        {activeGuide === 'profile' && <>{isMasterStudentView || (!isMentorMode && !isAdminMode) ? <><section className="guide-detail-hero green"><span>📚</span><div><small>나의 정보와 활동</small><h1>나의 기록</h1><p>프로필을 작성하고 1회기부터 5회기까지 나의 활동 결과를 모아 봐요.</p></div></section><section className="guide-content-card"><div className="student-profile-heading"><small>나의 정보</small><h2>프로필 작성</h2><p>나를 소개하고 관심 분야와 희망 진로를 기록해요.</p></div><ProfileEditor kind="student" displayName={viewDisplayName} schoolName={viewSchoolName} onSave={saveProfile} /></section><StudentActivityRecords preview={isMasterStudentView} /></> : <><section className="guide-detail-hero green"><span>👤</span><div><small>멘토 정보</small><h1>멘토 프로필 작성</h1><p>작성한 내용은 멘토 소개 화면에 표시돼요.</p></div></section><section className="guide-content-card"><ProfileEditor kind="mentor" displayName={viewDisplayName} schoolName={viewSchoolName} existing={ownMentorProfile} onSave={saveProfile} /></section></>}</>}
         {activeGuide === 'mentors' && <><section className="guide-detail-hero orange"><span>🤝</span><div><small>함께하는 사람</small><h1>멘토 소개</h1><p>청·사·진의 여정을 함께할 멘토들의 전공과 진로 이야기를 만나 보세요.</p></div></section><section className="guide-content-card"><div className="mentor-page-heading"><div><h2>우리의 멘토</h2><p>멘토가 프로필을 저장하면 이곳에 바로 표시돼요.</p></div>{!isMasterStudentView && (isMentorMode || isAdminMode) && <button type="button" onClick={() => openGuide('profile')}>내 멘토 프로필 작성 →</button>}</div>{mentorProfiles.length ? <div className="mentor-profile-grid">{mentorProfiles.map((profile) => { const schoolMajor = profile.schoolMajor || [profile.university, profile.major].filter(Boolean).join(' / '); const message = profile.message || profile.introduction; return <article key={profile.id}><div className="mentor-avatar">{profile.displayName.slice(0, 1)}</div><small>{schoolMajor || '학교와 전공을 준비 중이에요'}</small><h2>{profile.displayName} 멘토</h2><p className="mentor-one-line">{profile.oneLineIntro || '한 줄 소개를 준비하고 있어요.'}</p><dl className="mentor-profile-details">{profile.interests && <><dt>관심 분야</dt><dd>{profile.interests}</dd></>}{profile.majorReason && <><dt>전공 선택 이유</dt><dd>{profile.majorReason}</dd></>}{profile.careerInterests && <><dt>관심 진로·직업</dt><dd>{profile.careerInterests}</dd></>}{profile.campusLife && <><dt>대학생활</dt><dd>{profile.campusLife}</dd></>}{profile.strengths && <><dt>나의 강점</dt><dd>{profile.strengths}</dd></>}{!profile.campusLife && profile.careerStory && <><dt>나의 진로 이야기</dt><dd>{profile.careerStory}</dd></>}{message && <><dt>전하고 싶은 말</dt><dd>{message}</dd></>}</dl></article> })}</div> : <div className="empty-mentor-list"><span>🤝</span><h2>멘토 소개를 준비하고 있어요</h2><p>멘토가 프로필을 작성하면 이곳에서 확인할 수 있어요.</p></div>}</section></>}
         {activeGuide === 'center' && <><section className="guide-detail-hero purple"><span>🏫</span><div><small>운영기관 안내</small><h1>예산군청소년수련관 소개</h1><p>청소년의 꿈과 끼를 펼치고, 청소년이 직접 활동을 기획하며 함께 성장하는 열린 공간이에요.</p></div></section><section className="guide-content-card center-intro"><div><span className="center-opened">2013년 12월 개관</span><h2>예산군 최초의 청소년 전용 공간</h2><p>예산군청소년수련관은 미래를 이끌어 갈 청소년을 위해 다양한 활동과 쾌적한 이용 공간을 제공하고 있어요. 청소년의 작은 목소리에도 귀 기울이며, 청소년이 함께 운영하고 기획하는 활동과 복지를 지원합니다.</p></div><div className="center-values"><article><span>🎨</span><h3>청소년활동</h3><p>연간 프로그램과 특별 프로그램, 청소년수련활동인증제 등 다양한 경험을 만나요.</p></article><article><span>🙋</span><h3>청소년참여</h3><p>청소년운영위원회, 참여위원회, 어울림마당기획단과 동아리에서 직접 목소리를 내요.</p></article><article><span>🌱</span><h3>꿈과 성장</h3><p>문화·진로·체험과 건전한 여가활동을 통해 나의 가능성과 꿈을 키워요.</p></article></div><div className="center-info"><div><b>운영시간</b><span>화~금 09:00~21:00<br />토·일 09:00~18:00</span></div><div><b>휴관일</b><span>월요일 및 공휴일</span></div><div><b>문의</b><a href="tel:041-331-8228">041-331-8228</a></div></div><div className="center-links"><a href="http://www.yesanyouth.or.kr/main_sub/sub.php?folder_idx=2&folder_page_idx=69" target="_blank" rel="noreferrer">수련관 홈페이지 ↗</a><a href="http://www.yesanyouth.or.kr/edu/edu_list.php?folder_idx=2&folder_page_idx=40" target="_blank" rel="noreferrer">프로그램 접수 ↗</a></div><div className="center-contact"><b>청·사·진 운영</b><span>예산군청소년수련관</span></div></section></>}
       </main>
@@ -1493,7 +1532,7 @@ function App() {
         </section>
         <section className="dashboard-guide" aria-label="청사진 안내 메뉴">
           <button type="button" onClick={() => openGuide('program')}><span className="guide-icon blue">🗺️</span><div><small>프로그램 안내</small><h2>청사진이란?</h2><p>청·사·진의 의미와 전체 활동 여정을 알아봐요.</p></div><b>→</b></button>
-          <button type="button" onClick={() => openGuide('profile')}><span className="guide-icon green">👤</span><div><small>{isMasterStudentView || (!isMentorMode && !isAdminMode) ? '나의 정보' : '멘토 정보'}</small><h2>{isMasterStudentView || (!isMentorMode && !isAdminMode) ? '프로필 작성' : '멘토 프로필 작성'}</h2><p>{isMasterStudentView || (!isMentorMode && !isAdminMode) ? '나를 소개하고 관심 분야와 희망 진로를 기록해요.' : '멘토 소개 화면에 표시할 내 정보를 작성해요.'}</p></div><b>→</b></button>
+          <button type="button" onClick={() => openGuide('profile')}><span className="guide-icon green">{isMasterStudentView || (!isMentorMode && !isAdminMode) ? '📚' : '👤'}</span><div><small>{isMasterStudentView || (!isMentorMode && !isAdminMode) ? '나의 정보와 활동' : '멘토 정보'}</small><h2>{isMasterStudentView || (!isMentorMode && !isAdminMode) ? '나의 기록' : '멘토 프로필 작성'}</h2><p>{isMasterStudentView || (!isMentorMode && !isAdminMode) ? '프로필과 1~5회기 활동 결과를 한곳에서 확인해요.' : '멘토 소개 화면에 표시할 내 정보를 작성해요.'}</p></div><b>→</b></button>
           <button type="button" onClick={() => openGuide('mentors')}><span className="guide-icon orange">🤝</span><div><small>함께하는 사람</small><h2>멘토 소개</h2><p>이번 여정을 함께할 대학생 멘토를 만나봐요.</p></div><b>→</b></button>
           <button type="button" onClick={() => openGuide('center')}><span className="guide-icon purple">🏫</span><div><small>운영기관 안내</small><h2>예산군청소년수련관 소개</h2><p>청소년의 성장과 활동을 지원하는 공간을 알아봐요.</p></div><b>→</b></button>
         </section>
