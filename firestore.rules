@@ -114,8 +114,9 @@ service cloud.firestore {
             || (get(/databases/$(database)/documents/staffSessions/$(request.auth.uid)).data.role == 'mentor'
               && get(/databases/$(database)/documents/staffSessions/$(request.auth.uid)).data.accountNumber == resource.data.mentorId))));
       allow update: if hasActiveStaffSession()
-        && get(/databases/$(database)/documents/staffSessions/$(request.auth.uid)).data.role == 'mentor'
-        && get(/databases/$(database)/documents/staffSessions/$(request.auth.uid)).data.accountNumber == resource.data.mentorId
+        && (get(/databases/$(database)/documents/staffSessions/$(request.auth.uid)).data.role == 'admin'
+          || (get(/databases/$(database)/documents/staffSessions/$(request.auth.uid)).data.role == 'mentor'
+            && get(/databases/$(database)/documents/staffSessions/$(request.auth.uid)).data.accountNumber == resource.data.mentorId))
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'readAt'])
         && request.resource.data.status == 'read';
       allow delete: if false;
