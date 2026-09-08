@@ -1654,7 +1654,7 @@ function App() {
 
   if (activeSession === 2 && sessionPageMode === 'activity' && activeSecondActivity) {
     const normalizedName = name.trim().replaceAll(' ', '')
-    const viewerMode = isMasterStudentView ? 'student' : isAdminMode ? 'all' : isTeacherMode || normalizedName === '예산고' || normalizedName === '광시중' ? 'school' : 'student'
+    const viewerMode = isMasterStudentView ? 'student' : isAdminMode || isMentorMode ? 'all' : isTeacherMode || normalizedName === '예산고' || normalizedName === '광시중' ? 'school' : 'student'
     return <SecondActivityDetail step={activeSecondActivity} schoolName={viewSchoolName} studentName={viewDisplayName} viewerMode={viewerMode} masterViewLabel={masterViewLabel} onLeave={leave} onHome={goDashboard} />
   }
 
