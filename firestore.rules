@@ -95,6 +95,27 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    match /mentorQuestions/{questionId} {
+      allow create: if signedIn()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.studentName is string
+        && request.resource.data.studentName.size() > 0
+        && request.resource.data.studentName.size() <= 30
+        && request.resource.data.schoolName in ['예산고등학교', '광시중학교']
+        && request.resource.data.mentorId is string
+        && request.resource.data.mentorId.size() > 0
+        && request.resource.data.question is string
+        && request.resource.data.question.size() > 0
+        && request.resource.data.question.size() <= 500
+        && request.resource.data.status == 'waiting';
+      allow read: if signedIn() && (resource.data.userId == request.auth.uid
+        || (hasActiveStaffSession()
+          && (get(/databases/$(database)/documents/staffSessions/$(request.auth.uid)).data.role == 'admin'
+            || (get(/databases/$(database)/documents/staffSessions/$(request.auth.uid)).data.role == 'mentor'
+              && get(/databases/$(database)/documents/staffSessions/$(request.auth.uid)).data.accountNumber == resource.data.mentorId))));
+      allow update, delete: if false;
+    }
+
     match /mentorProfiles/{accountNumber} {
       allow read: if signedIn();
       allow create, update: if signedIn()
