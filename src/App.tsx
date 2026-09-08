@@ -97,6 +97,15 @@ const preferenceAreas: PreferenceArea[] = [
   { id: 'organizing', tag: 'C', title: '계획하고 정리하기', icon: '🗂️', guide: '계획을 세우고 꼼꼼하게 정리하는 활동에 대해 나는 어떻게 느끼나요?', questions: ['해야 할 일을 순서대로 계획하기', '자료나 물건을 기준에 맞게 정리하기', '정해진 방법이나 순서에 따라 정확하게 진행하기', '실수한 부분이 없는지 꼼꼼하게 확인하기'] },
 ]
 
+const middleSchoolPreferenceAreas: PreferenceArea[] = [
+  { id: 'making', tag: 'R', title: '직접 해보기', icon: '🔧', guide: '손으로 만들거나 몸을 움직이는 활동이 나에게 맞는지 생각해 봐요.', questions: ['준비물을 가지고 직접 만들어 보기', '기계나 도구를 직접 만져 보기', '가만히 앉아 있기보다 몸을 움직이며 활동하기', '망가진 물건을 보고 어디가 문제인지 찾아보기'] },
+  { id: 'exploring', tag: 'I', title: '알아보고 해결하기', icon: '🔎', guide: '궁금한 것을 찾아보고 문제를 푸는 활동이 어떤지 생각해 봐요.', questions: ['왜 그런지 궁금해서 이유를 찾아보기', '어려운 문제를 어떻게 풀지 생각해 보기', '관심 있는 내용을 인터넷이나 책에서 찾아보기', '실험하거나 관찰해서 결과를 확인해 보기'] },
+  { id: 'expressing', tag: 'A', title: '자유롭게 표현하기', icon: '🎨', guide: '내 생각을 그림, 글, 영상 등으로 표현하는 활동이 어떤지 생각해 봐요.', questions: ['그림이나 디자인으로 내 생각을 표현하기', '짧은 글이나 이야기를 만들어 보기', '사진이나 영상을 직접 찍고 편집해 보기', '정해진 방법보다 내 방식으로 새롭게 해 보기'] },
+  { id: 'together', tag: 'S', title: '함께하고 도와주기', icon: '🤝', guide: '친구들과 함께하거나 누군가를 도와주는 활동이 어떤지 생각해 봐요.', questions: ['친구의 고민이나 이야기를 잘 들어주기', '내가 아는 것을 친구에게 알려주기', '친구들과 역할을 나누어 함께 활동하기', '도움이 필요한 친구나 사람을 도와주기'] },
+  { id: 'challenging', tag: 'E', title: '도전하고 이끌기', icon: '🚀', guide: '앞에 나서거나 목표를 정해 도전하는 활동이 어떤지 생각해 봐요.', questions: ['친구들 앞에서 내 생각을 말해 보기', '모둠 활동에서 친구들을 이끌어 보기', '내 생각을 설명해서 친구를 설득해 보기', '목표를 세우고 끝까지 도전해 보기'] },
+  { id: 'organizing', tag: 'C', title: '계획하고 정리하기', icon: '🗂️', guide: '순서를 정하고 꼼꼼하게 확인하는 활동이 어떤지 생각해 봐요.', questions: ['해야 할 일을 순서대로 계획해 보기', '책상이나 자료를 기준에 맞게 정리하기', '정해진 순서와 방법을 지켜서 하기', '실수한 부분이 없는지 꼼꼼하게 확인하기'] },
+]
+
 const preferenceQuestionKeywords: Record<string, string[]> = {
   '도구를 사용해서 무언가 직접 만들기': ['도구', '만들기'],
   '기계나 장비를 직접 다루어 보기': ['기계', '장비'],
@@ -122,6 +131,29 @@ const preferenceQuestionKeywords: Record<string, string[]> = {
   '자료나 물건을 기준에 맞게 정리하기': ['정리', '분류'],
   '정해진 방법이나 순서에 따라 정확하게 진행하기': ['정확성', '절차'],
   '실수한 부분이 없는지 꼼꼼하게 확인하기': ['꼼꼼함', '확인'],
+  '준비물을 가지고 직접 만들어 보기': ['만들기', '직접해보기'],
+  '기계나 도구를 직접 만져 보기': ['도구', '기계'],
+  '가만히 앉아 있기보다 몸을 움직이며 활동하기': ['움직임', '몸활동'],
+  '망가진 물건을 보고 어디가 문제인지 찾아보기': ['수리', '문제찾기'],
+  '왜 그런지 궁금해서 이유를 찾아보기': ['궁금증', '이유찾기'],
+  '어려운 문제를 어떻게 풀지 생각해 보기': ['탐구', '생각'],
+  '관심 있는 내용을 인터넷이나 책에서 찾아보기': ['정보찾기', '관심주제'],
+  '실험하거나 관찰해서 결과를 확인해 보기': ['실험', '관찰'],
+  '그림이나 디자인으로 내 생각을 표현하기': ['그림', '디자인'],
+  '짧은 글이나 이야기를 만들어 보기': ['창작'],
+  '사진이나 영상을 직접 찍고 편집해 보기': ['사진', '영상'],
+  '정해진 방법보다 내 방식으로 새롭게 해 보기': ['내 방식대로', '새롭게'],
+  '친구의 고민이나 이야기를 잘 들어주기': ['경청', '고민듣기'],
+  '내가 아는 것을 친구에게 알려주기': ['알려주기', '나눔'],
+  '친구들과 역할을 나누어 함께 활동하기': ['협력', '함께하기'],
+  '도움이 필요한 친구나 사람을 도와주기': ['도움', '배려'],
+  '친구들 앞에서 내 생각을 말해 보기': ['발표', '표현'],
+  '모둠 활동에서 친구들을 이끌어 보기': ['리더십', '이끌기'],
+  '내 생각을 설명해서 친구를 설득해 보기': ['설명', '설득'],
+  '목표를 세우고 끝까지 도전해 보기': ['목표', '도전'],
+  '해야 할 일을 순서대로 계획해 보기': ['계획', '순서'],
+  '책상이나 자료를 기준에 맞게 정리하기': ['정리', '분류'],
+  '정해진 순서와 방법을 지켜서 하기': ['정확성', '절차'],
 }
 
 const preferenceKeywords = (question: string) => preferenceQuestionKeywords[question] ?? [question]
@@ -722,11 +754,12 @@ function SecondActivityDetail({ step, schoolName, studentName, viewerMode, maste
   const [savedResult, setSavedResult] = useState<PreferenceResult | null>(null)
   const [groupResults, setGroupResults] = useState<PreferenceResult[]>([])
   const [resultsLoading, setResultsLoading] = useState(false)
-  const area = preferenceAreas[areaIndex]
-  const isGameComplete = areaIndex >= preferenceAreas.length
+  const activePreferenceAreas = schoolName.includes('중학교') ? middleSchoolPreferenceAreas : preferenceAreas
+  const area = activePreferenceAreas[areaIndex]
+  const isGameComplete = areaIndex >= activePreferenceAreas.length
   const currentQuestion = area?.questions[questionIndex]
   const choiceLabels: Record<PreferenceChoice, string> = { like: '👍 좋아!', neutral: '😐 그저 그래', dislike: '👎 싫어!', unsure: '🤔 고민돼요' }
-  const selectedQuestions = (choice: PreferenceChoice) => preferenceAreas.flatMap((item) => item.questions.filter((question) => responses[`${item.id}:${question}`] === choice))
+  const selectedQuestions = (choice: PreferenceChoice) => activePreferenceAreas.flatMap((item) => item.questions.filter((question) => responses[`${item.id}:${question}`] === choice))
   const resultQuestions = (result: PreferenceResult, choice: 'like' | 'dislike') => {
     const answers = Object.entries(result.responses ?? {}).filter(([, value]) => value === choice).map(([id]) => id.slice(id.indexOf(':') + 1))
     return answers.length ? answers : (choice === 'like' ? result.coreLikes : result.coreDislikes) ?? []
@@ -843,7 +876,7 @@ function SecondActivityDetail({ step, schoolName, studentName, viewerMode, maste
           {savedResult && !gameStarted && <div className="saved-result-preview"><b>저장된 나의 결과</b><p>👍 {(savedResult.coreLikes ?? []).join(', ') || '핵심 좋아 활동 미선택'}</p><p>👎 {(savedResult.coreDislikes ?? []).join(', ') || '핵심 싫어 활동 미선택'}</p>{savedResult.reflection && <span>{savedResult.reflection}</span>}</div>}
           {!gameStarted && <div className="game-intro"><span className="game-symbol">👍 👎</span><h2>좋아! 싫어!</h2><p>화면에 나타나는 활동을 하나씩 보고,<br />지금 내 생각과 가장 가까운 답을 빠르게 선택해 보세요.</p><div className="rule-cards"><article><b>1</b><h3>한 번에 한 문항</h3><p>앞 문항으로 돌아가지 않고 지금의 느낌대로 골라요.</p></article><article><b>2</b><h3>세 가지 답변</h3><p>좋아, 그저 그래, 싫어 중 하나를 선택해요.</p></article><article><b>3</b><h3>시간이 지나면</h3><p>응답하지 못한 문항은 자동으로 ‘고민돼요’가 돼요.</p></article></div><fieldset className="duration-picker"><legend>문항당 답변 시간</legend><p>나에게 맞는 속도를 선택하세요.</p><div>{([5, 7, 10] as const).map((seconds) => <button type="button" className={questionDuration === seconds ? 'selected' : ''} onClick={() => setQuestionDuration(seconds)} key={seconds}><b>{seconds}</b>초</button>)}</div></fieldset><div className="game-rules"><span>총 24문항</span><span>선택에는 정답이 없어요</span><span>진행 중 일시정지 가능</span></div><button type="button" onClick={() => { setRemainingMs(questionDuration * 1000); setGameStarted(true) }}>시작하기 →</button></div>}
           {gameStarted && !isGameComplete && area && <div className="question-stage">
-            <div className="game-progress"><div><span>{areaIndex * 4 + questionIndex + 1} / 24</span><b>{area.title}</b></div><div className="progress-dots">{preferenceAreas.map((item, index) => <i className={index <= areaIndex ? 'active' : ''} key={item.id} />)}</div></div>
+            <div className="game-progress"><div><span>{areaIndex * 4 + questionIndex + 1} / 24</span><b>{area.title}</b></div><div className="progress-dots">{activePreferenceAreas.map((item, index) => <i className={index <= areaIndex ? 'active' : ''} key={item.id} />)}</div></div>
             <div className="area-heading"><span>{area.icon}</span><div><h2>{area.title}</h2><p>{area.guide}</p></div></div>
             <div className="question-controls"><span>문항당 {questionDuration}초</span><button type="button" onClick={() => setIsPaused((current) => !current)}>{isPaused ? '▶ 계속하기' : 'Ⅱ 일시정지'}</button></div>
             <article className={`quick-question-card ${remainingMs <= 3000 ? 'urgent' : ''} ${isPaused ? 'paused' : ''}`}>
