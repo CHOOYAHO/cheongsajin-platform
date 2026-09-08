@@ -973,6 +973,7 @@ function AiInterviewActivity({ schoolName, displayName }: { schoolName: string; 
 
   const runInterviewStep = async (nextTurns: InterviewTurn[], finished: boolean) => {
     if (!selectedCompany) return null
+    if (!functions) throw new Error('Firebase Functions 연결이 필요합니다.')
     const normalizedApplication = { ...application, role: application.role === '직접 입력' ? customRole.trim() : application.role.trim() }
     const callable = httpsCallable<{ interviewId: string; company: string; schoolName: string; displayName: string; application: InterviewApplication; turns: InterviewTurn[]; finished: boolean }, InterviewStepResponse>(functions, 'runAiInterviewStep')
     const id = interviewId || `interview-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
