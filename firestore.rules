@@ -91,7 +91,9 @@ service cloud.firestore {
     }
 
     match /auctionResults/{resultId} {
-      allow read: if signedIn() && resource.data.userId == request.auth.uid;
+      allow read: if signedIn() && (resource.data.userId == request.auth.uid
+        || (hasActiveStaffSession()
+          && get(/databases/$(database)/documents/staffSessions/$(request.auth.uid)).data.role == 'admin'));
       allow write: if false;
     }
 
