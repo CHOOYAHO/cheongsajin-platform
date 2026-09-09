@@ -40,6 +40,7 @@ type InterviewStepResponse = { interviewId: string; question: string; feedback?:
 type BrainstormParticipant = { id: string; nickname: string; role: 'host' | 'participant'; connected?: boolean }
 type BrainstormSubmission = { id: string; userId?: string; nickname: string; round: number; part: 'tasks' | 'strengths'; text: string }
 type BrainstormRoom = { id?: string; hostId: string; hostName?: string; gameState: 'WAITING' | 'COUNTDOWN' | 'TASKS' | 'STRENGTHS' | 'ROUND_RESULT' | 'RESULT'; round: number; totalRounds: number; timeLimit: number; currentJob: string; phaseEndsAt?: { toMillis: () => number } }
+type BrainstormTestRole = 'host' | 'participant'
 const defaultSessionLockMap: SessionLockMap = { 1: true, 2: true, 3: false, 4: false, 5: false }
 const defaultSessionLocks: SessionLocksByTarget = {
   yesan: { ...defaultSessionLockMap },
@@ -1032,6 +1033,80 @@ function ThirdActivityDetail({ step, schoolName, studentName, masterViewLabel, o
   )
 }
 
+function CareerBrainstormTest({ role, playerName, onExit }: { role: BrainstormTestRole; playerName: string; onExit: () => void }) {
+  const [phase, setPhase] = useState<BrainstormRoom['gameState']>('WAITING')
+  const [round, setRound] = useState(1)
+  const [totalRounds, setTotalRounds] = useState(2)
+  const [timeLimit, setTimeLimit] = useState(30)
+  const [selectedJob, setSelectedJob] = useState('교사')
+  const [customJob, setCustomJob] = useState('')
+  const [answer, setAnswer] = useState('')
+  const [tasks, setTasks] = useState<BrainstormSubmission[]>([])
+  const [strengths, setStrengths] = useState<BrainstormSubmission[]>([])
+  const [remaining, setRemaining] = useState(0)
+  const testName = playerName.trim() || (role === 'host' ? '테스트 방장' : '나')
+  const job = customJob.trim() || selectedJob
+  const participants = role === 'host' ? [testName, '지민', '서준', '하윤'] : ['가상 방장', testName, '지민', '서준']
+  const brainstormJobs = ['교사', '간호사', '로봇공학자', '사회복지사', '공무원', '요리사', '데이터 분석가', '콘텐츠 기획자', '자동차 정비사', '심리상담사']
+  const taskExamples = ['수업을 준비하고 진행해요', '학생과 상담해요', '행정 문서를 처리해요', '행사와 체험활동을 준비해요']
+  const strengthExamples = ['의사소통능력', '책임감', '계획성', '공감능력']
+  const currentTasks = tasks.filter((item) => item.round === round)
+  const currentStrengths = strengths.filter((item) => item.round === round)
+  const testHeader = <div className="test-mode-bar"><div><b>{role === 'host' ? '방장용' : '참여자용'} 브레인스토밍 테스트</b><span>Firebase에 저장되지 않는 연습 모드</span></div><button type="button" onClick={onExit}>테스트 종료</button></div>
+  const addMine = (part: 'tasks' | 'strengths') => {
+    if (!answer.trim()) return
+    const item = { id: `${part}-${Date.now()}`, nickname: testName, round, part, text: answer.trim().slice(0, 240) }
+    if (part === 'tasks') setTasks((current) => [...current, item])
+    else setStrengths((current) => [...current, item])
+    setAnswer('')
+  }
+  const addBots = (part: 'tasks' | 'strengths') => {
+    const examples = part === 'tasks' ? taskExamples : strengthExamples
+    const names = participants.filter((name) => name !== testName && name !== '가상 방장')
+    const items = names.map((name, index) => ({ id: `${part}-${round}-${name}`, nickname: name, round, part, text: examples[index % examples.length] }))
+    if (part === 'tasks') setTasks((current) => [...current.filter((item) => !(item.round === round && item.id.startsWith(`${part}-${round}-`))), ...items])
+    else setStrengths((current) => [...current.filter((item) => !(item.round === round && item.id.startsWith(`${part}-${round}-`))), ...items])
+  }
+  const beginCountdown = () => {
+    setPhase('COUNTDOWN')
+    setRemaining(5)
+  }
+  const beginPart = (part: 'TASKS' | 'STRENGTHS') => {
+    setPhase(part)
+    setRemaining(timeLimit)
+    addBots(part === 'TASKS' ? 'tasks' : 'strengths')
+  }
+  const nextRound = () => {
+    if (round >= totalRounds) setPhase('RESULT')
+    else {
+      setRound((current) => current + 1)
+      setSelectedJob(brainstormJobs[round % brainstormJobs.length])
+      setCustomJob('')
+      setPhase('WAITING')
+    }
+  }
+
+  useEffect(() => {
+    if (!['COUNTDOWN', 'TASKS', 'STRENGTHS'].includes(phase) || remaining <= 0) return
+    const timer = window.setTimeout(() => setRemaining((current) => current - 1), 1000)
+    return () => window.clearTimeout(timer)
+  }, [phase, remaining])
+
+  useEffect(() => {
+    if (remaining > 0) return
+    if (phase === 'COUNTDOWN' && role === 'participant') beginPart('TASKS')
+    if (phase === 'TASKS' && role === 'participant') beginPart('STRENGTHS')
+    if (phase === 'STRENGTHS' && role === 'participant') setPhase('ROUND_RESULT')
+  }, [phase, remaining, role])
+
+  if (phase === 'WAITING') return <div className="brainstorm-room">{testHeader}<div className="room-summary"><div><span>방 코드</span><strong>TEST</strong></div><div><span>라운드</span><strong>{round} / {totalRounds}</strong></div><div><span>내 역할</span><strong>{role === 'host' ? '방장' : '참가자'}</strong></div></div><section className="brainstorm-waiting"><div className="auction-section-title"><h3>테스트 참가자</h3><span>가상 참가자 자동 응답</span></div><ul className="participant-list">{participants.map((name, index) => <li key={name}><i />{name}{index === 0 ? <b>방장</b> : <span>{name === testName ? '나' : 'BOT'}</span>}</li>)}</ul>{role === 'host' && <div className="brainstorm-host-settings"><label>라운드 수<input type="number" min={1} max={5} value={totalRounds} onChange={(event) => setTotalRounds(Math.max(1, Math.min(5, Number(event.target.value))))} /></label><label>제한시간<select value={timeLimit} onChange={(event) => setTimeLimit(Number(event.target.value))}><option value={30}>30초</option><option value={60}>60초</option><option value={90}>90초</option></select></label></div>}<div className="brainstorm-job-picker"><h3>{round}라운드 직업 선택</h3><div className="job-options">{brainstormJobs.map((item) => <button type="button" className={selectedJob === item && !customJob ? 'selected' : ''} onClick={() => { setSelectedJob(item); setCustomJob('') }} disabled={role === 'participant'} key={item}>{item}</button>)}</div>{role === 'host' && <label>직업 직접 입력<input value={customJob} onChange={(event) => setCustomJob(event.target.value)} maxLength={24} placeholder="예: 행정직 공무원" /></label>}<button type="button" className="auction-primary" onClick={beginCountdown}>{role === 'host' ? '테스트 시작' : '가상 방장에게 시작 요청'}</button></div></section></div>
+  if (phase === 'COUNTDOWN') return <div className="brainstorm-room">{testHeader}<section className="brainstorm-countdown"><p>이번 직업은</p><h2>{job}</h2><strong>{remaining}</strong><span>초 뒤 시작합니다</span>{role === 'host' && remaining <= 0 && <button type="button" onClick={() => beginPart('TASKS')}>파트 1 시작</button>}</section></div>
+  if (phase === 'TASKS') return <div className="brainstorm-room">{testHeader}<section className="brainstorm-play"><div className="detail-heading"><span>PART 1 · 수행 업무 · {remaining || '시간 종료'}초</span><h2>{job}은 실제 현장에서 어떤 일을 할까요?</h2><p>가상 참가자 응답도 함께 표시돼요.</p></div><div className="brainstorm-submit"><textarea value={answer} onChange={(event) => setAnswer(event.target.value)} maxLength={240} placeholder="업무 하나를 적어 주세요." /><button type="button" onClick={() => addMine('tasks')}>업무 제출</button></div><div className="brainstorm-board">{currentTasks.map((item) => <article key={item.id}><b>{item.nickname}</b><p>{item.text}</p></article>)}</div><button type="button" className="auction-primary" onClick={() => beginPart('STRENGTHS')}>{role === 'host' ? '파트 2로 이동' : '가상 방장 파트 2 진행'}</button></section></div>
+  if (phase === 'STRENGTHS') return <div className="brainstorm-room">{testHeader}<section className="brainstorm-play"><div className="detail-heading"><span>PART 2 · 필요 역량 · {remaining || '시간 종료'}초</span><h2>이 업무들을 잘하려면 어떤 역량이 필요할까요?</h2><p>파트1에서 나온 업무를 보고 필요한 역량을 떠올려요.</p></div><div className="brainstorm-task-strip">{currentTasks.map((item) => <span key={item.id}>{item.text}</span>)}</div><div className="brainstorm-submit"><textarea value={answer} onChange={(event) => setAnswer(event.target.value)} maxLength={240} placeholder="필요한 역량 하나를 적어 주세요." /><button type="button" onClick={() => addMine('strengths')}>역량 제출</button></div><div className="brainstorm-board strength">{currentStrengths.map((item) => <article key={item.id}><b>{item.nickname}</b><p>{item.text}</p></article>)}</div><button type="button" className="auction-primary" onClick={() => setPhase('ROUND_RESULT')}>{role === 'host' ? '라운드 결과 보기' : '가상 방장 결과 보기'}</button></section></div>
+  if (phase === 'ROUND_RESULT') return <div className="brainstorm-room">{testHeader}<section className="brainstorm-result"><h2>{job} 브레인스토밍 결과</h2><div><article><h3>수행 업무</h3>{currentTasks.map((item) => <p key={item.id}>{item.text}</p>)}</article><article><h3>필요 역량</h3>{currentStrengths.map((item) => <p key={item.id}>{item.text}</p>)}</article></div><button type="button" className="auction-primary" onClick={nextRound}>{round >= totalRounds ? '최종 결과 보기' : '다음 라운드 준비'}</button></section></div>
+  return <div className="brainstorm-room">{testHeader}<section className="brainstorm-result"><h2>테스트 활동 결과</h2><p>Firebase에 저장되지 않은 연습 결과입니다.</p><div>{Array.from({ length: totalRounds }, (_, index) => index + 1).map((roundNumber) => <article key={roundNumber}><h3>{roundNumber}라운드</h3>{[...tasks, ...strengths].filter((item) => item.round === roundNumber).map((item) => <p key={item.id}><b>{item.part === 'tasks' ? '업무' : '역량'}</b> {item.text}</p>)}</article>)}</div><button type="button" className="auction-primary" onClick={onExit}>테스트 선택으로 돌아가기</button></section></div>
+}
+
 function CareerBrainstormGame({ studentName }: { studentName: string }) {
   const [roomCode, setRoomCode] = useState('')
   const [joinCode, setJoinCode] = useState('')
@@ -1048,6 +1123,7 @@ function CareerBrainstormGame({ studentName }: { studentName: string }) {
   const [answer, setAnswer] = useState('')
   const [remaining, setRemaining] = useState(0)
   const [error, setError] = useState('')
+  const [testRole, setTestRole] = useState<BrainstormTestRole | null>(null)
   const myName = nickname.trim() || studentName || '참가자'
   const isHost = role === 'host' && roomData?.hostId === auth?.currentUser?.uid
   const currentPart = roomData?.gameState === 'TASKS' ? 'tasks' : roomData?.gameState === 'STRENGTHS' ? 'strengths' : null
@@ -1128,7 +1204,9 @@ function CareerBrainstormGame({ studentName }: { studentName: string }) {
     setAnswer('')
   }
 
-  if (!roomCode) return <div className="brainstorm-lobby"><div className="brainstorm-title"><span>실시간 활동</span><h2>핵심 역량 브레인스토밍</h2><p>방장이 방을 열면 참가자는 로비에서 바로 들어가요. 직업별 실제 업무와 필요한 역량을 함께 모읍니다.</p></div><label>내 이름<input value={nickname} onChange={(event) => setNickname(event.target.value)} maxLength={12} placeholder="활동에서 보일 이름" /></label><div className="brainstorm-host-settings"><label>라운드 수<input type="number" min={1} max={10} value={totalRounds} onChange={(event) => setTotalRounds(Math.max(1, Math.min(10, Number(event.target.value))))} /></label><label>라운드당 제한시간<select value={timeLimit} onChange={(event) => setTimeLimit(Number(event.target.value))}><option value={30}>30초</option><option value={60}>60초</option><option value={90}>90초</option><option value={120}>120초</option></select></label><button type="button" onClick={createRoom}>방 만들기</button></div><section className="open-room-list"><div><h3>개설된 방</h3><span>{openRooms.length}개</span></div>{openRooms.length ? openRooms.map((room) => <button type="button" key={room.id} onClick={() => void joinRoom(room.id!)}><b>{room.hostName || '방장'}의 방</b><span>{room.totalRounds}라운드 · {room.timeLimit}초</span><small>{room.id}</small></button>) : <p>아직 열린 방이 없어요. 방장이 방을 만들면 여기에 표시됩니다.</p>}</section><div className="manual-room-entry"><input value={joinCode} onChange={(event) => setJoinCode(event.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="방 코드 직접 입력" /><button type="button" onClick={() => void joinRoom(joinCode)} disabled={joinCode.length !== 6}>입장</button></div>{error && <p className="entry-error" role="alert">{error}</p>}</div>
+  if (testRole) return <CareerBrainstormTest role={testRole} playerName={myName} onExit={() => setTestRole(null)} />
+
+  if (!roomCode) return <div className="brainstorm-lobby"><div className="brainstorm-title"><span>실시간 활동</span><h2>핵심 역량 브레인스토밍</h2><p>방장이 방을 열면 참가자는 로비에서 바로 들어가요. 직업별 실제 업무와 필요한 역량을 함께 모읍니다.</p></div><label>내 이름<input value={nickname} onChange={(event) => setNickname(event.target.value)} maxLength={12} placeholder="활동에서 보일 이름" /></label><div className="brainstorm-host-settings"><label>라운드 수<input type="number" min={1} max={10} value={totalRounds} onChange={(event) => setTotalRounds(Math.max(1, Math.min(10, Number(event.target.value))))} /></label><label>라운드당 제한시간<select value={timeLimit} onChange={(event) => setTimeLimit(Number(event.target.value))}><option value={30}>30초</option><option value={60}>60초</option><option value={90}>90초</option><option value={120}>120초</option></select></label><button type="button" onClick={createRoom}>방 만들기</button></div><section className="open-room-list"><div><h3>개설된 방</h3><span>{openRooms.length}개</span></div>{openRooms.length ? openRooms.map((room) => <button type="button" key={room.id} onClick={() => void joinRoom(room.id!)}><b>{room.hostName || '방장'}의 방</b><span>{room.totalRounds}라운드 · {room.timeLimit}초</span><small>{room.id}</small></button>) : <p>아직 열린 방이 없어요. 방장이 방을 만들면 여기에 표시됩니다.</p>}</section><div className="manual-room-entry"><input value={joinCode} onChange={(event) => setJoinCode(event.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="방 코드 직접 입력" /><button type="button" onClick={() => void joinRoom(joinCode)} disabled={joinCode.length !== 6}>입장</button></div>{error && <p className="entry-error" role="alert">{error}</p>}<section className="auction-test-section"><div className="auction-section-title"><div><span>혼자서도 연습 가능</span><h3>테스트 게임</h3></div><b>Firebase 저장 없음</b></div><p>가상 참가자들과 수행 업무와 필요 역량을 모으는 전체 흐름을 미리 확인해 보세요.</p><div><button type="button" onClick={() => setTestRole('host')}><span>👑</span><b>방장으로 테스트</b><small>직업 선택·파트 전환·결과 진행</small></button><button type="button" onClick={() => setTestRole('participant')}><span>🙋</span><b>참여자로 테스트</b><small>업무 제출·역량 제출·결과 확인</small></button></div></section></div>
 
   return <div className="brainstorm-room"><div className="room-summary"><div><span>방 코드</span><strong>{roomCode}</strong></div><div><span>현재 라운드</span><strong>{roomData?.round ?? 1} / {roomData?.totalRounds ?? totalRounds}</strong></div><div><span>남은 시간</span><strong>{remaining || '-'}</strong></div></div>{roomData?.gameState === 'WAITING' && <section className="brainstorm-waiting"><div className="auction-section-title"><h3>참가자</h3><span>{participants.length}명</span></div><ul className="participant-list">{participants.map((participant) => <li key={participant.id}><i className={participant.connected === false ? 'offline' : ''} />{participant.nickname}{participant.role === 'host' ? <b>방장</b> : <span>참가</span>}</li>)}</ul>{isHost ? <div className="brainstorm-job-picker"><h3>{roomData.round}라운드 직업 선택</h3><div className="job-options">{brainstormJobs.map((job) => <button type="button" className={selectedJob === job ? 'selected' : ''} onClick={() => { setSelectedJob(job); setCustomJob('') }} key={job}>{job}</button>)}</div><label>직업 직접 입력<input value={customJob} onChange={(event) => setCustomJob(event.target.value)} maxLength={24} placeholder="예: 행정직 공무원" /></label><button type="button" className="auction-primary" onClick={startRound}>게임 시작 전 5초 카운트다운</button></div> : <div className="participant-wait"><h3>방장이 직업을 고르고 있어요.</h3><p>잠시 후 활동이 시작됩니다.</p></div>}</section>}{roomData?.gameState === 'COUNTDOWN' && <section className="brainstorm-countdown"><p>이번 직업은</p><h2>{roomData.currentJob}</h2><strong>{remaining}</strong><span>초 뒤 시작합니다</span>{isHost && remaining <= 0 && <button type="button" onClick={() => void movePhase('TASKS')}>파트 1 시작</button>}</section>}{roomData?.gameState === 'TASKS' && <section className="brainstorm-play"><div className="detail-heading"><span>PART 1 · 수행 업무</span><h2>{roomData.currentJob}은 실제 현장에서 어떤 일을 할까요?</h2><p>수업, 상담, 행정처리처럼 떠오르는 업무를 하나씩 입력해 주세요.</p></div><div className="brainstorm-submit"><textarea value={answer} onChange={(event) => setAnswer(event.target.value)} maxLength={240} placeholder="업무 하나를 적어 주세요." /><button type="button" onClick={submitAnswer}>업무 제출</button></div><div className="brainstorm-board">{taskSubmissions.map((item) => <article key={item.id}><b>{item.nickname}</b><p>{item.text}</p></article>)}</div>{isHost && <button type="button" className="auction-primary" onClick={() => void movePhase('STRENGTHS')}>파트 2로 이동</button>}</section>}{roomData?.gameState === 'STRENGTHS' && <section className="brainstorm-play"><div className="detail-heading"><span>PART 2 · 필요 역량</span><h2>이 업무들을 잘하려면 어떤 역량이 필요할까요?</h2><p>파트 1에서 나온 업무를 보며 필요한 능력, 태도, 성향을 적어 주세요.</p></div><div className="brainstorm-task-strip">{taskSubmissions.map((item) => <span key={item.id}>{item.text}</span>)}</div><div className="brainstorm-submit"><textarea value={answer} onChange={(event) => setAnswer(event.target.value)} maxLength={240} placeholder="필요한 역량 하나를 적어 주세요." /><button type="button" onClick={submitAnswer}>역량 제출</button></div><div className="brainstorm-board strength">{strengthSubmissions.map((item) => <article key={item.id}><b>{item.nickname}</b><p>{item.text}</p></article>)}</div>{isHost && <button type="button" className="auction-primary" onClick={() => void movePhase('ROUND_RESULT', 0)}>라운드 결과 보기</button>}</section>}{roomData?.gameState === 'ROUND_RESULT' && <section className="brainstorm-result"><h2>{roomData.currentJob} 브레인스토밍 결과</h2><div><article><h3>수행 업무</h3>{taskSubmissions.map((item) => <p key={item.id}>{item.text}</p>)}</article><article><h3>필요 역량</h3>{strengthSubmissions.map((item) => <p key={item.id}>{item.text}</p>)}</article></div>{isHost && <button type="button" className="auction-primary" onClick={nextRound}>{roomData.round >= roomData.totalRounds ? '최종 결과 보기' : '다음 라운드 준비'}</button>}</section>}{roomData?.gameState === 'RESULT' && <section className="brainstorm-result"><h2>활동 결과</h2><p>모둠이 함께 모은 직업별 업무와 필요 역량입니다.</p><div>{Array.from({ length: roomData.totalRounds }, (_, index) => index + 1).map((round) => <article key={round}><h3>{round}라운드</h3>{submissions.filter((item) => item.round === round).map((item) => <p key={item.id}><b>{item.part === 'tasks' ? '업무' : '역량'}</b> {item.text}</p>)}</article>)}</div></section>}{error && <p className="entry-error" role="alert">{error}</p>}</div>
 }
