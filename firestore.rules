@@ -178,6 +178,62 @@ service cloud.firestore {
       }
     }
 
+    match /brainstormRooms/{roomId} {
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && request.resource.data.hostId == request.auth.uid
+        && request.resource.data.gameState == 'WAITING'
+        && request.resource.data.totalRounds is int
+        && request.resource.data.totalRounds >= 1
+        && request.resource.data.totalRounds <= 10
+        && request.resource.data.timeLimit in [30, 60, 90, 120];
+      allow update: if signedIn()
+        && resource.data.hostId == request.auth.uid
+        && request.resource.data.hostId == resource.data.hostId
+        && request.resource.data.gameState in ['WAITING', 'COUNTDOWN', 'TASKS', 'STRENGTHS', 'ROUND_RESULT', 'RESULT']
+        && request.resource.data.round is int
+        && request.resource.data.round >= 1
+        && request.resource.data.round <= request.resource.data.totalRounds
+        && request.resource.data.totalRounds is int
+        && request.resource.data.totalRounds >= 1
+        && request.resource.data.totalRounds <= 10
+        && request.resource.data.timeLimit in [30, 60, 90, 120]
+        && request.resource.data.currentJob is string
+        && request.resource.data.currentJob.size() <= 24;
+      allow delete: if false;
+
+      match /participants/{userId} {
+        allow read: if signedIn();
+        allow create: if isOwner(userId)
+          && get(/databases/$(database)/documents/brainstormRooms/$(roomId)).data.gameState == 'WAITING'
+          && request.resource.data.role in ['host', 'participant']
+          && (request.resource.data.role == 'participant'
+            || get(/databases/$(database)/documents/brainstormRooms/$(roomId)).data.hostId == request.auth.uid)
+          && request.resource.data.nickname is string
+          && request.resource.data.nickname.size() > 0
+          && request.resource.data.nickname.size() <= 12;
+        allow update: if isOwner(userId)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['connected']);
+        allow delete: if false;
+      }
+
+      match /submissions/{submissionId} {
+        allow read: if signedIn();
+        allow create: if signedIn()
+          && request.resource.data.userId == request.auth.uid
+          && request.resource.data.round is int
+          && request.resource.data.round >= 1
+          && request.resource.data.part in ['tasks', 'strengths']
+          && request.resource.data.text is string
+          && request.resource.data.text.size() > 0
+          && request.resource.data.text.size() <= 240
+          && request.resource.data.nickname is string
+          && request.resource.data.nickname.size() > 0
+          && request.resource.data.nickname.size() <= 12;
+        allow update, delete: if false;
+      }
+    }
+
     match /{document=**} { allow read, write: if false; }
   }
 }

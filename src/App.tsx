@@ -37,6 +37,9 @@ type InterviewTurn = { question: string; answer: string; feedback?: string }
 type InterviewDecision = 'pass' | 'hold' | 'retry'
 type InterviewFeedbackTone = 'good' | 'neutral' | 'bad'
 type InterviewStepResponse = { interviewId: string; question: string; feedback?: string; feedbackTone?: InterviewFeedbackTone; hint?: string; hintIntent?: string; hintGuide?: string; closingSummary?: string; suggestedStrengths?: string[]; decision?: InterviewDecision; score?: number; aiSource?: 'openai' | 'fallback'; status: 'inProgress' | 'completed' }
+type BrainstormParticipant = { id: string; nickname: string; role: 'host' | 'participant'; connected?: boolean }
+type BrainstormSubmission = { id: string; userId?: string; nickname: string; round: number; part: 'tasks' | 'strengths'; text: string }
+type BrainstormRoom = { id?: string; hostId: string; hostName?: string; gameState: 'WAITING' | 'COUNTDOWN' | 'TASKS' | 'STRENGTHS' | 'ROUND_RESULT' | 'RESULT'; round: number; totalRounds: number; timeLimit: number; currentJob: string; phaseEndsAt?: { toMillis: () => number } }
 const defaultSessionLockMap: SessionLockMap = { 1: true, 2: true, 3: false, 4: false, 5: false }
 const defaultSessionLocks: SessionLocksByTarget = {
   yesan: { ...defaultSessionLockMap },
@@ -514,6 +517,7 @@ function StrengthAuctionGame({ studentName }: { studentName: string }) {
   const [phase, setPhase] = useState<AuctionPhase>('lobby')
   const [role, setRole] = useState<'host' | 'participant'>('participant')
   const [roomCode, setRoomCode] = useState('')
+  const [joinCode, setJoinCode] = useState('')
   const [joinCode, setJoinCode] = useState('')
   const [nickname, setNickname] = useState(studentName || '')
   const [roomError, setRoomError] = useState('')
@@ -1010,15 +1014,7 @@ function ThirdActivityDetail({ step, schoolName, studentName, masterViewLabel, o
           <div className="mentor-note"><b>기억해요</b><p>AI 가상면접은 직업정보 Q&A가 아니라 희망 직업에 지원했다고 가정하는 채용면접 시뮬레이션이에요.</p></div>
         </section>}
 
-        {step === 2 && <section className="detail-panel">
-          <div className="detail-heading"><span>업무와 역량 연결</span><h2>관심 직업에 필요한 핵심 역량을 예상해요</h2><p>선택한 직업이 어떤 일을 할지 먼저 자유롭게 생각하고, 그 일을 잘하려면 어떤 태도와 능력이 필요할지 정리해 봅니다.</p></div>
-          <div className="reflection-fields">
-            <label>내가 더 알아보고 싶은 직업<input placeholder="예: 로봇공학자, 간호사, 행정직 공무원" /></label>
-            <label>이 직업이 할 것 같은 일<textarea placeholder="떠오르는 업무를 자유롭게 적어 보세요." /></label>
-            <label>그 일을 잘하기 위해 필요할 것 같은 역량<textarea placeholder="예: 관찰력, 소통, 끈기, 문제해결력" /></label>
-          </div>
-          <button type="button" className="disabled-save" disabled>저장 기능 준비 중</button>
-        </section>}
+        {step === 2 && <section className="detail-panel brainstorm-panel"><CareerBrainstormGame studentName={studentName} /></section>}
 
         {step === 3 && <AiInterviewActivity schoolName={schoolName} displayName={studentName} />}
 
@@ -1035,6 +1031,106 @@ function ThirdActivityDetail({ step, schoolName, studentName, masterViewLabel, o
       <PartnerFooter />
     </div>
   )
+}
+
+function CareerBrainstormGame({ studentName }: { studentName: string }) {
+  const [roomCode, setRoomCode] = useState('')
+  const [nickname, setNickname] = useState(studentName || '')
+  const [role, setRole] = useState<'host' | 'participant' | null>(null)
+  const [roomData, setRoomData] = useState<BrainstormRoom | null>(null)
+  const [participants, setParticipants] = useState<BrainstormParticipant[]>([])
+  const [submissions, setSubmissions] = useState<BrainstormSubmission[]>([])
+  const [openRooms, setOpenRooms] = useState<BrainstormRoom[]>([])
+  const [totalRounds, setTotalRounds] = useState(3)
+  const [timeLimit, setTimeLimit] = useState(60)
+  const [selectedJob, setSelectedJob] = useState('교사')
+  const [customJob, setCustomJob] = useState('')
+  const [answer, setAnswer] = useState('')
+  const [remaining, setRemaining] = useState(0)
+  const [error, setError] = useState('')
+  const myName = nickname.trim() || studentName || '참가자'
+  const isHost = role === 'host' && roomData?.hostId === auth?.currentUser?.uid
+  const currentPart = roomData?.gameState === 'TASKS' ? 'tasks' : roomData?.gameState === 'STRENGTHS' ? 'strengths' : null
+  const roundSubmissions = submissions.filter((item) => item.round === roomData?.round)
+  const taskSubmissions = roundSubmissions.filter((item) => item.part === 'tasks')
+  const strengthSubmissions = roundSubmissions.filter((item) => item.part === 'strengths')
+  const brainstormJobs = ['교사', '간호사', '로봇공학자', '사회복지사', '공무원', '요리사', '데이터 분석가', '콘텐츠 기획자', '자동차 정비사', '심리상담사']
+
+  useEffect(() => {
+    if (!db || roomCode) return
+    return onSnapshot(query(collection(db, 'brainstormRooms'), where('gameState', '==', 'WAITING')), (snapshot) => {
+      setOpenRooms(snapshot.docs.map((item) => ({ id: item.id, ...(item.data() as Omit<BrainstormRoom, 'id'>) })).sort((a, b) => b.id!.localeCompare(a.id!)))
+    }, (caught) => console.error(caught))
+  }, [roomCode])
+
+  useEffect(() => {
+    if (!db || !auth?.currentUser || !roomCode) return
+    const roomRef = doc(db, 'brainstormRooms', roomCode)
+    const participantRef = doc(db, 'brainstormRooms', roomCode, 'participants', auth.currentUser.uid)
+    const stopRoom = onSnapshot(roomRef, (snapshot) => setRoomData(snapshot.exists() ? snapshot.data() as BrainstormRoom : null), (caught) => console.error(caught))
+    const stopParticipants = onSnapshot(collection(db, 'brainstormRooms', roomCode, 'participants'), (snapshot) => setParticipants(snapshot.docs.map((item) => ({ id: item.id, ...(item.data() as Omit<BrainstormParticipant, 'id'>) }))), (caught) => console.error(caught))
+    const stopSubmissions = onSnapshot(collection(db, 'brainstormRooms', roomCode, 'submissions'), (snapshot) => setSubmissions(snapshot.docs.map((item) => ({ id: item.id, ...(item.data() as Omit<BrainstormSubmission, 'id'>) }))), (caught) => console.error(caught))
+    const heartbeat = window.setInterval(() => void updateDoc(participantRef, { connected: true }).catch(() => undefined), 20000)
+    return () => { stopRoom(); stopParticipants(); stopSubmissions(); window.clearInterval(heartbeat); void updateDoc(participantRef, { connected: false }).catch(() => undefined) }
+  }, [roomCode])
+
+  useEffect(() => {
+    if (!roomData?.phaseEndsAt) { setRemaining(0); return }
+    const tick = () => setRemaining(Math.max(0, Math.ceil((roomData.phaseEndsAt!.toMillis() - Date.now()) / 1000)))
+    tick()
+    const timer = window.setInterval(tick, 500)
+    return () => window.clearInterval(timer)
+  }, [roomData?.phaseEndsAt])
+
+  const createRoom = async () => {
+    if (!db || !auth?.currentUser) return
+    setError('')
+    let code = ''
+    for (let index = 0; index < 20; index += 1) {
+      const candidate = String(Math.floor(100000 + Math.random() * 900000))
+      if (!(await getDoc(doc(db, 'brainstormRooms', candidate))).exists()) { code = candidate; break }
+    }
+    if (!code) { setError('방을 만들지 못했어요. 다시 시도해 주세요.'); return }
+    await setDoc(doc(db, 'brainstormRooms', code), { hostId: auth.currentUser.uid, hostName: myName, gameState: 'WAITING', round: 1, totalRounds, timeLimit, currentJob: '', createdAt: serverTimestamp(), updatedAt: serverTimestamp() })
+    await setDoc(doc(db, 'brainstormRooms', code, 'participants', auth.currentUser.uid), { nickname: myName, role: 'host', connected: true, joinedAt: serverTimestamp() })
+    setRole('host')
+    setRoomCode(code)
+  }
+  const joinRoom = async (code: string) => {
+    if (!db || !auth?.currentUser) return
+    setError('')
+    const normalized = code.trim()
+    const snapshot = await getDoc(doc(db, 'brainstormRooms', normalized))
+    if (!snapshot.exists()) { setError('열린 방을 찾지 못했어요.'); return }
+    await setDoc(doc(db, 'brainstormRooms', normalized, 'participants', auth.currentUser.uid), { nickname: myName, role: 'participant', connected: true, joinedAt: serverTimestamp() })
+    setRole('participant')
+    setRoomCode(normalized)
+  }
+  const startRound = async () => {
+    if (!db || !roomCode || !isHost) return
+    const job = (customJob || selectedJob).trim()
+    if (!job) { setError('이번 라운드 직업을 입력해 주세요.'); return }
+    await updateDoc(doc(db, 'brainstormRooms', roomCode), { gameState: 'COUNTDOWN', totalRounds, timeLimit, currentJob: job, phaseEndsAt: new Date(Date.now() + 5000), updatedAt: serverTimestamp() })
+  }
+  const movePhase = async (state: BrainstormRoom['gameState'], seconds = timeLimit) => {
+    if (!db || !roomCode || !isHost) return
+    await updateDoc(doc(db, 'brainstormRooms', roomCode), { gameState: state, phaseEndsAt: ['TASKS', 'STRENGTHS'].includes(state) ? new Date(Date.now() + seconds * 1000) : null, updatedAt: serverTimestamp() })
+  }
+  const nextRound = async () => {
+    if (!db || !roomCode || !roomData || !isHost) return
+    if (roomData.round >= roomData.totalRounds) await updateDoc(doc(db, 'brainstormRooms', roomCode), { gameState: 'RESULT', phaseEndsAt: null, updatedAt: serverTimestamp() })
+    else await updateDoc(doc(db, 'brainstormRooms', roomCode), { gameState: 'WAITING', round: roomData.round + 1, currentJob: '', phaseEndsAt: null, updatedAt: serverTimestamp() })
+    setAnswer('')
+  }
+  const submitAnswer = async () => {
+    if (!db || !auth?.currentUser || !roomCode || !roomData || !currentPart || !answer.trim()) return
+    await addDoc(collection(db, 'brainstormRooms', roomCode, 'submissions'), { userId: auth.currentUser.uid, nickname: myName, round: roomData.round, part: currentPart, text: answer.trim().slice(0, 240), createdAt: serverTimestamp() })
+    setAnswer('')
+  }
+
+  if (!roomCode) return <div className="brainstorm-lobby"><div className="brainstorm-title"><span>실시간 활동</span><h2>핵심 역량 브레인스토밍</h2><p>방장이 방을 열면 참가자는 로비에서 바로 들어가요. 직업별 실제 업무와 필요한 역량을 함께 모읍니다.</p></div><label>내 이름<input value={nickname} onChange={(event) => setNickname(event.target.value)} maxLength={12} placeholder="활동에서 보일 이름" /></label><div className="brainstorm-host-settings"><label>라운드 수<input type="number" min={1} max={10} value={totalRounds} onChange={(event) => setTotalRounds(Math.max(1, Math.min(10, Number(event.target.value))))} /></label><label>라운드당 제한시간<select value={timeLimit} onChange={(event) => setTimeLimit(Number(event.target.value))}><option value={30}>30초</option><option value={60}>60초</option><option value={90}>90초</option><option value={120}>120초</option></select></label><button type="button" onClick={createRoom}>방 만들기</button></div><section className="open-room-list"><div><h3>개설된 방</h3><span>{openRooms.length}개</span></div>{openRooms.length ? openRooms.map((room) => <button type="button" key={room.id} onClick={() => void joinRoom(room.id!)}><b>{room.hostName || '방장'}의 방</b><span>{room.totalRounds}라운드 · {room.timeLimit}초</span><small>{room.id}</small></button>) : <p>아직 열린 방이 없어요. 방장이 방을 만들면 여기에 표시됩니다.</p>}</section><div className="manual-room-entry"><input value={joinCode} onChange={(event) => setJoinCode(event.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="방 코드 직접 입력" /><button type="button" onClick={() => void joinRoom(joinCode)} disabled={joinCode.length !== 6}>입장</button></div>{error && <p className="entry-error" role="alert">{error}</p>}</div>
+
+  return <div className="brainstorm-room"><div className="room-summary"><div><span>방 코드</span><strong>{roomCode}</strong></div><div><span>현재 라운드</span><strong>{roomData?.round ?? 1} / {roomData?.totalRounds ?? totalRounds}</strong></div><div><span>남은 시간</span><strong>{remaining || '-'}</strong></div></div>{roomData?.gameState === 'WAITING' && <section className="brainstorm-waiting"><div className="auction-section-title"><h3>참가자</h3><span>{participants.length}명</span></div><ul className="participant-list">{participants.map((participant) => <li key={participant.id}><i className={participant.connected === false ? 'offline' : ''} />{participant.nickname}{participant.role === 'host' ? <b>방장</b> : <span>참가</span>}</li>)}</ul>{isHost ? <div className="brainstorm-job-picker"><h3>{roomData.round}라운드 직업 선택</h3><div className="job-options">{brainstormJobs.map((job) => <button type="button" className={selectedJob === job ? 'selected' : ''} onClick={() => { setSelectedJob(job); setCustomJob('') }} key={job}>{job}</button>)}</div><label>직업 직접 입력<input value={customJob} onChange={(event) => setCustomJob(event.target.value)} maxLength={24} placeholder="예: 행정직 공무원" /></label><button type="button" className="auction-primary" onClick={startRound}>게임 시작 전 5초 카운트다운</button></div> : <div className="participant-wait"><h3>방장이 직업을 고르고 있어요.</h3><p>잠시 후 활동이 시작됩니다.</p></div>}</section>}{roomData?.gameState === 'COUNTDOWN' && <section className="brainstorm-countdown"><p>이번 직업은</p><h2>{roomData.currentJob}</h2><strong>{remaining}</strong><span>초 뒤 시작합니다</span>{isHost && remaining <= 0 && <button type="button" onClick={() => void movePhase('TASKS')}>파트 1 시작</button>}</section>}{roomData?.gameState === 'TASKS' && <section className="brainstorm-play"><div className="detail-heading"><span>PART 1 · 수행 업무</span><h2>{roomData.currentJob}은 실제 현장에서 어떤 일을 할까요?</h2><p>수업, 상담, 행정처리처럼 떠오르는 업무를 하나씩 입력해 주세요.</p></div><div className="brainstorm-submit"><textarea value={answer} onChange={(event) => setAnswer(event.target.value)} maxLength={240} placeholder="업무 하나를 적어 주세요." /><button type="button" onClick={submitAnswer}>업무 제출</button></div><div className="brainstorm-board">{taskSubmissions.map((item) => <article key={item.id}><b>{item.nickname}</b><p>{item.text}</p></article>)}</div>{isHost && <button type="button" className="auction-primary" onClick={() => void movePhase('STRENGTHS')}>파트 2로 이동</button>}</section>}{roomData?.gameState === 'STRENGTHS' && <section className="brainstorm-play"><div className="detail-heading"><span>PART 2 · 필요 역량</span><h2>이 업무들을 잘하려면 어떤 역량이 필요할까요?</h2><p>파트 1에서 나온 업무를 보며 필요한 능력, 태도, 성향을 적어 주세요.</p></div><div className="brainstorm-task-strip">{taskSubmissions.map((item) => <span key={item.id}>{item.text}</span>)}</div><div className="brainstorm-submit"><textarea value={answer} onChange={(event) => setAnswer(event.target.value)} maxLength={240} placeholder="필요한 역량 하나를 적어 주세요." /><button type="button" onClick={submitAnswer}>역량 제출</button></div><div className="brainstorm-board strength">{strengthSubmissions.map((item) => <article key={item.id}><b>{item.nickname}</b><p>{item.text}</p></article>)}</div>{isHost && <button type="button" className="auction-primary" onClick={() => void movePhase('ROUND_RESULT', 0)}>라운드 결과 보기</button>}</section>}{roomData?.gameState === 'ROUND_RESULT' && <section className="brainstorm-result"><h2>{roomData.currentJob} 브레인스토밍 결과</h2><div><article><h3>수행 업무</h3>{taskSubmissions.map((item) => <p key={item.id}>{item.text}</p>)}</article><article><h3>필요 역량</h3>{strengthSubmissions.map((item) => <p key={item.id}>{item.text}</p>)}</article></div>{isHost && <button type="button" className="auction-primary" onClick={nextRound}>{roomData.round >= roomData.totalRounds ? '최종 결과 보기' : '다음 라운드 준비'}</button>}</section>}{roomData?.gameState === 'RESULT' && <section className="brainstorm-result"><h2>활동 결과</h2><p>모둠이 함께 모은 직업별 업무와 필요 역량입니다.</p><div>{Array.from({ length: roomData.totalRounds }, (_, index) => index + 1).map((round) => <article key={round}><h3>{round}라운드</h3>{submissions.filter((item) => item.round === round).map((item) => <p key={item.id}><b>{item.part === 'tasks' ? '업무' : '역량'}</b> {item.text}</p>)}</article>)}</div></section>}{error && <p className="entry-error" role="alert">{error}</p>}</div>
 }
 
 function AiInterviewActivity({ schoolName, displayName }: { schoolName: string; displayName: string }) {
