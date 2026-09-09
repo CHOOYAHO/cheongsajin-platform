@@ -117,8 +117,12 @@ service cloud.firestore {
         && (get(/databases/$(database)/documents/staffSessions/$(request.auth.uid)).data.role == 'admin'
           || (get(/databases/$(database)/documents/staffSessions/$(request.auth.uid)).data.role == 'mentor'
             && get(/databases/$(database)/documents/staffSessions/$(request.auth.uid)).data.accountNumber == resource.data.mentorId))
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'readAt'])
-        && request.resource.data.status == 'read';
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'readAt', 'answer', 'answeredAt'])
+        && request.resource.data.status in ['read', 'answered']
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['answer'])
+          || (request.resource.data.answer is string
+            && request.resource.data.answer.size() > 0
+            && request.resource.data.answer.size() <= 1000));
       allow delete: if false;
     }
 
