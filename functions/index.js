@@ -166,6 +166,8 @@ const parseInterviewJson = (text) => {
       question: sanitizeText(parsed.question, 500),
       feedback: sanitizeText(parsed.feedback, 700),
       hint: sanitizeText(parsed.hint, 500),
+      hintIntent: sanitizeText(parsed.hintIntent, 500),
+      hintGuide: sanitizeText(parsed.hintGuide, 700),
       closingSummary: sanitizeText(parsed.closingSummary, 900),
       suggestedStrengths: Array.isArray(parsed.suggestedStrengths) ? parsed.suggestedStrengths.map((item) => sanitizeText(item, 40)).filter(Boolean).slice(0, 5) : [],
       decision,
@@ -173,7 +175,7 @@ const parseInterviewJson = (text) => {
       score,
     }
   } catch {
-    return { question: sanitizeText(text, 500), feedback: '', hint: '', closingSummary: '', suggestedStrengths: [], decision: 'hold', feedbackTone: 'neutral', score: 60 }
+    return { question: sanitizeText(text, 500), feedback: '', hint: '', hintIntent: '', hintGuide: '', closingSummary: '', suggestedStrengths: [], decision: 'hold', feedbackTone: 'neutral', score: 60 }
   }
 }
 const requireInterviewId = (value) => {
@@ -222,7 +224,9 @@ const getInterviewDecision = (turns) => {
   return { decision: 'retry', score: average }
 }
 const getInterviewHintFallback = ({ role, currentQuestion }) => ({
-      hint: `바로 정답을 찾으려 하지 말고, 1) 왜 이 일이 궁금한지, 2) 학교나 집에서 비슷하게 해 본 작은 일, 3) 앞으로 해 보고 싶은 일을 한 문장씩 떠올려 보세요. ${role}와 정확히 맞지 않아도 괜찮아요.`,
+  hint: `질문이 무엇을 보려는지 먼저 생각한 뒤, 학교나 일상에서 꺼낼 수 있는 작은 예시로 답해 보세요.`,
+  hintIntent: `면접관은 ${role}에 관심을 가진 이유와 이 일에 필요한 태도를 스스로 생각해 봤는지 확인하려고 해요.`,
+  hintGuide: `1) 이 일이 왜 궁금한지 말하기 2) 학교, 집, 친구와 한 활동 중 비슷한 장면 떠올리기 3) 아직 경험이 없으면 앞으로 해 보고 싶은 일을 말하기. ${role}와 정확히 맞지 않아도 괜찮아요.`,
   question: currentQuestion,
   feedback: '',
   closingSummary: '',
@@ -283,16 +287,18 @@ const callInterviewAi = async ({ company, role, application, turns, finished, mo
   if (!apiKey) return mode === 'hint' ? getInterviewHintFallback({ role, currentQuestion }) : getInterviewFallback({ company, role, application, turns, finished })
   const transcript = turns.map((turn, index) => `${index + 1}. 면접관: ${turn.question}\n지원자: ${turn.answer}`).join('\n')
 const prompt = mode === 'hint' ? `청소년 진로 프로그램의 AI 채용면접 도우미로 행동하세요.
-지원자는 중학생 또는 고등학생입니다. 답을 대신 써 주지 말고, 현재 질문에 답하기 위한 생각 힌트만 한국어로 2~3개 주세요.
+지원자는 중학생 또는 고등학생입니다. 답을 대신 써 주지 마세요. 현재 면접관 질문의 의도와 답변 가이드만 한국어로 알려 주세요.
 ${getDifficultyGuide(application.difficulty)}
 힌트는 학교 수업, 동아리, 친구와 한 활동, 집에서 해 본 일, 좋아하는 활동, 앞으로 해 보고 싶은 경험에서 찾도록 안내하세요.
+hintIntent에는 면접관이 이 질문으로 확인하려는 것을 1~2문장으로 적으세요.
+hintGuide에는 학생이 답변을 만들 때 따라갈 순서를 2~3단계로 적으세요. 완성 답안 문장은 쓰지 마세요.
 질문: ${currentQuestion}
 회사: ${company}
 지원 직무: ${role}
 간단 지원서: ${JSON.stringify(application)}
 지금까지의 면접:
 ${transcript || '아직 답변 없음'}
-반드시 JSON만 출력하세요. 형식: {"hint":""}` : `청소년 진로 프로그램의 AI 채용면접관으로 행동하세요.
+반드시 JSON만 출력하세요. 형식: {"hint":"", "hintIntent":"", "hintGuide":""}` : `청소년 진로 프로그램의 AI 채용면접관으로 행동하세요.
 지원자는 실제 채용면접에 지원했다고 가정합니다. 직업정보 Q&A, 직업인 역할극, 업무상황 체험이 아니라 채용면접입니다.
 대상은 중학생 또는 고등학생입니다. 실제 회사 경력, 전문 프로젝트 수행 경험, 포트폴리오, 연구·개발 실적, 기술적 문제 해결 사례가 있다고 전제하지 마세요.
 ${getDifficultyGuide(application.difficulty)}
@@ -352,6 +358,8 @@ export const runAiInterviewStep = onCall({ secrets: [openaiApiKey] }, async (req
       question: currentQuestion,
       feedback: '',
       hint: aiResult.hint,
+      hintIntent: aiResult.hintIntent,
+      hintGuide: aiResult.hintGuide,
       closingSummary: '',
       suggestedStrengths: [],
       decision: 'hold',
@@ -388,6 +396,8 @@ export const runAiInterviewStep = onCall({ secrets: [openaiApiKey] }, async (req
     question: finished ? '' : aiResult.question,
     feedback: aiResult.feedback,
     hint: aiResult.hint,
+    hintIntent: aiResult.hintIntent,
+    hintGuide: aiResult.hintGuide,
     closingSummary: aiResult.closingSummary,
     suggestedStrengths: aiResult.suggestedStrengths,
     decision: aiResult.decision,
