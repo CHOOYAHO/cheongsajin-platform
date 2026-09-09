@@ -985,6 +985,58 @@ function StaffSessionDetail({ sessionNumber, schoolName, displayName, masterView
   )
 }
 
+function ThirdActivityDetail({ step, schoolName, studentName, masterViewLabel, onLeave }: { step: number; schoolName: string; studentName: string; masterViewLabel?: string; onLeave: () => void }) {
+  const detailContent = [
+    { eyebrow: 'STEP 1', title: '활동 안내', subtitle: '진로 역량 갖추기', icon: '🧭', description: '2회기에서 발견한 선호와 강점을 관심 직업으로 연결하고, 오늘 활동의 전체 흐름을 확인해요.' },
+    { eyebrow: 'STEP 2', title: '핵심 역량 브레인스토밍', subtitle: '이 직업, 무슨 일을 할까?', icon: '💬', description: '관심 직업이 실제로 어떤 일을 하는지 먼저 예상하고, 그 일에 필요한 역량을 자유롭게 떠올려요.' },
+    { eyebrow: 'STEP 3', title: 'AI 가상면접', subtitle: '희망 직업 채용면접 시뮬레이션', icon: '🎤', description: '회사를 고르고 간단한 지원서를 작성한 뒤, AI 면접관과 채팅형 면접을 진행해요.' },
+    { eyebrow: 'STEP 4', title: '활동 마무리', subtitle: '면접에서 발견한 나 정리하기', icon: '📝', description: '업무 브레인스토밍과 AI 면접을 통해 알게 된 나의 강점, 보완점, 다음 준비를 정리해요.' },
+  ][step - 1]
+
+  return (
+    <div className="app-shell">
+      <header className="topbar"><div className="brand"><span className="brand-mark">청</span><span>청·사·진</span></div><div className="student-chip"><span>{schoolName}</span><b>{studentName}</b><button className="logout-button" onClick={onLeave}>로그아웃</button></div></header>
+      {masterViewLabel && <MasterViewBanner label={masterViewLabel} />}
+      <main className="session-review activity-detail-page">
+        <button className="back-button" type="button" onClick={() => window.history.back()}>← 3회기 활동 목록으로</button>
+        <section className="review-hero staff-session-hero interview detail-hero">
+          <div><p className="eyebrow">{detailContent.eyebrow} · 3회기</p><h1>{detailContent.title}</h1><h2>{detailContent.subtitle}</h2><p>{detailContent.description}</p></div>
+          <div className="review-icon" aria-hidden="true">{detailContent.icon}</div>
+        </section>
+
+        {step === 1 && <section className="detail-panel">
+          <div className="detail-heading"><span>3회기 흐름</span><h2>오늘은 관심 직업을 더 구체적으로 살펴봐요</h2><p>내가 좋아하는 것, 내가 가진 역량, 관심 직업을 연결한 뒤 실제 업무와 필요한 역량을 생각해 보고 AI 채용면접까지 이어갑니다.</p></div>
+          <div className="activity-roadmap"><article><b>1</b><h3>2회기 돌아보기</h3><p>선호와 강점 결과를 다시 확인해요.</p></article><article><b>2</b><h3>역량 연결하기</h3><p>경험 속 행동과 역량을 찾아요.</p></article><article><b>3</b><h3>업무 예상하기</h3><p>관심 직업의 실제 일을 떠올려요.</p></article><article><b>4</b><h3>AI 면접</h3><p>지원자 역할로 면접을 경험해요.</p></article></div>
+          <div className="mentor-note"><b>기억해요</b><p>AI 가상면접은 직업정보 Q&A가 아니라 희망 직업에 지원했다고 가정하는 채용면접 시뮬레이션이에요.</p></div>
+        </section>}
+
+        {step === 2 && <section className="detail-panel">
+          <div className="detail-heading"><span>업무와 역량 연결</span><h2>관심 직업에 필요한 핵심 역량을 예상해요</h2><p>선택한 직업이 어떤 일을 할지 먼저 자유롭게 생각하고, 그 일을 잘하려면 어떤 태도와 능력이 필요할지 정리해 봅니다.</p></div>
+          <div className="reflection-fields">
+            <label>내가 더 알아보고 싶은 직업<input placeholder="예: 로봇공학자, 간호사, 행정직 공무원" /></label>
+            <label>이 직업이 할 것 같은 일<textarea placeholder="떠오르는 업무를 자유롭게 적어 보세요." /></label>
+            <label>그 일을 잘하기 위해 필요할 것 같은 역량<textarea placeholder="예: 관찰력, 소통, 끈기, 문제해결력" /></label>
+          </div>
+          <button type="button" className="disabled-save" disabled>저장 기능 준비 중</button>
+        </section>}
+
+        {step === 3 && <AiInterviewActivity schoolName={schoolName} displayName={studentName} />}
+
+        {step === 4 && <section className="detail-panel">
+          <div className="detail-heading"><span>마무리 기록</span><h2>면접을 통해 새롭게 알게 된 나를 정리해요</h2><p>잘 말한 부분과 더 준비하고 싶은 부분을 짧게 남기면 5회기 미래 포트폴리오로 이어갈 수 있어요.</p></div>
+          <div className="reflection-fields">
+            <label>오늘 내가 잘 표현한 점<textarea placeholder="면접에서 잘 말한 점이나 새롭게 발견한 강점을 적어 보세요." /></label>
+            <label>다음에 더 준비하고 싶은 점<textarea placeholder="더 구체적으로 말하고 싶은 경험이나 보완할 부분을 적어 보세요." /></label>
+            <label>내가 관심 직업을 위해 해 보고 싶은 작은 실천<input placeholder="예: 관련 영상 찾아보기, 멘토에게 질문하기" /></label>
+          </div>
+          <button type="button" className="disabled-save" disabled>저장 기능 준비 중</button>
+        </section>}
+      </main>
+      <PartnerFooter />
+    </div>
+  )
+}
+
 function AiInterviewActivity({ schoolName, displayName }: { schoolName: string; displayName: string }) {
   const [phase, setPhase] = useState<'intro' | 'company' | 'application' | 'interview' | 'result'>('intro')
   const [selectedCompany, setSelectedCompany] = useState<InterviewCompany | null>(null)
@@ -1291,6 +1343,7 @@ function App() {
   const [entered, setEntered] = useState(false)
   const [activeSession, setActiveSession] = useState<number | null>(null)
   const [activeSecondActivity, setActiveSecondActivity] = useState<number | null>(null)
+  const [activeThirdActivity, setActiveThirdActivity] = useState<number | null>(null)
   const [activeGuide, setActiveGuide] = useState<GuidePage | null>(null)
   const [showMentorQuestion, setShowMentorQuestion] = useState(false)
   const [activeAdminPage, setActiveAdminPage] = useState(false)
@@ -1359,11 +1412,13 @@ function App() {
     const handleBack = (event: PopStateEvent) => {
       const view = typeof event.state?.cheongsajinView === 'string' ? event.state.cheongsajinView : 'login'
       const secondActivityMatch = /^activity-2-step-([1-4])$/.exec(view)
+      const thirdActivityMatch = /^activity-3-step-([1-4])$/.exec(view)
       const sessionMatch = /^(activity|session)-(\d+)$/.exec(view)
       const guideMatch = /^guide-(program|profile|mentors|center|questions)$/.exec(view)
-      if ((view === 'dashboard' || view === 'admin' || sessionMatch || secondActivityMatch || guideMatch) && !auth?.currentUser) {
+      if ((view === 'dashboard' || view === 'admin' || sessionMatch || secondActivityMatch || thirdActivityMatch || guideMatch) && !auth?.currentUser) {
         setActiveSession(null)
         setActiveSecondActivity(null)
+        setActiveThirdActivity(null)
         setActiveGuide(null)
         setActiveAdminPage(false)
         setEntered(false)
@@ -1378,6 +1433,7 @@ function App() {
         setEntered(true)
         setActiveSession(null)
         setActiveSecondActivity(null)
+        setActiveThirdActivity(null)
         setActiveGuide(null)
         setAdminSessionPreview(null)
         setActiveAdminPage(true)
@@ -1388,6 +1444,25 @@ function App() {
         setSessionPageMode('activity')
         setActiveSession(2)
         setActiveSecondActivity(Number(secondActivityMatch[1]))
+        setActiveThirdActivity(null)
+        setAdminSessionPreview(null)
+        setActiveAdminPage(false)
+        return
+      }
+      if (thirdActivityMatch) {
+        if (staffRole !== 'admin' && activeSessionLocks[3] !== true) {
+          setActiveSession(null)
+          setActiveSecondActivity(null)
+          setActiveThirdActivity(null)
+          setActiveGuide(null)
+          window.history.replaceState({ cheongsajinView: 'dashboard' }, '', '#dashboard')
+          return
+        }
+        setEntered(true)
+        setSessionPageMode('activity')
+        setActiveSession(3)
+        setActiveSecondActivity(null)
+        setActiveThirdActivity(Number(thirdActivityMatch[1]))
         setAdminSessionPreview(null)
         setActiveAdminPage(false)
         return
@@ -1396,6 +1471,7 @@ function App() {
         setEntered(true)
         setActiveSession(null)
         setActiveSecondActivity(null)
+        setActiveThirdActivity(null)
         setActiveGuide(guideMatch[1] as GuidePage)
         setAdminSessionPreview(null)
         setActiveAdminPage(false)
@@ -1406,6 +1482,7 @@ function App() {
         if (staffRole !== 'admin' && activeSessionLocks[requestedSession] !== true) {
           setActiveSession(null)
           setActiveSecondActivity(null)
+          setActiveThirdActivity(null)
           setActiveGuide(null)
           window.history.replaceState({ cheongsajinView: 'dashboard' }, '', '#dashboard')
           return
@@ -1414,6 +1491,7 @@ function App() {
         setSessionPageMode(sessionMatch[1] === 'activity' ? 'activity' : 'review')
         setActiveSession(requestedSession)
         setActiveSecondActivity(null)
+        setActiveThirdActivity(null)
         setAdminSessionPreview(null)
         setActiveAdminPage(false)
         return
@@ -1422,6 +1500,7 @@ function App() {
         setEntered(true)
         setActiveSession(null)
         setActiveSecondActivity(null)
+        setActiveThirdActivity(null)
         setActiveGuide(null)
         setAdminSessionPreview(null)
         setActiveAdminPage(false)
@@ -1429,6 +1508,7 @@ function App() {
       }
       setActiveSession(null)
       setActiveSecondActivity(null)
+      setActiveThirdActivity(null)
       setActiveGuide(null)
       setActiveAdminPage(false)
       setEntered(false)
@@ -1460,6 +1540,7 @@ function App() {
           setEntered(true)
           setActiveSession(null)
           setActiveSecondActivity(null)
+          setActiveThirdActivity(null)
           setActiveGuide(null)
           setActiveAdminPage(false)
           window.history.replaceState({ cheongsajinView: 'dashboard' }, '', '#dashboard')
@@ -1599,6 +1680,7 @@ function App() {
     window.localStorage.removeItem(savedSessionKey)
     setActiveSession(null)
     setActiveSecondActivity(null)
+    setActiveThirdActivity(null)
     setActiveGuide(null)
     setActiveAdminPage(false)
     setAdminSessionPreview(null)
@@ -1613,6 +1695,8 @@ function App() {
     if (!canPreviewFutureSessions && activeSessionLocks[sessionNumber] !== true) return
     setSessionPageMode(mode)
     setActiveSession(sessionNumber)
+    setActiveSecondActivity(null)
+    setActiveThirdActivity(null)
     setAdminSessionPreview(null)
     setActiveAdminPage(false)
     const view = mode === 'activity' ? `activity-${sessionNumber}` : `session-${sessionNumber}`
@@ -1698,12 +1782,20 @@ function App() {
   }
   const openSecondActivity = (step: number) => {
     setActiveSecondActivity(step)
+    setActiveThirdActivity(null)
     const view = `activity-2-step-${step}`
+    window.history.pushState({ cheongsajinView: view }, '', `#${view}`)
+  }
+  const openThirdActivity = (step: number) => {
+    setActiveSecondActivity(null)
+    setActiveThirdActivity(step)
+    const view = `activity-3-step-${step}`
     window.history.pushState({ cheongsajinView: view }, '', `#${view}`)
   }
   const goDashboard = () => {
     setActiveSession(null)
     setActiveSecondActivity(null)
+    setActiveThirdActivity(null)
     setActiveGuide(null)
     setAdminSessionPreview(null)
     setActiveAdminPage(false)
@@ -1711,6 +1803,8 @@ function App() {
   }
   const openGuide = (guide: GuidePage) => {
     setActiveGuide(guide)
+    setActiveSecondActivity(null)
+    setActiveThirdActivity(null)
     setAdminSessionPreview(null)
     setActiveAdminPage(false)
     window.history.pushState({ cheongsajinView: `guide-${guide}` }, '', `#guide-${guide}`)
@@ -1719,6 +1813,7 @@ function App() {
     if (staffRole !== 'admin') return
     setActiveSession(null)
     setActiveSecondActivity(null)
+    setActiveThirdActivity(null)
     setActiveGuide(null)
     setAdminSessionPreview(null)
     setActiveAdminPage(true)
@@ -1729,6 +1824,7 @@ function App() {
     setMasterViewMode(mode)
     setActiveSession(null)
     setActiveSecondActivity(null)
+    setActiveThirdActivity(null)
     setActiveGuide(null)
     setAdminSessionPreview(null)
     setActiveAdminPage(false)
@@ -1738,6 +1834,7 @@ function App() {
     setSessionPageMode('activity')
     setActiveSession(2)
     setActiveSecondActivity(step)
+    setActiveThirdActivity(null)
     setActiveGuide(null)
     setAdminSessionPreview(null)
     setActiveAdminPage(false)
@@ -1747,6 +1844,7 @@ function App() {
     setSessionPageMode('activity')
     setActiveSession(sessionNumber)
     setActiveSecondActivity(null)
+    setActiveThirdActivity(null)
     setActiveGuide(null)
     setAdminSessionPreview(sessionNumber)
     setActiveAdminPage(false)
@@ -1834,6 +1932,51 @@ function App() {
       </main>
       <PartnerFooter />
     </div>
+  }
+
+  if (activeSession === 3 && sessionPageMode === 'activity' && activeThirdActivity && (canPreviewFutureSessions || activeSessionLocks[3] === true)) {
+    return <ThirdActivityDetail step={activeThirdActivity} schoolName={viewSchoolName} studentName={viewDisplayName} masterViewLabel={masterViewLabel} onLeave={leave} />
+  }
+
+  if (activeSession === 3 && sessionPageMode === 'activity' && (canPreviewFutureSessions || activeSessionLocks[3] === true)) {
+    const sessionDate = viewSchool === 'yesan-high' ? '추후 안내' : '추후 안내'
+    const sessionPlace = viewSchool === 'yesan-high' ? '예산고등학교 지정교실' : viewSchool === 'gwangsi-middle' ? '광시중학교 1층 도서관' : '학교별 활동 장소'
+
+    return (
+      <div className="app-shell">
+        <header className="topbar"><div className="brand"><span className="brand-mark">청</span><span>청·사·진</span></div><div className="student-chip"><span>{viewSchoolName}</span><b>{viewDisplayName}</b><button className="logout-button" onClick={leave}>로그아웃</button></div></header>
+        {masterViewLabel && <MasterViewBanner label={masterViewLabel} />}
+        <main className="session-review">
+          <button className="back-button" type="button" onClick={() => window.history.back()}>← 나의 활동실로</button>
+          <section className="review-hero third-session-hero">
+            <div>
+              <span className="activity-badge">3회기 · 진로 역량 갖추기</span>
+              <p className="eyebrow">{viewSchoolName}</p>
+              <h1>관심 직업과 AI 채용면접</h1>
+              <p>내 경험 속 역량을 관심 직업과 연결하고, 실제 지원자처럼 AI 면접을 경험해요.</p>
+            </div>
+            <div className="review-icon" aria-hidden="true">🎤</div>
+          </section>
+          <section className="session-info" aria-label="활동 정보">
+            <div><small>참여 학교</small><b>{viewSchoolName}</b></div>
+            <div><small>활동 일자</small><b>{sessionDate}</b></div>
+            <div><small>활동 장소</small><b>{sessionPlace}</b></div>
+            <div><small>활동 시간</small><b>총 100분</b></div>
+          </section>
+          <section className="review-section">
+            <div className="review-section-heading"><div><p className="eyebrow">3회기 활동</p><h2>활동 내용이 여기에 들어가요</h2></div><span>4개 활동 · 진로 역량</span></div>
+            <div className="placeholder-grid">
+              <button type="button" className="placeholder-card" onClick={() => openThirdActivity(1)}><span>1</span><div><h3>활동 안내</h3><p>3회기의 목적과 진행 방법을 먼저 확인해요.</p></div><b>열기 →</b></button>
+              <button type="button" className="placeholder-card featured" onClick={() => openThirdActivity(2)}><span>2</span><div><h3>핵심 역량 브레인스토밍</h3><strong>이 직업, 무슨 일을 할까?</strong><p>관심 직업의 업무와 필요한 역량을 먼저 예상해요.</p></div><b>활동 시작 →</b></button>
+              <button type="button" className="placeholder-card featured" onClick={() => openThirdActivity(3)}><span>3</span><div><h3>AI 가상면접</h3><strong>희망 직업 채용면접</strong><p>회사를 고르고 AI 면접관과 채팅형 면접을 진행해요.</p></div><b>면접 시작 →</b></button>
+              <button type="button" className="placeholder-card" onClick={() => openThirdActivity(4)}><span>4</span><div><h3>활동 마무리</h3><p>면접에서 발견한 강점과 다음 준비를 정리해요.</p></div><b>열기 →</b></button>
+            </div>
+          </section>
+          <section className="empty-activity-note"><div aria-hidden="true">💡</div><h2>관심 직업을 내 경험과 연결해요</h2><p>카드를 눌러 활동을 순서대로 진행하세요. AI 가상면접 기록은 활동 기록으로 저장돼요.</p></section>
+        </main>
+        <PartnerFooter />
+      </div>
+    )
   }
 
   if (activeSession && activeSession >= 3 && activeSession <= 5 && sessionPageMode === 'activity' && (canPreviewFutureSessions || activeSessionLocks[activeSession] === true)) {
