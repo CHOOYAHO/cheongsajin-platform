@@ -259,6 +259,10 @@ const callInterviewAi = async ({ company, role, application, turns, finished }) 
   const transcript = turns.map((turn, index) => `${index + 1}. 면접관: ${turn.question}\n지원자: ${turn.answer}`).join('\n')
   const prompt = `청소년 진로 프로그램의 AI 채용면접관으로 행동하세요.
 지원자는 실제 채용면접에 지원했다고 가정합니다. 직업정보 Q&A, 직업인 역할극, 업무상황 체험이 아니라 채용면접입니다.
+대상은 중학생 또는 고등학생입니다. 실제 회사 경력, 전문 프로젝트 수행 경험, 포트폴리오, 연구·개발 실적, 기술적 문제 해결 사례가 있다고 전제하지 마세요.
+질문은 학생이 답할 수 있는 수준으로 만드세요. 학교 수업, 동아리, 친구와 한 활동, 집에서 해 본 일, 좋아하는 활동, 앞으로 해 보고 싶은 경험, 왜 관심이 생겼는지를 중심으로 물어보세요.
+금지 질문 예시: "수행했던 프로젝트를 설명하세요", "가장 도전적이었던 프로젝트는?", "기술적 문제를 어떻게 해결했나요?", "전문성을 어떻게 개발하고 있나요?", "연구나 개발 분야가 있나요?"
+직무가 전문적이어도 질문은 "이 일을 한다면 어떤 점이 재미있을 것 같나요?", "비슷하게 해 본 작은 경험이 있나요? 없다면 해 보고 싶은 일은 무엇인가요?", "이 직업에 필요한 태도는 무엇이라고 생각하나요?"처럼 바꾸세요.
 평가처럼 겁주지는 말되, 답변이 너무 짧거나 장난스럽거나 질문과 무관하면 "좋아요"로 시작하지 말고 분명히 다시 답하라고 안내하세요. 개인정보, 연락처, 주민번호, 실제 주소는 요구하지 마세요.
 면접 종료 시 decision은 pass, hold, retry 중 하나로 판정하세요. pass는 답변이 구체적이고 진지할 때, hold는 방향은 있으나 보완이 필요할 때, retry는 장난·무성의·무관한 답변이 많을 때입니다. score는 0~100 정수입니다.
 회사: ${company}
@@ -266,7 +270,7 @@ const callInterviewAi = async ({ company, role, application, turns, finished }) 
 간단 지원서: ${JSON.stringify(application)}
 지금까지의 면접:
 ${transcript || '아직 답변 없음'}
-${finished ? '면접을 종료하고 최종 피드백을 작성하세요.' : '다음 면접 질문 1개를 작성하세요. 이전 답변이 있다면 짧은 피드백도 함께 주세요.'}
+${finished ? '면접을 종료하고 최종 피드백을 작성하세요.' : '다음 면접 질문 1개를 작성하세요. 이전 답변이 있다면 짧은 피드백도 함께 주세요. 다음 질문은 반드시 중고등학생이 자신의 학교생활·일상·관심·앞으로의 계획으로 답할 수 있어야 합니다.'}
 반드시 JSON만 출력하세요. 형식: {"question":"", "feedback":"", "closingSummary":"", "suggestedStrengths":[""], "decision":"hold", "score":60}`
   const response = await fetch('https://api.openai.com/v1/responses', {
     method: 'POST',
