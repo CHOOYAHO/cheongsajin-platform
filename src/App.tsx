@@ -32,7 +32,7 @@ type InterviewCompany = { name: string; fields: string[]; description: string; r
 type InterviewApplication = { role: string; interestReason: string; strengths: string; experience: string; closingLine: string }
 type InterviewTurn = { question: string; answer: string; feedback?: string }
 type InterviewDecision = 'pass' | 'hold' | 'retry'
-type InterviewStepResponse = { interviewId: string; question: string; feedback?: string; closingSummary?: string; suggestedStrengths?: string[]; decision?: InterviewDecision; score?: number; aiSource?: 'openai' | 'fallback'; status: 'inProgress' | 'completed' }
+type InterviewStepResponse = { interviewId: string; question: string; feedback?: string; hint?: string; closingSummary?: string; suggestedStrengths?: string[]; decision?: InterviewDecision; score?: number; aiSource?: 'openai' | 'fallback'; status: 'inProgress' | 'completed' }
 const defaultSessionLocks: SessionLockMap = { 1: true, 2: true, 3: false, 4: false, 5: false }
 const sessionTemplates: SessionTemplate[] = [
   { number: 1, title: '청사진을 위한 첫 만남', subtitle: '나와 멘토, 새로운 가능성을 만나요', icon: '👋' },
@@ -967,6 +967,7 @@ function AiInterviewActivity({ schoolName, displayName }: { schoolName: string; 
   const [currentQuestion, setCurrentQuestion] = useState('')
   const [answer, setAnswer] = useState('')
   const [lastFeedback, setLastFeedback] = useState('')
+  const [currentHint, setCurrentHint] = useState('')
   const [closingSummary, setClosingSummary] = useState('')
   const [suggestedStrengths, setSuggestedStrengths] = useState<string[]>([])
   const [decision, setDecision] = useState<InterviewDecision>('hold')
@@ -975,14 +976,14 @@ function AiInterviewActivity({ schoolName, displayName }: { schoolName: string; 
   const [isBusy, setIsBusy] = useState(false)
   const [error, setError] = useState('')
 
-  const runInterviewStep = async (nextTurns: InterviewTurn[], finished: boolean) => {
+  const runInterviewStep = async (nextTurns: InterviewTurn[], finished: boolean, mode: 'interview' | 'hint' = 'interview') => {
     if (!selectedCompany) return null
     if (!functions) throw new Error('Firebase Functions 연결이 필요합니다.')
     const normalizedApplication = { ...application, role: application.role === '직접 입력' ? customRole.trim() : application.role.trim() }
-    const callable = httpsCallable<{ interviewId: string; company: string; schoolName: string; displayName: string; application: InterviewApplication; turns: InterviewTurn[]; finished: boolean }, InterviewStepResponse>(functions, 'runAiInterviewStep')
+    const callable = httpsCallable<{ interviewId: string; company: string; schoolName: string; displayName: string; application: InterviewApplication; turns: InterviewTurn[]; finished: boolean; mode?: 'interview' | 'hint'; currentQuestion?: string }, InterviewStepResponse>(functions, 'runAiInterviewStep')
     const id = interviewId || `interview-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
     if (!interviewId) setInterviewId(id)
-    const result = await callable({ interviewId: id, company: selectedCompany.name, schoolName, displayName, application: normalizedApplication, turns: nextTurns, finished })
+    const result = await callable({ interviewId: id, company: selectedCompany.name, schoolName, displayName, application: normalizedApplication, turns: nextTurns, finished, mode, currentQuestion })
     return result.data
   }
 
@@ -1008,6 +1009,7 @@ function AiInterviewActivity({ schoolName, displayName }: { schoolName: string; 
       setAiSource(result.aiSource ?? 'fallback')
       setCurrentQuestion(result.question)
       setLastFeedback(result.feedback ?? '')
+      setCurrentHint('')
       setPhase('interview')
     } catch (caught) {
       console.error(caught)
@@ -1031,6 +1033,7 @@ function AiInterviewActivity({ schoolName, displayName }: { schoolName: string; 
       const result = await runInterviewStep(answeredTurns, shouldFinish)
       setTurns(answeredTurns)
       setAnswer('')
+      setCurrentHint('')
       setLastFeedback(result?.feedback ?? '')
       setClosingSummary(result?.closingSummary ?? '')
       setSuggestedStrengths(result?.suggestedStrengths ?? [])
@@ -1051,6 +1054,22 @@ function AiInterviewActivity({ schoolName, displayName }: { schoolName: string; 
     }
   }
 
+  const requestHint = async () => {
+    if (!currentQuestion) return
+    setIsBusy(true)
+    setError('')
+    try {
+      const result = await runInterviewStep(turns, false, 'hint')
+      setCurrentHint(result?.hint ?? '내가 왜 관심을 가졌는지, 학교나 일상에서 비슷한 일이 있었는지, 앞으로 무엇을 해 보고 싶은지 떠올려 보세요.')
+      setAiSource(result?.aiSource ?? 'fallback')
+    } catch (caught) {
+      console.error(caught)
+      setError('힌트를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.')
+    } finally {
+      setIsBusy(false)
+    }
+  }
+
   const resetInterview = () => {
     setPhase('intro')
     setSelectedCompany(null)
@@ -1062,6 +1081,7 @@ function AiInterviewActivity({ schoolName, displayName }: { schoolName: string; 
     setCurrentQuestion('')
     setAnswer('')
     setLastFeedback('')
+    setCurrentHint('')
     setClosingSummary('')
     setSuggestedStrengths([])
     setDecision('hold')
@@ -1115,8 +1135,8 @@ function AiInterviewActivity({ schoolName, displayName }: { schoolName: string; 
           <button type="submit" disabled={isBusy}>{isBusy ? '첫 질문 만드는 중' : 'AI 면접 시작하기'}</button>
         </form>
       )}
-      {phase === 'interview' && selectedCompany && <div className="ai-interview-room"><div className="interview-status"><span>{selectedCompany.name}</span><b>{application.role === '직접 입력' ? customRole : application.role} 면접</b><small>{turns.length > 0 ? `${turns.length}번 답변함` : '진행 중'}</small></div>{lastFeedback && <div className="interview-feedback"><b>방금 답변 피드백</b><p>{lastFeedback}</p></div>}<div className="interview-chat-log">{turns.map((turn, index) => <article key={`${turn.question}-${index}`}><div className="chat-bubble interviewer"><span>면접관</span><p>{turn.question}</p></div><div className="chat-bubble applicant"><span>나</span><p>{turn.answer}</p></div></article>)}</div><div className="interview-question"><span>AI 면접관</span><h3>{currentQuestion}</h3></div><label>내 답변<textarea value={answer} onChange={(event) => setAnswer(event.target.value)} maxLength={1200} placeholder="지원자처럼 답변해 보세요." /></label>{error && <p className="entry-error" role="alert">{error}</p>}<div className="interview-actions"><button type="button" className="secondary" onClick={() => void submitAnswer(true)} disabled={isBusy}>{isBusy ? '결과 정리 중' : '면접 마치고 결과 보기'}</button><button type="button" onClick={() => void submitAnswer(false)} disabled={isBusy}>{isBusy ? '다음 질문 만드는 중' : '답변 보내기'}</button></div></div>}
-      {phase === 'result' && <div className={`ai-result-card ${decision}`}><span>면접 완료</span><div className="interview-decision"><b>{decision === 'pass' ? '합격' : decision === 'hold' ? '보류' : '재도전'}</b><small>{interviewScore > 0 ? `${interviewScore}점` : '판정 완료'}</small></div><h3>{selectedCompany?.name} · {application.role === '직접 입력' ? customRole : application.role}</h3>{closingSummary ? <p>{closingSummary}</p> : <p>면접 답변이 활동 기록으로 저장됐어요. 선생님과 멘토가 이후 활동에서 함께 돌아볼 수 있습니다.</p>}{suggestedStrengths.length > 0 && <div className="result-strengths">{suggestedStrengths.map((strength) => <b key={strength}>{strength}</b>)}</div>}<div className="interview-log-preview">{turns.map((turn, index) => <article key={`${turn.question}-${index}`}><strong>Q{index + 1}. {turn.question}</strong><p>{turn.answer}</p></article>)}</div><button type="button" onClick={resetInterview}>새 면접 시작하기</button></div>}
+      {phase === 'interview' && selectedCompany && <div className="ai-interview-room"><div className="interview-status"><span>{selectedCompany.name}</span><b>{application.role === '직접 입력' ? customRole : application.role} 면접</b><small>{turns.length > 0 ? `${turns.length}번 답변함` : '진행 중'}</small></div>{lastFeedback && <div className="interview-feedback"><b>방금 답변 피드백</b><p>{lastFeedback}</p></div>}<div className="interview-chat-log">{turns.map((turn, index) => <article key={`${turn.question}-${index}`}><div className="chat-bubble interviewer"><span>면접관</span><p>{turn.question}</p></div><div className="chat-bubble applicant"><span>나</span><p>{turn.answer}</p></div></article>)}{currentQuestion && <div className="chat-bubble interviewer current"><span>AI 면접관</span><p>{currentQuestion}</p></div>}</div>{currentHint && <div className="interview-hint"><b>생각 힌트</b><p>{currentHint}</p></div>}<label>내 답변<textarea value={answer} onChange={(event) => setAnswer(event.target.value)} maxLength={1200} placeholder="지원자처럼 답변해 보세요." /></label>{error && <p className="entry-error" role="alert">{error}</p>}<div className="interview-actions"><button type="button" className="secondary" onClick={() => void submitAnswer(true)} disabled={isBusy}>{isBusy ? '결과 정리 중' : '면접 마치고 결과 보기'}</button><button type="button" className="secondary" onClick={() => void requestHint()} disabled={isBusy}>{isBusy ? '불러오는 중' : '힌트 보기'}</button><button type="button" onClick={() => void submitAnswer(false)} disabled={isBusy}>{isBusy ? '다음 질문 만드는 중' : '답변 보내기'}</button></div></div>}
+      {phase === 'result' && <div className={`ai-result-card ${decision}`}><span>면접 완료</span><div className="interview-decision"><b>{decision === 'pass' ? '합격' : decision === 'hold' ? '보류' : '재도전'}</b><small>{interviewScore > 0 ? `${interviewScore}점` : '판정 완료'}</small></div><h3>{selectedCompany?.name} · {application.role === '직접 입력' ? customRole : application.role}</h3>{closingSummary ? <p>{closingSummary}</p> : <p>면접 답변이 활동 기록으로 저장됐어요. 선생님과 멘토가 이후 활동에서 함께 돌아볼 수 있습니다.</p>}<div className="score-rubric"><b>점수 기준</b><div><span>지원 이유</span><span>내 강점</span><span>경험·계획</span><span>성실한 답변</span></div><p>답변이 구체적이고 질문에 맞을수록 올라가요. 장난식 답변, 너무 짧은 답변, 질문과 상관없는 답변은 점수가 내려갑니다.</p></div>{suggestedStrengths.length > 0 && <div className="result-strengths">{suggestedStrengths.map((strength) => <b key={strength}>{strength}</b>)}</div>}<div className="interview-log-preview">{turns.map((turn, index) => <article key={`${turn.question}-${index}`}><strong>Q{index + 1}. {turn.question}</strong><p>{turn.answer}</p></article>)}</div><button type="button" onClick={resetInterview}>새 면접 시작하기</button></div>}
       {detailCompany && <div className="company-modal-backdrop" onClick={(event) => { if (event.target === event.currentTarget) setDetailCompany(null) }}><section className="company-modal" role="dialog" aria-modal="true"><button type="button" className="company-modal-close" onClick={() => setDetailCompany(null)} aria-label="회사 상세 닫기">×</button><span>{detailCompany.fields.join(' · ')}</span><h2>{detailCompany.name}</h2><p>{detailCompany.description}</p><h3>지원해 볼 수 있는 직무</h3><div>{detailCompany.roles.map((role) => <small key={role}>{role}</small>)}</div><h3>면접에서 연결할 역량</h3><div>{detailCompany.strengths.map((strength) => <small key={strength}>{strength}</small>)}</div><button type="button" onClick={() => selectCompany(detailCompany)}>이 회사 선택하기</button></section></div>}
     </section>
   )

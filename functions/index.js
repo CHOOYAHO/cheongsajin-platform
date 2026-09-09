@@ -159,17 +159,19 @@ const parseInterviewJson = (text) => {
     const cleaned = String(text ?? '').replace(/^```json\s*/i, '').replace(/```$/i, '').trim()
     const parsed = JSON.parse(cleaned)
     const decision = ['pass', 'hold', 'retry'].includes(parsed.decision) ? parsed.decision : 'hold'
-    const score = Math.max(0, Math.min(100, Number.parseInt(parsed.score, 10) || 60))
+    const parsedScore = Number.parseInt(parsed.score, 10)
+    const score = Math.max(0, Math.min(100, Number.isFinite(parsedScore) ? parsedScore : 60))
     return {
       question: sanitizeText(parsed.question, 500),
       feedback: sanitizeText(parsed.feedback, 700),
+      hint: sanitizeText(parsed.hint, 500),
       closingSummary: sanitizeText(parsed.closingSummary, 900),
       suggestedStrengths: Array.isArray(parsed.suggestedStrengths) ? parsed.suggestedStrengths.map((item) => sanitizeText(item, 40)).filter(Boolean).slice(0, 5) : [],
       decision,
       score,
     }
   } catch {
-    return { question: sanitizeText(text, 500), feedback: '', closingSummary: '', suggestedStrengths: [], decision: 'hold', score: 60 }
+    return { question: sanitizeText(text, 500), feedback: '', hint: '', closingSummary: '', suggestedStrengths: [], decision: 'hold', score: 60 }
   }
 }
 const requireInterviewId = (value) => {
@@ -210,6 +212,16 @@ const getInterviewDecision = (turns) => {
   if (average >= 45) return { decision: 'hold', score: average }
   return { decision: 'retry', score: average }
 }
+const getInterviewHintFallback = ({ role, currentQuestion }) => ({
+  hint: `바로 정답을 찾으려 하지 말고, 1) 왜 이 일이 궁금한지, 2) 학교나 집에서 비슷하게 해 본 작은 일, 3) 앞으로 해 보고 싶은 일을 한 문장씩 떠올려 보세요. ${role}와 정확히 맞지 않아도 괜찮아요.`,
+  question: currentQuestion,
+  feedback: '',
+  closingSummary: '',
+  suggestedStrengths: [],
+  decision: 'hold',
+  score: 0,
+  aiSource: 'fallback',
+})
 const getInterviewFallback = ({ company, role, application, turns, finished }) => {
   const strengths = ['의사소통능력', '책임감', '문제해결능력', '협업능력', '끈기']
   if (finished) {
@@ -249,16 +261,25 @@ const getInterviewFallback = ({ company, role, application, turns, finished }) =
     aiSource: 'fallback',
   }
 }
-const callInterviewAi = async ({ company, role, application, turns, finished }) => {
+const callInterviewAi = async ({ company, role, application, turns, finished, mode = 'interview', currentQuestion = '' }) => {
   let apiKey = ''
   try {
     apiKey = openaiApiKey.value()
   } catch {
     apiKey = ''
   }
-  if (!apiKey) return getInterviewFallback({ company, role, application, turns, finished })
+  if (!apiKey) return mode === 'hint' ? getInterviewHintFallback({ role, currentQuestion }) : getInterviewFallback({ company, role, application, turns, finished })
   const transcript = turns.map((turn, index) => `${index + 1}. 면접관: ${turn.question}\n지원자: ${turn.answer}`).join('\n')
-  const prompt = `청소년 진로 프로그램의 AI 채용면접관으로 행동하세요.
+  const prompt = mode === 'hint' ? `청소년 진로 프로그램의 AI 채용면접 도우미로 행동하세요.
+지원자는 중학생 또는 고등학생입니다. 답을 대신 써 주지 말고, 현재 질문에 답하기 위한 생각 힌트만 한국어로 2~3개 주세요.
+힌트는 학교 수업, 동아리, 친구와 한 활동, 집에서 해 본 일, 좋아하는 활동, 앞으로 해 보고 싶은 경험에서 찾도록 안내하세요.
+질문: ${currentQuestion}
+회사: ${company}
+지원 직무: ${role}
+간단 지원서: ${JSON.stringify(application)}
+지금까지의 면접:
+${transcript || '아직 답변 없음'}
+반드시 JSON만 출력하세요. 형식: {"hint":""}` : `청소년 진로 프로그램의 AI 채용면접관으로 행동하세요.
 지원자는 실제 채용면접에 지원했다고 가정합니다. 직업정보 Q&A, 직업인 역할극, 업무상황 체험이 아니라 채용면접입니다.
 대상은 중학생 또는 고등학생입니다. 실제 회사 경력, 전문 프로젝트 수행 경험, 포트폴리오, 연구·개발 실적, 기술적 문제 해결 사례가 있다고 전제하지 마세요.
 질문은 학생이 답할 수 있는 수준으로 만드세요. 학교 수업, 동아리, 친구와 한 활동, 집에서 해 본 일, 좋아하는 활동, 앞으로 해 보고 싶은 경험, 왜 관심이 생겼는지를 중심으로 물어보세요.
@@ -267,6 +288,7 @@ const callInterviewAi = async ({ company, role, application, turns, finished }) 
 평가처럼 겁주지는 말되, 답변이 너무 짧거나 장난스럽거나 질문과 무관하면 "좋아요"로 시작하지 말고 분명히 다시 답하라고 안내하세요. 개인정보, 연락처, 주민번호, 실제 주소는 요구하지 마세요.
 면접은 고정 5문항이 아니라 라이브 채팅처럼 이어집니다. 이전 답변을 바탕으로 자연스럽게 후속 질문을 하되, 같은 주제를 반복하지 마세요. 7문항 이후에는 마무리해도 좋다는 짧은 안내를 feedback에 넣을 수 있습니다.
 면접 종료 시 decision은 pass, hold, retry 중 하나로 판정하세요. pass는 답변이 구체적이고 진지할 때, hold는 방향은 있으나 보완이 필요할 때, retry는 장난·무성의·무관한 답변이 많을 때입니다. score는 0~100 정수입니다.
+점수는 지원 이유 25점, 내 강점 표현 25점, 학교·일상 경험이나 앞으로의 계획 25점, 질문에 맞춘 성실한 태도 25점으로 계산하세요. 답변이 장난스럽거나 지나치게 짧거나 질문과 무관하면 해당 항목을 낮게 주세요.
 회사: ${company}
 지원 직무: ${role}
 간단 지원서: ${JSON.stringify(application)}
@@ -284,13 +306,13 @@ ${finished ? '면접을 종료하고 최종 피드백을 작성하세요.' : '�
       max_output_tokens: 700,
     }),
   })
-  if (!response.ok) return getInterviewFallback({ company, role, application, turns, finished })
+  if (!response.ok) return mode === 'hint' ? getInterviewHintFallback({ role, currentQuestion }) : getInterviewFallback({ company, role, application, turns, finished })
   try {
     const data = await response.json()
     const outputText = data.output_text ?? data.output?.flatMap((item) => item.content ?? []).map((item) => item.text ?? '').join('\n') ?? ''
     return { ...parseInterviewJson(outputText), aiSource: 'openai' }
   } catch {
-    return getInterviewFallback({ company, role, application, turns, finished })
+    return mode === 'hint' ? getInterviewHintFallback({ role, currentQuestion }) : getInterviewFallback({ company, role, application, turns, finished })
   }
 }
 
@@ -303,10 +325,26 @@ export const runAiInterviewStep = onCall({ secrets: [openaiApiKey] }, async (req
   const application = sanitizeInterviewApplication(request.data?.application)
   const turns = sanitizeInterviewTurns(request.data?.turns)
   const finished = request.data?.finished === true
+  const mode = request.data?.mode === 'hint' ? 'hint' : 'interview'
+  const currentQuestion = sanitizeText(request.data?.currentQuestion, 500)
   if (!company || !application.role) throw new HttpsError('invalid-argument', '회사와 지원 직무를 선택해 주세요.')
   if (finished && !turns.length) throw new HttpsError('failed-precondition', '면접 답변이 아직 없습니다.')
 
-  const aiResult = await callInterviewAi({ company, role: application.role, application, turns, finished })
+  const aiResult = await callInterviewAi({ company, role: application.role, application, turns, finished, mode, currentQuestion })
+  if (mode === 'hint') {
+    return {
+      interviewId,
+      question: currentQuestion,
+      feedback: '',
+      hint: aiResult.hint,
+      closingSummary: '',
+      suggestedStrengths: [],
+      decision: 'hold',
+      score: 0,
+      aiSource: aiResult.aiSource,
+      status: 'inProgress',
+    }
+  }
   const recordRef = db.doc(`aiInterviewLogs/${uid}_${interviewId}`)
   await recordRef.set({
     userId: uid,
@@ -332,6 +370,7 @@ export const runAiInterviewStep = onCall({ secrets: [openaiApiKey] }, async (req
     interviewId,
     question: finished ? '' : aiResult.question,
     feedback: aiResult.feedback,
+    hint: aiResult.hint,
     closingSummary: aiResult.closingSummary,
     suggestedStrengths: aiResult.suggestedStrengths,
     decision: aiResult.decision,
