@@ -186,7 +186,7 @@ const sanitizeInterviewApplication = (application = {}) => ({
 })
 const sanitizeInterviewTurns = (turns = []) => {
   if (!Array.isArray(turns)) throw new HttpsError('invalid-argument', '면접 기록 형식이 올바르지 않습니다.')
-  return turns.slice(0, 8).map((turn) => ({
+  return turns.slice(0, 20).map((turn) => ({
     question: sanitizeText(turn?.question, 500),
     answer: sanitizeText(turn?.answer, 1200),
     feedback: sanitizeText(turn?.feedback, 700),
@@ -233,9 +233,10 @@ const getInterviewFallback = ({ company, role, application, turns, finished }) =
   const questions = [
     `${company}의 ${role}에 지원한 이유를 본인 말로 설명해 주세요.`,
     `다른 지원자보다 내가 조금 더 잘할 수 있는 점은 무엇이라고 생각하나요?`,
-    `${role}로 일하려면 어떤 태도나 역량이 가장 중요하다고 생각하나요?`,
+    `${role}로 일하는 사람에게 어떤 태도나 장점이 필요할 것 같나요?`,
     `학교나 일상에서 ${role}와 조금이라도 연결해 볼 수 있는 경험이 있다면 말해 주세요. 없다면 앞으로 해 보고 싶은 경험을 말해도 좋아요.`,
-    `마지막으로 ${company} 면접관에게 꼭 전하고 싶은 말을 해 주세요.`,
+    `${company}에서 ${role} 일을 하게 된다면 가장 먼저 배워 보고 싶은 것은 무엇인가요?`,
+    `지금까지 답변한 내용을 바탕으로 면접관에게 꼭 전하고 싶은 말을 해 주세요.`,
   ]
   const index = Math.min(turns.length, questions.length - 1)
   return {
@@ -264,6 +265,7 @@ const callInterviewAi = async ({ company, role, application, turns, finished }) 
 금지 질문 예시: "수행했던 프로젝트를 설명하세요", "가장 도전적이었던 프로젝트는?", "기술적 문제를 어떻게 해결했나요?", "전문성을 어떻게 개발하고 있나요?", "연구나 개발 분야가 있나요?"
 직무가 전문적이어도 질문은 "이 일을 한다면 어떤 점이 재미있을 것 같나요?", "비슷하게 해 본 작은 경험이 있나요? 없다면 해 보고 싶은 일은 무엇인가요?", "이 직업에 필요한 태도는 무엇이라고 생각하나요?"처럼 바꾸세요.
 평가처럼 겁주지는 말되, 답변이 너무 짧거나 장난스럽거나 질문과 무관하면 "좋아요"로 시작하지 말고 분명히 다시 답하라고 안내하세요. 개인정보, 연락처, 주민번호, 실제 주소는 요구하지 마세요.
+면접은 고정 5문항이 아니라 라이브 채팅처럼 이어집니다. 이전 답변을 바탕으로 자연스럽게 후속 질문을 하되, 같은 주제를 반복하지 마세요. 7문항 이후에는 마무리해도 좋다는 짧은 안내를 feedback에 넣을 수 있습니다.
 면접 종료 시 decision은 pass, hold, retry 중 하나로 판정하세요. pass는 답변이 구체적이고 진지할 때, hold는 방향은 있으나 보완이 필요할 때, retry는 장난·무성의·무관한 답변이 많을 때입니다. score는 0~100 정수입니다.
 회사: ${company}
 지원 직무: ${role}
