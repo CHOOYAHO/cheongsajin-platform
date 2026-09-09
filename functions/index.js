@@ -557,19 +557,30 @@ export const resetStudentPinAccounts = onCall({ secrets: [pinPepper] }, async (r
 export const updateSessionLock = onCall(async (request) => {
   await requireActiveAdminSession(request)
   const sessionNumber = Number(request.data?.sessionNumber)
+  const target = String(request.data?.target ?? '')
   const unlocked = request.data?.unlocked === true
   if (!Number.isInteger(sessionNumber) || sessionNumber < 1 || sessionNumber > 5) {
     throw new HttpsError('invalid-argument', '회기 번호가 올바르지 않습니다.')
   }
+  if (!['yesan', 'gwangsi', 'mentor'].includes(target)) {
+    throw new HttpsError('invalid-argument', '공개 대상을 확인해 주세요.')
+  }
   const lockRef = db.doc('system/sessionLocks')
   const snapshot = await lockRef.get()
   const current = snapshot.data()?.sessions ?? {}
+  const legacy = typeof current['1'] === 'boolean'
+  const nextSessions = legacy
+    ? { yesan: { ...current }, gwangsi: { ...current }, mentor: { ...current } }
+    : { ...current }
   await lockRef.set({
-    sessions: { ...current, [String(sessionNumber)]: unlocked },
+    sessions: {
+      ...nextSessions,
+      [target]: { ...(nextSessions[target] ?? {}), [String(sessionNumber)]: unlocked },
+    },
     updatedAt: FieldValue.serverTimestamp(),
     updatedBy: request.auth.uid,
   }, { merge: true })
-  return { sessionNumber, unlocked }
+  return { sessionNumber, target, unlocked }
 })
 
 export const staffLogin = onCall({ secrets: [pinPepper] }, async (request) => {

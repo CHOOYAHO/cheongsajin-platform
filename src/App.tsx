@@ -27,6 +27,8 @@ type ManagedStudentAccount = { id: string; accountNumber: string; displayName: s
 type StaffSessionPlan = { title: string; subtitle: string; description: string; icon: string; theme: string; activities: { duration: string; title: string; description: string; mentorTip: string }[] }
 type AdminSectionId = 'accounts' | 'activities' | 'records' | 'library'
 type SessionLockMap = Record<number, boolean>
+type SessionLockTarget = 'yesan' | 'gwangsi' | 'mentor'
+type SessionLocksByTarget = Record<SessionLockTarget, SessionLockMap>
 type MasterViewMode = 'mentor' | 'yesan-high' | 'gwangsi-middle'
 type InterviewCompany = { name: string; fields: string[]; description: string; roles: string[]; strengths: string[] }
 type InterviewDifficulty = 'veryEasy' | 'easy' | 'medium' | 'hard'
@@ -35,7 +37,12 @@ type InterviewTurn = { question: string; answer: string; feedback?: string }
 type InterviewDecision = 'pass' | 'hold' | 'retry'
 type InterviewFeedbackTone = 'good' | 'neutral' | 'bad'
 type InterviewStepResponse = { interviewId: string; question: string; feedback?: string; feedbackTone?: InterviewFeedbackTone; hint?: string; hintIntent?: string; hintGuide?: string; closingSummary?: string; suggestedStrengths?: string[]; decision?: InterviewDecision; score?: number; aiSource?: 'openai' | 'fallback'; status: 'inProgress' | 'completed' }
-const defaultSessionLocks: SessionLockMap = { 1: true, 2: true, 3: false, 4: false, 5: false }
+const defaultSessionLockMap: SessionLockMap = { 1: true, 2: true, 3: false, 4: false, 5: false }
+const defaultSessionLocks: SessionLocksByTarget = {
+  yesan: { ...defaultSessionLockMap },
+  gwangsi: { ...defaultSessionLockMap },
+  mentor: { ...defaultSessionLockMap },
+}
 const sessionTemplates: SessionTemplate[] = [
   { number: 1, title: '청사진을 위한 첫 만남', subtitle: '나와 멘토, 새로운 가능성을 만나요', icon: '👋' },
   { number: 2, title: '선호와 강점 탐색', subtitle: '좋아하는 것과 나만의 강점을 발견해요', icon: '✨' },
@@ -1180,7 +1187,7 @@ function AiInterviewActivity({ schoolName, displayName }: { schoolName: string; 
   )
 }
 
-function AdminPage({ displayName, accountTools, sessionLocks, sessionLockBusy, sessionLockError, onToggleSessionLock, onOpenPreferenceRecords, onOpenAuctionRecords, onOpenSession, onBack, onLeave }: { displayName: string; accountTools: ReactNode; sessionLocks: SessionLockMap; sessionLockBusy: number | null; sessionLockError: string; onToggleSessionLock: (sessionNumber: number, unlocked: boolean) => void; onOpenPreferenceRecords: () => void; onOpenAuctionRecords: () => void; onOpenSession: (sessionNumber: number) => void; onBack: () => void; onLeave: () => void }) {
+function AdminPage({ displayName, accountTools, sessionLocks, sessionLockBusy, sessionLockError, onToggleSessionLock, onOpenPreferenceRecords, onOpenAuctionRecords, onOpenSession, onBack, onLeave }: { displayName: string; accountTools: ReactNode; sessionLocks: SessionLocksByTarget; sessionLockBusy: string | null; sessionLockError: string; onToggleSessionLock: (sessionNumber: number, target: SessionLockTarget, unlocked: boolean) => void; onOpenPreferenceRecords: () => void; onOpenAuctionRecords: () => void; onOpenSession: (sessionNumber: number) => void; onBack: () => void; onLeave: () => void }) {
   const [activeSection, setActiveSection] = useState<AdminSectionId | null>(null)
   const adminSections = [
     { id: 'accounts' as const, title: '계정 관리', description: '학생, 교사, 멘토, 관리자(마스터) 계정과 PIN을 조회하고 정비하는 영역입니다.', items: ['학교별 학생 PIN', '교사·멘토 계정', '마스터 등급'], action: '계정 관리 열기', tone: 'blue' },
@@ -1201,7 +1208,7 @@ function AdminPage({ displayName, accountTools, sessionLocks, sessionLockBusy, s
         </section>
         {!activeSection && <section className="admin-section-grid">{adminSections.map((section) => <article className={`admin-section-card ${section.tone}`} key={section.title}><h2>{section.title}</h2><p>{section.description}</p><ul>{section.items.map((item) => <li key={item}>{item}</li>)}</ul><button type="button" onClick={() => setActiveSection(section.id)}>{section.action}</button></article>)}</section>}
         {activeSection === 'accounts' && <section className="admin-detail-panel account-admin-panel"><div className="admin-detail-heading"><span>계정 관리</span><h2>학생 PIN 관리</h2><p>학교별 학생 계정 목록을 확인하고, 없는 계정 발급이나 PIN 재발급을 처리합니다.</p></div>{accountTools}</section>}
-        {activeSection === 'activities' && <section className="admin-detail-panel"><div className="admin-detail-heading"><span>활동 관리</span><h2>회기별 잠금 관리</h2><p>마스터는 모든 회기를 확인할 수 있고, 아래 토글은 학생·교사·멘토 화면의 공개 여부를 바꿉니다.</p></div>{sessionLockError && <p className="entry-error" role="alert">{sessionLockError}</p>}<div className="admin-session-list">{sessionTemplates.map((session) => { const unlocked = sessionLocks[session.number] === true; return <article className={unlocked ? 'open' : 'locked'} key={session.number}><span>{session.number}회기</span><div><h3>{session.title}</h3><p>{session.subtitle}</p><small>{unlocked ? '학생·교사·멘토에게 열림' : '마스터 외 잠김'}</small></div><div className="admin-session-actions"><button type="button" onClick={() => onOpenSession(session.number)}>활동 확인</button><button type="button" className={`session-lock-toggle ${unlocked ? 'open' : 'locked'}`} onClick={() => onToggleSessionLock(session.number, !unlocked)} disabled={sessionLockBusy === session.number}>{sessionLockBusy === session.number ? '저장 중' : unlocked ? '잠그기' : '풀기'}</button></div></article> })}</div><div className="admin-placeholder-note"><b>잠금 기준</b><p>마스터 계정은 잠금 여부와 관계없이 모든 회기를 볼 수 있고, 다른 계정은 여기서 열린 회기만 활동실에 표시됩니다.</p></div></section>}
+        {activeSection === 'activities' && <section className="admin-detail-panel"><div className="admin-detail-heading"><span>활동 관리</span><h2>회기별 잠금 관리</h2><p>예산고, 광시중, 멘토의 활동 공개 여부를 각각 설정합니다. 교사는 소속 학교 설정을 따릅니다.</p></div>{sessionLockError && <p className="entry-error" role="alert">{sessionLockError}</p>}<div className="admin-session-list">{sessionTemplates.map((session) => <article key={session.number}><span>{session.number}회기</span><div><h3>{session.title}</h3><p>{session.subtitle}</p><small>대상별로 따로 잠그거나 풀 수 있어요.</small></div><div className="admin-session-targets"><button type="button" onClick={() => onOpenSession(session.number)}>활동 확인</button>{([['yesan', '예산고'], ['gwangsi', '광시중'], ['mentor', '멘토']] as const).map(([target, label]) => { const unlocked = sessionLocks[target][session.number] === true; const busyKey = `${target}-${session.number}`; return <div key={target}><b>{label}</b><button type="button" className={`session-lock-toggle ${unlocked ? 'open' : 'locked'}`} onClick={() => onToggleSessionLock(session.number, target, !unlocked)} disabled={sessionLockBusy === busyKey}>{sessionLockBusy === busyKey ? '저장 중' : unlocked ? '잠그기' : '풀기'}</button><small>{unlocked ? '공개 중' : '잠김'}</small></div> })}</div></article>)}</div><div className="admin-placeholder-note"><b>잠금 기준</b><p>예산고·광시중 학생과 교사는 각 학교 설정을 따르고, 멘토는 멘토 설정을 따릅니다. 관리자는 잠금 여부와 관계없이 활동 확인으로 들어갈 수 있습니다.</p></div></section>}
         {activeSection === 'records' && <section className="admin-detail-panel"><div className="admin-detail-heading"><span>활동 기록</span><h2>활동 결과 보기</h2><p>학생들이 제출한 선호 탐색 결과와 강점 경매장 기록을 확인하는 화면입니다.</p></div><div className="admin-record-actions"><button type="button" onClick={onOpenPreferenceRecords}><span>2회기</span><b>선호 탐색 결과 보기</b><small>좋아·싫어 결과와 워드클라우드 확인</small></button><button type="button" onClick={onOpenAuctionRecords}><span>강점 경매장</span><b>경매 결과 기록 보기</b><small>방별 진행 결과와 참가자별 강점 확인</small></button></div><div className="admin-placeholder-note"><b>기록 통합</b><p>현재 저장된 활동 결과를 관리자용으로 모아 보는 출입구입니다. 이후 학교·학생별 필터를 이 화면에 붙이면 됩니다.</p></div></section>}
         {activeSection === 'library' && <section className="admin-detail-panel"><div className="admin-detail-heading"><span>자료실</span><h2>핵심 자료 보관함</h2><p>수업 중 자주 쓰는 자료, 운영 문서, 외부 링크를 한곳에 모아 두는 관리자용 자료실입니다.</p></div><div className="admin-library-grid"><article><span>수업 자료</span><h3>회기별 진행 자료</h3><p>활동 안내, 멘토 진행안, 학생용 안내문을 회기별로 정리해 둘 자리입니다.</p><button type="button" disabled>자료 추가 준비 중</button></article><article><span>운영 문서</span><h3>계정·배포·운영 메모</h3><p>PIN 발급 이력, 배포 체크리스트, 현장 운영 메모를 저장할 수 있게 확장할 자리입니다.</p><button type="button" disabled>문서 추가 준비 중</button></article><article><span>외부 링크</span><h3>바로가기 모음</h3><p>수련관 홈페이지, 프로그램 접수, 공유 드라이브 등 자주 여는 링크를 모아둘 자리입니다.</p><div className="admin-library-links"><a href="http://www.yesanyouth.or.kr/main_sub/sub.php?folder_idx=2&folder_page_idx=69" target="_blank" rel="noreferrer">수련관 홈페이지</a><a href="http://www.yesanyouth.or.kr/edu/edu_list.php?folder_idx=2&folder_page_idx=40" target="_blank" rel="noreferrer">프로그램 접수</a></div></article></div><div className="admin-placeholder-note"><b>다음 확장</b><p>실제 업로드까지 붙일 때는 Firebase Storage 권한과 자료 메타데이터 저장 구조를 함께 설계하면 됩니다.</p></div></section>}
         {!activeSection && <section className="admin-note"><b>운영 원칙</b><p>학생 PIN은 담당자에게 조회 가능해야 하며, 마스터 코드와 Firebase 설정값은 화면·문서·코드에 노출하지 않습니다.</p></section>}
@@ -1238,8 +1245,8 @@ function App() {
   const [managedStudentAccounts, setManagedStudentAccounts] = useState<ManagedStudentAccount[]>([])
   const [studentIssueError, setStudentIssueError] = useState('')
   const [isIssuingStudentPins, setIsIssuingStudentPins] = useState(false)
-  const [sessionLocks, setSessionLocks] = useState<SessionLockMap>(defaultSessionLocks)
-  const [sessionLockBusy, setSessionLockBusy] = useState<number | null>(null)
+  const [sessionLocks, setSessionLocks] = useState<SessionLocksByTarget>(defaultSessionLocks)
+  const [sessionLockBusy, setSessionLockBusy] = useState<string | null>(null)
   const [sessionLockError, setSessionLockError] = useState('')
   const [masterViewMode, setMasterViewMode] = useState<MasterViewMode>('mentor')
   const [adminSessionPreview, setAdminSessionPreview] = useState<number | null>(null)
@@ -1255,6 +1262,12 @@ function App() {
   const viewSchoolName = isMasterAccount ? masterViewMode === 'yesan-high' ? '예산고등학교' : masterViewMode === 'gwangsi-middle' ? '광시중학교' : '멘토' : schoolName
   const viewDisplayName = isMasterAccount && masterViewMode !== 'mentor' ? `${name.trim()} · 학생 화면` : name.trim()
   const isMasterStudentView = isMasterAccount && masterViewMode !== 'mentor'
+  const sessionLockTarget: SessionLockTarget = viewSchool === 'yesan-high' || viewSchool === 'yesan-teacher'
+    ? 'yesan'
+    : viewSchool === 'gwangsi-middle' || viewSchool === 'gwangsi-teacher'
+      ? 'gwangsi'
+      : 'mentor'
+  const activeSessionLocks = sessionLocks[sessionLockTarget]
   const hiddenMentorNames = viewSchool === 'gwangsi-middle'
     ? ['이영우']
     : viewSchool === 'yesan-high'
@@ -1268,7 +1281,7 @@ function App() {
   const completedSessionCount = viewSchool === 'yesan-high' || (isStaffAccount && !isMasterStudentView) ? 1 : 0
   const sessions: Session[] = sessionTemplates.map((session) => ({
     ...session,
-    status: canPreviewFutureSessions ? 'open' : sessionLocks[session.number] === true ? session.number <= completedSessionCount ? 'done' : 'open' : 'locked',
+    status: canPreviewFutureSessions ? 'open' : activeSessionLocks[session.number] === true ? session.number <= completedSessionCount ? 'done' : 'open' : 'locked',
   }))
   const progress = completedSessionCount * 20
 
@@ -1321,7 +1334,7 @@ function App() {
       }
       if (sessionMatch) {
         const requestedSession = Number(sessionMatch[2])
-        if (staffRole !== 'admin' && sessionLocks[requestedSession] !== true) {
+        if (staffRole !== 'admin' && activeSessionLocks[requestedSession] !== true) {
           setActiveSession(null)
           setActiveSecondActivity(null)
           setActiveGuide(null)
@@ -1354,7 +1367,7 @@ function App() {
     }
     window.addEventListener('popstate', handleBack)
     return () => window.removeEventListener('popstate', handleBack)
-  }, [staffRole, sessionLocks])
+  }, [staffRole, activeSessionLocks])
 
   useEffect(() => {
     if (!auth || !db) return
@@ -1417,9 +1430,18 @@ function App() {
   useEffect(() => {
     if (!entered || !db) return
     return onSnapshot(doc(db, 'system', 'sessionLocks'), (snapshot) => {
-      const stored = snapshot.data()?.sessions as Record<string, boolean> | undefined
-      const nextLocks = { ...defaultSessionLocks }
-      Object.entries(stored ?? {}).forEach(([key, value]) => { nextLocks[Number(key)] = value === true })
+      const stored = snapshot.data()?.sessions as Record<string, boolean | Record<string, boolean>> | undefined
+      const hasLegacyValues = typeof stored?.['1'] === 'boolean'
+      const nextLocks: SessionLocksByTarget = {
+        yesan: { ...defaultSessionLockMap },
+        gwangsi: { ...defaultSessionLockMap },
+        mentor: { ...defaultSessionLockMap },
+      }
+      ;(['yesan', 'gwangsi', 'mentor'] as const).forEach((target) => {
+        const targetValues = hasLegacyValues ? stored : stored?.[target]
+        if (!targetValues || typeof targetValues !== 'object') return
+        Object.entries(targetValues).forEach(([key, value]) => { nextLocks[target][Number(key)] = value === true })
+      })
       setSessionLocks(nextLocks)
     }, (error) => console.error(error))
   }, [entered])
@@ -1519,7 +1541,7 @@ function App() {
     window.history.replaceState({ cheongsajinView: 'login' }, '', '#login')
   }
   const openSession = (sessionNumber: number, mode: 'activity' | 'review') => {
-    if (!canPreviewFutureSessions && sessionLocks[sessionNumber] !== true) return
+    if (!canPreviewFutureSessions && activeSessionLocks[sessionNumber] !== true) return
     setSessionPageMode(mode)
     setActiveSession(sessionNumber)
     setAdminSessionPreview(null)
@@ -1661,14 +1683,14 @@ function App() {
     setActiveAdminPage(false)
     window.history.pushState({ cheongsajinView: `activity-${sessionNumber}` }, '', `#activity-${sessionNumber}`)
   }
-  const toggleSessionLock = async (sessionNumber: number, unlocked: boolean) => {
+  const toggleSessionLock = async (sessionNumber: number, target: SessionLockTarget, unlocked: boolean) => {
     if (!functions) return
-    setSessionLockBusy(sessionNumber)
+    setSessionLockBusy(`${target}-${sessionNumber}`)
     setSessionLockError('')
     try {
-      const updateLock = httpsCallable<{ sessionNumber: number; unlocked: boolean }, { sessionNumber: number; unlocked: boolean }>(functions, 'updateSessionLock')
-      await updateLock({ sessionNumber, unlocked })
-      setSessionLocks((current) => ({ ...current, [sessionNumber]: unlocked }))
+      const updateLock = httpsCallable<{ sessionNumber: number; target: SessionLockTarget; unlocked: boolean }, { sessionNumber: number; target: SessionLockTarget; unlocked: boolean }>(functions, 'updateSessionLock')
+      await updateLock({ sessionNumber, target, unlocked })
+      setSessionLocks((current) => ({ ...current, [target]: { ...current[target], [sessionNumber]: unlocked } }))
     } catch (error) {
       console.error(error)
       setSessionLockError('회기 잠금 상태를 저장하지 못했어요. 마스터 로그인 상태를 확인해 주세요.')
@@ -1726,7 +1748,7 @@ function App() {
     </div>
   )
 
-  if (activeAdminPage && staffRole === 'admin') return <AdminPage displayName={name.trim()} accountTools={accountManagementTools} sessionLocks={sessionLocks} sessionLockBusy={sessionLockBusy} sessionLockError={sessionLockError} onToggleSessionLock={(sessionNumber, unlocked) => void toggleSessionLock(sessionNumber, unlocked)} onOpenPreferenceRecords={() => openAdminActivityRecord(2)} onOpenAuctionRecords={() => openAdminActivityRecord(3)} onOpenSession={openAdminSessionPreview} onBack={goDashboard} onLeave={leave} />
+  if (activeAdminPage && staffRole === 'admin') return <AdminPage displayName={name.trim()} accountTools={accountManagementTools} sessionLocks={sessionLocks} sessionLockBusy={sessionLockBusy} sessionLockError={sessionLockError} onToggleSessionLock={(sessionNumber, target, unlocked) => void toggleSessionLock(sessionNumber, target, unlocked)} onOpenPreferenceRecords={() => openAdminActivityRecord(2)} onOpenAuctionRecords={() => openAdminActivityRecord(3)} onOpenSession={openAdminSessionPreview} onBack={goDashboard} onLeave={leave} />
 
   if (activeGuide) {
     const ownMentorProfile = mentorProfiles.find((profile) => profile.displayName === name.trim())
@@ -1745,7 +1767,7 @@ function App() {
     </div>
   }
 
-  if (activeSession && activeSession >= 3 && activeSession <= 5 && sessionPageMode === 'activity' && (canPreviewFutureSessions || sessionLocks[activeSession] === true)) {
+  if (activeSession && activeSession >= 3 && activeSession <= 5 && sessionPageMode === 'activity' && (canPreviewFutureSessions || activeSessionLocks[activeSession] === true)) {
     return <StaffSessionDetail sessionNumber={activeSession} schoolName={viewSchoolName} displayName={viewDisplayName} masterViewLabel={masterViewLabel} onLeave={leave} />
   }
 
