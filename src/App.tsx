@@ -1041,6 +1041,8 @@ function AiInterviewActivity({ schoolName, displayName }: { schoolName: string; 
   const [phase, setPhase] = useState<'intro' | 'company' | 'application' | 'interview' | 'result'>('intro')
   const [selectedCompany, setSelectedCompany] = useState<InterviewCompany | null>(null)
   const [detailCompany, setDetailCompany] = useState<InterviewCompany | null>(null)
+  const [showCustomCompany, setShowCustomCompany] = useState(false)
+  const [customCompany, setCustomCompany] = useState({ name: '', fields: '', description: '', roles: '', strengths: '' })
   const [application, setApplication] = useState<InterviewApplication>(blankInterviewApplication)
   const [customRole, setCustomRole] = useState('')
   const [interviewId, setInterviewId] = useState('')
@@ -1074,7 +1076,24 @@ function AiInterviewActivity({ schoolName, displayName }: { schoolName: string; 
     setApplication({ ...blankInterviewApplication, role: company.roles[0] })
     setCustomRole('')
     setDetailCompany(null)
+    setShowCustomCompany(false)
     setPhase('application')
+  }
+
+  const createCustomCompany = () => {
+    const name = customCompany.name.trim()
+    const roles = customCompany.roles.split(/[,，]/).map((item) => item.trim()).filter(Boolean)
+    if (!name || roles.length === 0) {
+      setError('회사명과 지원 직무를 입력해 주세요.')
+      return
+    }
+    selectCompany({
+      name,
+      fields: customCompany.fields.split(/[,，]/).map((item) => item.trim()).filter(Boolean).slice(0, 4),
+      description: customCompany.description.trim() || `${name}에서 내가 관심 있는 일을 직접 정해 지원해 보는 회사예요.`,
+      roles,
+      strengths: customCompany.strengths.split(/[,，]/).map((item) => item.trim()).filter(Boolean).slice(0, 6),
+    })
   }
 
   const startInterview = async () => {
@@ -1186,7 +1205,7 @@ function AiInterviewActivity({ schoolName, displayName }: { schoolName: string; 
         <p>회사를 고르고 간단 지원서를 작성하면 AI 면접관이 지원 직무에 맞춰 질문을 이어 가요. 면접 질문과 답변은 활동 기록으로 저장됩니다.</p>
       </div>
       {phase === 'intro' && <div className="ai-step-card intro"><h3>활동 안내</h3><p>이 활동은 직업정보를 묻는 Q&A가 아니라, 내가 선택한 직업에 실제 지원했다고 가정하는 채용면접이에요. 답변은 짧아도 괜찮고, 내가 가진 경험과 역량을 내 말로 설명하는 연습이 핵심입니다.</p><div className="ai-guide-list"><span>회사 선택</span><span>간단 지원서 작성</span><span>AI 면접 진행</span><span>답변 돌아보기</span></div><button type="button" onClick={() => setPhase('company')}>회사 선택하러 가기</button></div>}
-      {phase === 'company' && <div className="ai-company-stage"><div className="company-grid">{interviewCompanies.map((company) => <article className="company-card" key={company.name}><span>{company.fields.join(' · ')}</span><h3>{company.name}</h3><p>{company.description}</p><div>{company.roles.slice(0, 3).map((role) => <small key={role}>{role}</small>)}</div><div className="company-actions"><button type="button" className="secondary" onClick={() => setDetailCompany(company)}>상세보기</button><button type="button" onClick={() => selectCompany(company)}>선택하기</button></div></article>)}</div></div>}
+      {phase === 'company' && <div className="ai-company-stage"><div className="company-grid">{interviewCompanies.map((company) => <article className="company-card" key={company.name}><span>{company.fields.join(' · ')}</span><h3>{company.name}</h3><p>{company.description}</p><div>{company.roles.slice(0, 3).map((role) => <small key={role}>{role}</small>)}</div><div className="company-actions"><button type="button" className="secondary" onClick={() => setDetailCompany(company)}>상세보기</button><button type="button" onClick={() => selectCompany(company)}>선택하기</button></div></article>)}</div><button type="button" className="custom-company-toggle" onClick={() => { setShowCustomCompany((current) => !current); setError('') }}>지원할 회사 직접 만들기</button>{showCustomCompany && <section className="custom-company-panel"><div><span>직접 만들기</span><h3>내가 지원할 회사를 만들어요</h3><p>회사명과 지원 직무만 입력해도 면접을 시작할 수 있어요. 여러 개는 쉼표로 구분해 주세요.</p></div><label>회사명<input value={customCompany.name} onChange={(event) => setCustomCompany({ ...customCompany, name: event.target.value })} maxLength={40} placeholder="예: 예청게임즈, 예청병원, 예청군청" /></label><label>분야<input value={customCompany.fields} onChange={(event) => setCustomCompany({ ...customCompany, fields: event.target.value })} maxLength={80} placeholder="예: 게임, 디자인, 행정" /></label><label>회사 설명<textarea value={customCompany.description} onChange={(event) => setCustomCompany({ ...customCompany, description: event.target.value })} maxLength={240} placeholder="어떤 일을 하는 회사인지 짧게 적어 주세요." /></label><label>지원 직무<input value={customCompany.roles} onChange={(event) => setCustomCompany({ ...customCompany, roles: event.target.value })} maxLength={120} placeholder="예: 게임 기획자, 디자이너, 일반행정직" /></label><label>면접에서 연결할 역량<input value={customCompany.strengths} onChange={(event) => setCustomCompany({ ...customCompany, strengths: event.target.value })} maxLength={120} placeholder="예: 창의성, 소통, 책임감" /></label>{error && <p className="entry-error" role="alert">{error}</p>}<button type="button" onClick={createCustomCompany}>이 회사로 지원서 쓰기</button></section>}</div>}
       {phase === 'application' && selectedCompany && (
         <form className="ai-application-form" onSubmit={(event) => { event.preventDefault(); void startInterview() }}>
           <div className="selected-company-strip">
