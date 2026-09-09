@@ -158,14 +158,18 @@ const parseInterviewJson = (text) => {
   try {
     const cleaned = String(text ?? '').replace(/^```json\s*/i, '').replace(/```$/i, '').trim()
     const parsed = JSON.parse(cleaned)
+    const decision = ['pass', 'hold', 'retry'].includes(parsed.decision) ? parsed.decision : 'hold'
+    const score = Math.max(0, Math.min(100, Number.parseInt(parsed.score, 10) || 60))
     return {
       question: sanitizeText(parsed.question, 500),
       feedback: sanitizeText(parsed.feedback, 700),
       closingSummary: sanitizeText(parsed.closingSummary, 900),
       suggestedStrengths: Array.isArray(parsed.suggestedStrengths) ? parsed.suggestedStrengths.map((item) => sanitizeText(item, 40)).filter(Boolean).slice(0, 5) : [],
+      decision,
+      score,
     }
   } catch {
-    return { question: sanitizeText(text, 500), feedback: '', closingSummary: '', suggestedStrengths: [] }
+    return { question: sanitizeText(text, 500), feedback: '', closingSummary: '', suggestedStrengths: [], decision: 'hold', score: 60 }
   }
 }
 const requireInterviewId = (value) => {
@@ -188,17 +192,44 @@ const sanitizeInterviewTurns = (turns = []) => {
     feedback: sanitizeText(turn?.feedback, 700),
   })).filter((turn) => turn.question && turn.answer)
 }
+const getAnswerEffortScore = (answer) => {
+  const text = sanitizeText(answer, 1200)
+  if (!text) return 0
+  let score = Math.min(45, text.length * 1.4)
+  if (/[.!?。？！요다까죠음함해요]$/.test(text)) score += 8
+  if (/(왜냐|이유|관심|좋아|잘|해봤|경험|노력|배우|도움|책임|생각|앞으로|친구|학교|동아리)/.test(text)) score += 18
+  if (/(돈|집에|몰라|없어|귀찮|장난|ㅋㅋ|ㅎㅎ|ㅋ|ㅎ|싫어|대충)/.test(text)) score -= 28
+  if (text.length < 8) score -= 25
+  return Math.max(0, Math.min(100, Math.round(score)))
+}
+const getInterviewDecision = (turns) => {
+  if (!turns.length) return { decision: 'retry', score: 0 }
+  const scores = turns.map((turn) => getAnswerEffortScore(turn.answer))
+  const average = Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length)
+  if (average >= 70) return { decision: 'pass', score: average }
+  if (average >= 45) return { decision: 'hold', score: average }
+  return { decision: 'retry', score: average }
+}
 const getInterviewFallback = ({ company, role, application, turns, finished }) => {
   const strengths = ['의사소통능력', '책임감', '문제해결능력', '협업능력', '끈기']
   if (finished) {
+    const result = getInterviewDecision(turns)
+    const summary = result.decision === 'pass'
+      ? `${company}의 ${role} 면접을 통과했어요. 답변에서 관심과 강점이 비교적 잘 드러났습니다.`
+      : result.decision === 'hold'
+        ? `${company}의 ${role} 면접은 보류예요. 방향은 보였지만 이유와 예시를 조금 더 구체적으로 말하면 좋아요.`
+        : `${company}의 ${role} 면접은 재도전이 필요해요. 장난식 답변보다 내가 왜 관심 있는지와 무엇을 해 보고 싶은지 다시 말해 보세요.`
     return {
       question: '',
-      feedback: turns.length ? '답변을 끝까지 이어 간 점이 좋아요. 다음에는 구체적인 상황을 하나 더 붙이면 더 설득력 있게 말할 수 있어요.' : '',
-      closingSummary: `${company}의 ${role} 면접을 마쳤어요. 내가 왜 관심을 가졌는지, 어떤 점을 잘하는지, 앞으로 어떤 경험을 더 쌓으면 좋을지 돌아보세요.`,
+      feedback: result.decision === 'retry' ? '답변이 너무 짧거나 장난스럽게 보여요. 면접에서는 짧아도 진짜 이유를 말하는 게 중요해요.' : '끝까지 답변을 이어 간 점은 좋아요. 다음에는 구체적인 예시를 하나 더 붙여 보세요.',
+      closingSummary: summary,
       suggestedStrengths: strengths.slice(0, 3),
+      decision: result.decision,
+      score: result.score,
       aiSource: 'fallback',
     }
   }
+  const previousScore = turns.length ? getAnswerEffortScore(turns.at(-1)?.answer) : 100
   const questions = [
     `${company}의 ${role}에 지원한 이유를 본인 말로 설명해 주세요.`,
     `다른 지원자보다 내가 조금 더 잘할 수 있는 점은 무엇이라고 생각하나요?`,
@@ -209,9 +240,11 @@ const getInterviewFallback = ({ company, role, application, turns, finished }) =
   const index = Math.min(turns.length, questions.length - 1)
   return {
     question: questions[index],
-    feedback: turns.length ? '좋아요. 방금 답변에서 이유가 드러났어요. 다음 답변에는 예시를 하나 붙여 보면 더 좋아요.' : '',
+    feedback: turns.length ? previousScore < 40 ? '방금 답변은 너무 짧거나 장난스럽게 들릴 수 있어요. 다음 답변은 진짜 이유나 예시를 한 문장만 더 붙여 보세요.' : '방금 답변에서 방향은 보였어요. 다음 답변에는 구체적인 예시를 하나 붙이면 더 좋아요.' : '',
     closingSummary: '',
     suggestedStrengths: application.strengths ? strengths.slice(0, 3) : strengths.slice(0, 2),
+    decision: 'hold',
+    score: 0,
     aiSource: 'fallback',
   }
 }
@@ -226,14 +259,15 @@ const callInterviewAi = async ({ company, role, application, turns, finished }) 
   const transcript = turns.map((turn, index) => `${index + 1}. 면접관: ${turn.question}\n지원자: ${turn.answer}`).join('\n')
   const prompt = `청소년 진로 프로그램의 AI 채용면접관으로 행동하세요.
 지원자는 실제 채용면접에 지원했다고 가정합니다. 직업정보 Q&A, 직업인 역할극, 업무상황 체험이 아니라 채용면접입니다.
-평가처럼 겁주지 말고, 짧고 구체적인 한국어로 질문과 피드백을 주세요. 개인정보, 연락처, 주민번호, 실제 주소는 요구하지 마세요.
+평가처럼 겁주지는 말되, 답변이 너무 짧거나 장난스럽거나 질문과 무관하면 "좋아요"로 시작하지 말고 분명히 다시 답하라고 안내하세요. 개인정보, 연락처, 주민번호, 실제 주소는 요구하지 마세요.
+면접 종료 시 decision은 pass, hold, retry 중 하나로 판정하세요. pass는 답변이 구체적이고 진지할 때, hold는 방향은 있으나 보완이 필요할 때, retry는 장난·무성의·무관한 답변이 많을 때입니다. score는 0~100 정수입니다.
 회사: ${company}
 지원 직무: ${role}
 간단 지원서: ${JSON.stringify(application)}
 지금까지의 면접:
 ${transcript || '아직 답변 없음'}
 ${finished ? '면접을 종료하고 최종 피드백을 작성하세요.' : '다음 면접 질문 1개를 작성하세요. 이전 답변이 있다면 짧은 피드백도 함께 주세요.'}
-반드시 JSON만 출력하세요. 형식: {"question":"", "feedback":"", "closingSummary":"", "suggestedStrengths":[""]}`
+반드시 JSON만 출력하세요. 형식: {"question":"", "feedback":"", "closingSummary":"", "suggestedStrengths":[""], "decision":"hold", "score":60}`
   const response = await fetch('https://api.openai.com/v1/responses', {
     method: 'POST',
     headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
@@ -281,6 +315,8 @@ export const runAiInterviewStep = onCall({ secrets: [openaiApiKey] }, async (req
     lastFeedback: aiResult.feedback,
     closingSummary: aiResult.closingSummary,
     suggestedStrengths: aiResult.suggestedStrengths,
+    decision: aiResult.decision,
+    score: aiResult.score,
     aiSource: aiResult.aiSource,
     createdAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
@@ -292,6 +328,8 @@ export const runAiInterviewStep = onCall({ secrets: [openaiApiKey] }, async (req
     feedback: aiResult.feedback,
     closingSummary: aiResult.closingSummary,
     suggestedStrengths: aiResult.suggestedStrengths,
+    decision: aiResult.decision,
+    score: aiResult.score,
     aiSource: aiResult.aiSource,
     status: finished ? 'completed' : 'inProgress',
   }
