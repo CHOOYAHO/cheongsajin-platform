@@ -518,7 +518,6 @@ function StrengthAuctionGame({ studentName }: { studentName: string }) {
   const [role, setRole] = useState<'host' | 'participant'>('participant')
   const [roomCode, setRoomCode] = useState('')
   const [joinCode, setJoinCode] = useState('')
-  const [joinCode, setJoinCode] = useState('')
   const [nickname, setNickname] = useState(studentName || '')
   const [roomError, setRoomError] = useState('')
   const [isRoomBusy, setIsRoomBusy] = useState(false)
@@ -1035,6 +1034,7 @@ function ThirdActivityDetail({ step, schoolName, studentName, masterViewLabel, o
 
 function CareerBrainstormGame({ studentName }: { studentName: string }) {
   const [roomCode, setRoomCode] = useState('')
+  const [joinCode, setJoinCode] = useState('')
   const [nickname, setNickname] = useState(studentName || '')
   const [role, setRole] = useState<'host' | 'participant' | null>(null)
   const [roomData, setRoomData] = useState<BrainstormRoom | null>(null)
