@@ -1068,7 +1068,42 @@ function AiInterviewActivity({ schoolName, displayName }: { schoolName: string; 
       </div>
       {phase === 'intro' && <div className="ai-step-card intro"><h3>활동 안내</h3><p>이 활동은 직업정보를 묻는 Q&A가 아니라, 내가 선택한 직업에 실제 지원했다고 가정하는 채용면접이에요. 답변은 짧아도 괜찮고, 내가 가진 경험과 역량을 내 말로 설명하는 연습이 핵심입니다.</p><div className="ai-guide-list"><span>회사 선택</span><span>간단 지원서 작성</span><span>AI 면접 진행</span><span>답변 돌아보기</span></div><button type="button" onClick={() => setPhase('company')}>회사 선택하러 가기</button></div>}
       {phase === 'company' && <div className="ai-company-stage"><div className="company-grid">{interviewCompanies.map((company) => <article className="company-card" key={company.name}><span>{company.fields.join(' · ')}</span><h3>{company.name}</h3><p>{company.description}</p><div>{company.roles.slice(0, 3).map((role) => <small key={role}>{role}</small>)}</div><div className="company-actions"><button type="button" className="secondary" onClick={() => setDetailCompany(company)}>상세보기</button><button type="button" onClick={() => selectCompany(company)}>선택하기</button></div></article>)}</div></div>}
-      {phase === 'application' && selectedCompany && <form className="ai-application-form" onSubmit={(event) => { event.preventDefault(); void startInterview() }}><div className="selected-company-strip"><span>{selectedCompany.name}</span><button type="button" onClick={() => setPhase('company')}>회사 다시 선택</button></div><label>지원 직무<select value={application.role} onChange={(event) => setApplication({ ...application, role: event.target.value })}>{selectedCompany.roles.map((role) => <option value={role} key={role}>{role}</option>)}<option value="직접 입력">직접 입력</option></select></label>{application.role === '직접 입력' && <label>직무 직접 입력<input value={customRole} onChange={(event) => setCustomRole(event.target.value)} maxLength={80} placeholder="지원하고 싶은 직무를 적어 주세요." /></label>}<label>지원 동기<textarea value={application.interestReason} onChange={(event) => setApplication({ ...application, interestReason: event.target.value })} maxLength={500} placeholder="이 회사나 직무에 관심을 가진 이유를 적어 주세요." /></label><label>나의 강점<textarea value={application.strengths} onChange={(event) => setApplication({ ...application, strengths: event.target.value })} maxLength={500} placeholder="나에게 있는 역량이나 장점을 적어 주세요." /></label><label>관련 경험<textarea value={application.experience} onChange={(event) => setApplication({ ...application, experience: event.target.value })} maxLength={500} placeholder="학교생활, 동아리, 집에서 해 본 일 등 연결되는 경험을 적어 주세요." /></label><label>마지막으로 하고 싶은 말<input value={application.closingLine} onChange={(event) => setApplication({ ...application, closingLine: event.target.value })} maxLength={220} placeholder="면접에서 꼭 말하고 싶은 한 문장" /></label>{error && <p className="entry-error" role="alert">{error}</p>}<button type="submit" disabled={isBusy}>{isBusy ? '첫 질문 만드는 중' : 'AI 면접 시작하기'}</button></form>}
+      {phase === 'application' && selectedCompany && (
+        <form className="ai-application-form" onSubmit={(event) => { event.preventDefault(); void startInterview() }}>
+          <div className="selected-company-strip">
+            <span>{selectedCompany.name}</span>
+            <button type="button" onClick={() => setPhase('company')}>회사 다시 선택</button>
+          </div>
+          <fieldset className="role-button-field">
+            <legend>지원 직무</legend>
+            <div className="role-button-grid">
+              {selectedCompany.roles.map((role) => (
+                <button
+                  type="button"
+                  className={application.role === role ? 'selected' : ''}
+                  onClick={() => {
+                    setApplication({ ...application, role })
+                    setCustomRole('')
+                  }}
+                  key={role}
+                >
+                  {role}
+                </button>
+              ))}
+              <button type="button" className={application.role === '직접 입력' ? 'selected' : ''} onClick={() => setApplication({ ...application, role: '직접 입력' })}>
+                직접 입력
+              </button>
+            </div>
+          </fieldset>
+          {application.role === '직접 입력' && <label>직무 직접 입력<input value={customRole} onChange={(event) => setCustomRole(event.target.value)} maxLength={80} placeholder="지원하고 싶은 직무를 적어 주세요." /></label>}
+          <label>우리 회사에 지원한 이유가 무엇인가요?<textarea value={application.interestReason} onChange={(event) => setApplication({ ...application, interestReason: event.target.value })} maxLength={500} placeholder="이 회사나 이 일이 왜 궁금한지, 어떤 점이 끌렸는지 적어 주세요." /></label>
+          <label>다른 사람에 비해 내가 더 잘하는 게 있나요?<textarea value={application.strengths} onChange={(event) => setApplication({ ...application, strengths: event.target.value })} maxLength={500} placeholder="꼭 대단한 능력이 아니어도 괜찮아요. 내가 조금 더 자신 있는 점을 적어 주세요." /></label>
+          <label>비슷하게 해 본 일이 있나요?<textarea value={application.experience} onChange={(event) => setApplication({ ...application, experience: event.target.value })} maxLength={500} placeholder="수업, 동아리, 친구와 한 활동, 집에서 해 본 일처럼 작아도 괜찮아요. 없다면 '아직 없어요'라고 적어도 돼요." /></label>
+          <label>마지막으로 하고 싶은 말<input value={application.closingLine} onChange={(event) => setApplication({ ...application, closingLine: event.target.value })} maxLength={220} placeholder="면접에서 꼭 말하고 싶은 한 문장" /></label>
+          {error && <p className="entry-error" role="alert">{error}</p>}
+          <button type="submit" disabled={isBusy}>{isBusy ? '첫 질문 만드는 중' : 'AI 면접 시작하기'}</button>
+        </form>
+      )}
       {phase === 'interview' && selectedCompany && <div className="ai-interview-room"><div className="interview-status"><span>{selectedCompany.name}</span><b>{application.role === '직접 입력' ? customRole : application.role} 면접</b><small>{turns.length + 1}/5 질문</small></div>{lastFeedback && <div className="interview-feedback"><b>방금 답변 피드백</b><p>{lastFeedback}</p></div>}<div className="interview-question"><span>AI 면접관</span><h3>{currentQuestion}</h3></div><label>내 답변<textarea value={answer} onChange={(event) => setAnswer(event.target.value)} maxLength={1200} placeholder="지원자처럼 답변해 보세요." /></label>{error && <p className="entry-error" role="alert">{error}</p>}<div className="interview-actions"><button type="button" className="secondary" onClick={() => void submitAnswer(true)} disabled={isBusy}>{isBusy ? '저장 중' : '면접 종료하고 결과 보기'}</button><button type="button" onClick={() => void submitAnswer(false)} disabled={isBusy}>{isBusy ? '다음 질문 만드는 중' : turns.length >= 4 ? '답변 제출하고 결과 보기' : '답변 제출하고 다음 질문'}</button></div></div>}
       {phase === 'result' && <div className="ai-result-card"><span>면접 완료</span><h3>{selectedCompany?.name} · {application.role === '직접 입력' ? customRole : application.role}</h3>{closingSummary ? <p>{closingSummary}</p> : <p>면접 답변이 활동 기록으로 저장됐어요. 선생님과 멘토가 이후 활동에서 함께 돌아볼 수 있습니다.</p>}{suggestedStrengths.length > 0 && <div className="result-strengths">{suggestedStrengths.map((strength) => <b key={strength}>{strength}</b>)}</div>}<div className="interview-log-preview">{turns.map((turn, index) => <article key={`${turn.question}-${index}`}><strong>Q{index + 1}. {turn.question}</strong><p>{turn.answer}</p></article>)}</div><button type="button" onClick={resetInterview}>새 면접 시작하기</button></div>}
       {detailCompany && <div className="company-modal-backdrop" onClick={(event) => { if (event.target === event.currentTarget) setDetailCompany(null) }}><section className="company-modal" role="dialog" aria-modal="true"><button type="button" className="company-modal-close" onClick={() => setDetailCompany(null)} aria-label="회사 상세 닫기">×</button><span>{detailCompany.fields.join(' · ')}</span><h2>{detailCompany.name}</h2><p>{detailCompany.description}</p><h3>지원해 볼 수 있는 직무</h3><div>{detailCompany.roles.map((role) => <small key={role}>{role}</small>)}</div><h3>면접에서 연결할 역량</h3><div>{detailCompany.strengths.map((strength) => <small key={strength}>{strength}</small>)}</div><button type="button" onClick={() => selectCompany(detailCompany)}>이 회사 선택하기</button></section></div>}
