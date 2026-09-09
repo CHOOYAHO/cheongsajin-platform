@@ -27,7 +27,7 @@
 - GitHub 저장소: https://github.com/CHOOYAHO/cheongsajin-platform
 - 배포 사이트: https://chooyaho.github.io/cheongsajin-platform/
 - 기본 브랜치: `main`
-- 현재 최신 main 커밋: `6ff59b3 Split AI interview hints into intent and guide`
+- 현재 최신 main 커밋: `e46e36e Back up and recover auction results`
 - 배포 방식: `.github/workflows/deploy-pages.yml`의 GitHub Actions
 - `main`에 푸시하면 자동 빌드 및 GitHub Pages 배포
 
@@ -46,6 +46,12 @@
 - 실제 설정값과 계정 정보는 이 문서에 기록하지 않음
 
 ## 활동 데이터 백업 메모
+
+- 2026-09-09에 Firebase 관리 화면에서 복구 직전 전체 경매 자료를 `auctionBackups`에 추가 백업함.
+- 백업 범위: 경매방 40개, 방장 포함 참여 기록 96건, 당시 기존 확정 결과 0건.
+- 위 백업본을 기준으로 `participant` 역할의 경매 중간 기록 56건을 `auctionResults` 최종 결과로 복구함. 기존 결과는 덮어쓰지 않는 방식으로 처리함.
+- 복구 자료에는 `recovered`, `recoveredFromBackup`, `originalGameState`가 기록되어 정상 종료 결과와 구분할 수 있음.
+- `auctionBackups`는 클라이언트에서 직접 읽거나 쓰지 못하며 관리자 인증을 통과한 Cloud Function만 생성·복구에 사용함.
 
 - 2026-09-06에 예산고 강점 경매장 복구 가능 자료를 로컬 백업함.
 - 백업 파일:
