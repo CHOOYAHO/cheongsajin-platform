@@ -159,6 +159,7 @@ const parseInterviewJson = (text) => {
     const cleaned = String(text ?? '').replace(/^```json\s*/i, '').replace(/```$/i, '').trim()
     const parsed = JSON.parse(cleaned)
     const decision = ['pass', 'hold', 'retry'].includes(parsed.decision) ? parsed.decision : 'hold'
+    const feedbackTone = ['good', 'neutral', 'bad'].includes(parsed.feedbackTone) ? parsed.feedbackTone : decision === 'pass' ? 'good' : decision === 'retry' ? 'bad' : 'neutral'
     const parsedScore = Number.parseInt(parsed.score, 10)
     const score = Math.max(0, Math.min(100, Number.isFinite(parsedScore) ? parsedScore : 60))
     return {
@@ -168,10 +169,11 @@ const parseInterviewJson = (text) => {
       closingSummary: sanitizeText(parsed.closingSummary, 900),
       suggestedStrengths: Array.isArray(parsed.suggestedStrengths) ? parsed.suggestedStrengths.map((item) => sanitizeText(item, 40)).filter(Boolean).slice(0, 5) : [],
       decision,
+      feedbackTone,
       score,
     }
   } catch {
-    return { question: sanitizeText(text, 500), feedback: '', hint: '', closingSummary: '', suggestedStrengths: [], decision: 'hold', score: 60 }
+    return { question: sanitizeText(text, 500), feedback: '', hint: '', closingSummary: '', suggestedStrengths: [], decision: 'hold', feedbackTone: 'neutral', score: 60 }
   }
 }
 const requireInterviewId = (value) => {
@@ -226,6 +228,7 @@ const getInterviewHintFallback = ({ role, currentQuestion }) => ({
   closingSummary: '',
   suggestedStrengths: [],
   decision: 'hold',
+  feedbackTone: 'neutral',
   score: 0,
   aiSource: 'fallback',
 })
@@ -244,6 +247,7 @@ const getInterviewFallback = ({ company, role, application, turns, finished }) =
       closingSummary: summary,
       suggestedStrengths: strengths.slice(0, 3),
       decision: result.decision,
+      feedbackTone: result.decision === 'pass' ? 'good' : result.decision === 'retry' ? 'bad' : 'neutral',
       score: result.score,
       aiSource: 'fallback',
     }
@@ -264,6 +268,7 @@ const getInterviewFallback = ({ company, role, application, turns, finished }) =
     closingSummary: '',
     suggestedStrengths: application.strengths ? strengths.slice(0, 3) : strengths.slice(0, 2),
     decision: 'hold',
+    feedbackTone: turns.length ? previousScore < 40 ? 'bad' : previousScore >= 70 ? 'good' : 'neutral' : 'neutral',
     score: 0,
     aiSource: 'fallback',
   }
@@ -297,6 +302,7 @@ ${getDifficultyGuide(application.difficulty)}
 평가처럼 겁주지는 말되, 답변이 너무 짧거나 장난스럽거나 질문과 무관하면 "좋아요"로 시작하지 말고 분명히 다시 답하라고 안내하세요. 개인정보, 연락처, 주민번호, 실제 주소는 요구하지 마세요.
 면접은 고정 5문항이 아니라 라이브 채팅처럼 이어집니다. 이전 답변을 바탕으로 자연스럽게 후속 질문을 하되, 같은 주제를 반복하지 마세요. 7문항 이후에는 마무리해도 좋다는 짧은 안내를 feedback에 넣을 수 있습니다.
 면접 종료 시 decision은 pass, hold, retry 중 하나로 판정하세요. pass는 답변이 구체적이고 진지할 때, hold는 방향은 있으나 보완이 필요할 때, retry는 장난·무성의·무관한 답변이 많을 때입니다. score는 0~100 정수입니다.
+feedbackTone은 직전 답변 피드백의 색상입니다. 좋은 답변이면 good, 보완이 필요하면 neutral, 장난·무성의·질문과 무관한 답변이면 bad로 주세요.
 점수는 지원 이유 25점, 내 강점 표현 25점, 학교·일상 경험이나 앞으로의 계획 25점, 질문에 맞춘 성실한 태도 25점으로 계산하세요. 답변이 장난스럽거나 지나치게 짧거나 질문과 무관하면 해당 항목을 낮게 주세요.
 회사: ${company}
 지원 직무: ${role}
@@ -304,7 +310,7 @@ ${getDifficultyGuide(application.difficulty)}
 지금까지의 면접:
 ${transcript || '아직 답변 없음'}
 ${finished ? '면접을 종료하고 최종 피드백을 작성하세요.' : '다음 면접 질문 1개를 작성하세요. 이전 답변이 있다면 짧은 피드백도 함께 주세요. 다음 질문은 반드시 중고등학생이 자신의 학교생활·일상·관심·앞으로의 계획으로 답할 수 있어야 합니다.'}
-반드시 JSON만 출력하세요. 형식: {"question":"", "feedback":"", "closingSummary":"", "suggestedStrengths":[""], "decision":"hold", "score":60}`
+반드시 JSON만 출력하세요. 형식: {"question":"", "feedback":"", "feedbackTone":"neutral", "closingSummary":"", "suggestedStrengths":[""], "decision":"hold", "score":60}`
   const response = await fetch('https://api.openai.com/v1/responses', {
     method: 'POST',
     headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
@@ -349,6 +355,7 @@ export const runAiInterviewStep = onCall({ secrets: [openaiApiKey] }, async (req
       closingSummary: '',
       suggestedStrengths: [],
       decision: 'hold',
+      feedbackTone: 'neutral',
       score: 0,
       aiSource: aiResult.aiSource,
       status: 'inProgress',
@@ -369,6 +376,7 @@ export const runAiInterviewStep = onCall({ secrets: [openaiApiKey] }, async (req
     closingSummary: aiResult.closingSummary,
     suggestedStrengths: aiResult.suggestedStrengths,
     decision: aiResult.decision,
+    feedbackTone: aiResult.feedbackTone,
     score: aiResult.score,
     aiSource: aiResult.aiSource,
     createdAt: FieldValue.serverTimestamp(),
@@ -383,6 +391,7 @@ export const runAiInterviewStep = onCall({ secrets: [openaiApiKey] }, async (req
     closingSummary: aiResult.closingSummary,
     suggestedStrengths: aiResult.suggestedStrengths,
     decision: aiResult.decision,
+    feedbackTone: aiResult.feedbackTone,
     score: aiResult.score,
     aiSource: aiResult.aiSource,
     status: finished ? 'completed' : 'inProgress',
