@@ -583,6 +583,79 @@ export const updateSessionLock = onCall(async (request) => {
   return { sessionNumber, target, unlocked }
 })
 
+export const backupAuctionData = onCall(async (request) => {
+  await requireActiveAdminSession(request)
+  const [roomSnapshot, resultSnapshot] = await Promise.all([
+    db.collection('auctionRooms').get(),
+    db.collection('auctionResults').get(),
+  ])
+  const rooms = await Promise.all(roomSnapshot.docs.map(async (roomDocument) => {
+    const participants = await roomDocument.ref.collection('participants').get()
+    return {
+      id: roomDocument.id,
+      data: roomDocument.data(),
+      participants: participants.docs.map((participant) => ({ id: participant.id, data: participant.data() })),
+    }
+  }))
+  const results = resultSnapshot.docs.map((result) => ({ id: result.id, data: result.data() }))
+  const backupRef = db.collection('auctionBackups').doc()
+  const backup = {
+    createdAt: FieldValue.serverTimestamp(),
+    createdBy: request.auth.uid,
+    roomCount: rooms.length,
+    participantCount: rooms.reduce((sum, room) => sum + room.participants.length, 0),
+    resultCount: results.length,
+    rooms,
+    results,
+  }
+  if (Buffer.byteLength(JSON.stringify(backup), 'utf8') > 900000) {
+    throw new HttpsError('resource-exhausted', '백업 자료가 너무 커서 한 번에 저장할 수 없습니다.')
+  }
+  await backupRef.create(backup)
+  return { backupId: backupRef.id, roomCount: backup.roomCount, participantCount: backup.participantCount, resultCount: backup.resultCount }
+})
+
+export const recoverAuctionResults = onCall(async (request) => {
+  await requireActiveAdminSession(request)
+  const backupId = String(request.data?.backupId ?? '').trim()
+  if (!/^[A-Za-z0-9_-]{10,40}$/.test(backupId)) throw new HttpsError('invalid-argument', '백업 ID를 확인해 주세요.')
+  const backupSnapshot = await db.doc(`auctionBackups/${backupId}`).get()
+  if (!backupSnapshot.exists) throw new HttpsError('not-found', '경매 백업을 찾을 수 없습니다.')
+  const backup = backupSnapshot.data()
+  const rooms = Array.isArray(backup?.rooms) ? backup.rooms : []
+  const existingResults = await db.collection('auctionResults').get()
+  const existingIds = new Set(existingResults.docs.map((document) => document.id))
+  const recoverable = rooms.flatMap((room) => {
+    const participants = Array.isArray(room?.participants) ? room.participants : []
+    return participants.filter((participant) => participant?.data?.role === 'participant').map((participant) => ({ room, participant }))
+  }).filter(({ room, participant }) => !existingIds.has(`${room.id}_${participant.id}`))
+  if (recoverable.length > 450) throw new HttpsError('resource-exhausted', '복구할 자료가 너무 많습니다.')
+  const batch = db.batch()
+  for (const { room, participant } of recoverable) {
+    const roomData = room.data ?? {}
+    const data = participant.data ?? {}
+    batch.create(db.doc(`auctionResults/${room.id}_${participant.id}`), {
+      userId: participant.id,
+      roomCode: room.id,
+      displayName: data.nickname ?? '참가자',
+      selectedJob: data.selectedJob ?? '',
+      balance: Number(data.balance ?? 0),
+      inventory: data.inventory ?? {},
+      selectedJobs: roomData.selectedJobs ?? [],
+      deck: roomData.deck ?? [],
+      auctionIndex: Number(roomData.auctionIndex ?? 0),
+      totalItems: Number(roomData.totalItems ?? 0),
+      endedByHost: roomData.endedByHost === true,
+      recovered: true,
+      recoveredFromBackup: backupId,
+      originalGameState: roomData.gameState ?? '',
+      savedAt: FieldValue.serverTimestamp(),
+    })
+  }
+  if (recoverable.length) await batch.commit()
+  return { backupId, recoveredCount: recoverable.length, skippedCount: existingResults.size }
+})
+
 export const staffLogin = onCall({ secrets: [pinPepper] }, async (request) => {
   if (!request.auth?.uid) throw new HttpsError('unauthenticated', 'Firebase 로그인이 필요합니다.')
   const displayName = normalizeName(request.data?.name)

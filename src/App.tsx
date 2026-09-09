@@ -1193,6 +1193,9 @@ function AdminAuctionResultsPanel() {
   const [rooms, setRooms] = useState<AdminAuctionRoomRecord[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [backupInfo, setBackupInfo] = useState<{ backupId: string; roomCount: number; participantCount: number; resultCount: number } | null>(null)
+  const [actionState, setActionState] = useState<'idle' | 'backing-up' | 'recovering'>('idle')
+  const [actionMessage, setActionMessage] = useState('')
   useEffect(() => {
     if (!db) { setError('Firebase 연결을 확인해 주세요.'); setLoading(false); return }
     const firestore = db
@@ -1208,9 +1211,38 @@ function AdminAuctionResultsPanel() {
   }, [])
   if (loading) return <div className="admin-placeholder-note"><b>경매 자료 확인 중</b><p>Firebase 데이터베이스의 결과와 경매방 자료를 모두 불러오고 있어요.</p></div>
   if (error) return <p className="entry-error" role="alert">{error}</p>
+  const createBackup = async () => {
+    if (!functions) return
+    setActionState('backing-up')
+    setActionMessage('')
+    try {
+      const backup = httpsCallable<Record<string, never>, { backupId: string; roomCount: number; participantCount: number; resultCount: number }>(functions, 'backupAuctionData')
+      const response = await backup({})
+      setBackupInfo(response.data)
+      setActionMessage(`백업 완료: 방 ${response.data.roomCount}개, 참여 기록 ${response.data.participantCount}건, 확정 결과 ${response.data.resultCount}건`)
+    } catch (backupError) {
+      console.error(backupError)
+      setActionMessage('백업에 실패했어요. 복구는 진행하지 않았습니다.')
+    } finally { setActionState('idle') }
+  }
+  const recoverResults = async () => {
+    if (!functions || !db || !backupInfo) return
+    setActionState('recovering')
+    setActionMessage('')
+    try {
+      const recover = httpsCallable<{ backupId: string }, { recoveredCount: number; skippedCount: number }>(functions, 'recoverAuctionResults')
+      const response = await recover({ backupId: backupInfo.backupId })
+      const snapshot = await getDocs(collection(db, 'auctionResults'))
+      setRecords(snapshot.docs.map((item) => ({ id: item.id, ...(item.data() as Omit<AuctionResultRecord, 'id'>) })).sort((left, right) => (right.savedAt?.toMillis?.() ?? 0) - (left.savedAt?.toMillis?.() ?? 0)))
+      setActionMessage(`복구 완료: ${response.data.recoveredCount}건 복구, 기존 ${response.data.skippedCount}건 보존`)
+    } catch (recoverError) {
+      console.error(recoverError)
+      setActionMessage('복구에 실패했어요. 생성한 백업은 그대로 보존되어 있습니다.')
+    } finally { setActionState('idle') }
+  }
   const roomParticipants = rooms.flatMap((room) => room.participants.filter((participant) => participant.role === 'participant'))
   const strengthBadges = (inventory: Record<string, number>) => Object.entries(inventory).length ? Object.entries(inventory).map(([strength, count]) => <span key={strength}>{strength} <b>{count >= 3 ? 'EPIC' : count === 2 ? 'RARE' : 'NORMAL'}</b></span>) : <span>보유 강점 없음</span>
-  return <section className="admin-auction-results"><div className="admin-auction-summary"><div><small>확정 결과</small><b>{records.length}건</b></div><div><small>남아 있는 경매방</small><b>{rooms.length}개</b></div><div><small>방 내부 참가자</small><b>{roomParticipants.length}명</b></div></div><div><h3>확정 저장 결과</h3>{records.length ? <div className="admin-auction-table">{records.map((record) => <article key={record.id}><header><div><span>방 {record.roomCode}</span><b>{record.displayName}</b></div><small>{record.savedAt?.toMillis ? new Date(record.savedAt.toMillis()).toLocaleString('ko-KR') : '저장 시간 미기록'}</small></header><dl><dt>선택 직업</dt><dd>{record.selectedJob || '미기록'}</dd><dt>진행 상품</dt><dd>{record.auctionIndex} / {record.totalItems}</dd><dt>남은 포인트</dt><dd>{record.balance}P</dd><dt>종료 방식</dt><dd>{record.endedByHost ? '방장 종료' : '정상 종료'}</dd></dl><div className="admin-strength-list">{strengthBadges(record.inventory ?? {})}</div></article>)}</div> : <div className="empty-auction-records"><b>확정 저장된 결과가 없어요.</b><p>게임이 결과 단계까지 완료되면 이곳에 저장됩니다.</p></div>}</div><div><h3>경매방 내부 복구 가능 자료</h3>{rooms.length ? <div className="admin-auction-table">{rooms.map((room) => <article key={room.id}><header><div><span>방 {room.id}</span><b>{room.gameState}</b></div><small>{room.auctionIndex} / {room.totalItems} 상품 진행</small></header><p>선택 직업: {(room.selectedJobs?.length ? room.selectedJobs.join(', ') : room.selectedJob) || '미기록'}</p><div className="admin-room-participants">{room.participants.map((participant) => <section key={participant.id}><b>{participant.nickname} {participant.role === 'host' ? '(방장)' : ''}</b><small>{participant.selectedJob || '직업 미선택'} · {participant.balance ?? 0}P</small><div className="admin-strength-list">{strengthBadges(participant.inventory ?? {})}</div></section>)}</div></article>)}</div> : <div className="empty-auction-records"><b>남아 있는 경매방 자료가 없어요.</b></div>}</div></section>
+  return <section className="admin-auction-results"><div className="admin-auction-recovery"><div><h3>경매 자료 안전 백업·복구</h3><p>현재 경매방과 참가자 기록, 기존 확정 결과를 먼저 백업한 뒤 중간 기록을 최종 결과로 복구합니다.</p></div><div className="admin-auction-recovery-actions"><button type="button" onClick={() => void createBackup()} disabled={actionState !== 'idle'}>{actionState === 'backing-up' ? '백업 중…' : '먼저 백업하기'}</button><button type="button" className="secondary" onClick={() => void recoverResults()} disabled={!backupInfo || actionState !== 'idle'}>{actionState === 'recovering' ? '복구 중…' : '백업본으로 복구하기'}</button></div>{actionMessage && <p className="admin-auction-action-message" role="status">{actionMessage}</p>}{backupInfo && <small>백업 ID: {backupInfo.backupId}</small>}</div><div className="admin-auction-summary"><div><small>확정 결과</small><b>{records.length}건</b></div><div><small>남아 있는 경매방</small><b>{rooms.length}개</b></div><div><small>방 내부 참가자</small><b>{roomParticipants.length}명</b></div></div><div><h3>확정 저장 결과</h3>{records.length ? <div className="admin-auction-table">{records.map((record) => <article key={record.id}><header><div><span>방 {record.roomCode}</span><b>{record.displayName}</b></div><small>{record.savedAt?.toMillis ? new Date(record.savedAt.toMillis()).toLocaleString('ko-KR') : '저장 시간 미기록'}</small></header><dl><dt>선택 직업</dt><dd>{record.selectedJob || '미기록'}</dd><dt>진행 상품</dt><dd>{record.auctionIndex} / {record.totalItems}</dd><dt>남은 포인트</dt><dd>{record.balance}P</dd><dt>종료 방식</dt><dd>{record.endedByHost ? '방장 종료' : '정상 종료'}</dd></dl><div className="admin-strength-list">{strengthBadges(record.inventory ?? {})}</div></article>)}</div> : <div className="empty-auction-records"><b>확정 저장된 결과가 없어요.</b><p>게임이 결과 단계까지 완료되면 이곳에 저장됩니다.</p></div>}</div><div><h3>경매방 내부 복구 가능 자료</h3>{rooms.length ? <div className="admin-auction-table">{rooms.map((room) => <article key={room.id}><header><div><span>방 {room.id}</span><b>{room.gameState}</b></div><small>{room.auctionIndex} / {room.totalItems} 상품 진행</small></header><p>선택 직업: {(room.selectedJobs?.length ? room.selectedJobs.join(', ') : room.selectedJob) || '미기록'}</p><div className="admin-room-participants">{room.participants.map((participant) => <section key={participant.id}><b>{participant.nickname} {participant.role === 'host' ? '(방장)' : ''}</b><small>{participant.selectedJob || '직업 미선택'} · {participant.balance ?? 0}P</small><div className="admin-strength-list">{strengthBadges(participant.inventory ?? {})}</div></section>)}</div></article>)}</div> : <div className="empty-auction-records"><b>남아 있는 경매방 자료가 없어요.</b></div>}</div></section>
 }
 
 function AdminPage({ displayName, accountTools, sessionLocks, sessionLockBusy, sessionLockError, onToggleSessionLock, onOpenPreferenceRecords, onOpenSession, onBack, onLeave }: { displayName: string; accountTools: ReactNode; sessionLocks: SessionLocksByTarget; sessionLockBusy: string | null; sessionLockError: string; onToggleSessionLock: (sessionNumber: number, target: SessionLockTarget, unlocked: boolean) => void; onOpenPreferenceRecords: () => void; onOpenSession: (sessionNumber: number) => void; onBack: () => void; onLeave: () => void }) {
