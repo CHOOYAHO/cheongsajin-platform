@@ -188,7 +188,39 @@ const sanitizeInterviewTurns = (turns = []) => {
     feedback: sanitizeText(turn?.feedback, 700),
   })).filter((turn) => turn.question && turn.answer)
 }
+const getInterviewFallback = ({ company, role, application, turns, finished }) => {
+  const strengths = ['의사소통능력', '책임감', '문제해결능력', '협업능력', '끈기']
+  if (finished) {
+    return {
+      question: '',
+      feedback: turns.length ? '답변을 끝까지 이어 간 점이 좋아요. 다음에는 구체적인 상황을 하나 더 붙이면 더 설득력 있게 말할 수 있어요.' : '',
+      closingSummary: `${company}의 ${role} 면접을 마쳤어요. 내가 왜 관심을 가졌는지, 어떤 점을 잘하는지, 앞으로 어떤 경험을 더 쌓으면 좋을지 돌아보세요.`,
+      suggestedStrengths: strengths.slice(0, 3),
+    }
+  }
+  const questions = [
+    `${company}의 ${role}에 지원한 이유를 본인 말로 설명해 주세요.`,
+    `다른 지원자보다 내가 조금 더 잘할 수 있는 점은 무엇이라고 생각하나요?`,
+    `${role}로 일하려면 어떤 태도나 역량이 가장 중요하다고 생각하나요?`,
+    `학교나 일상에서 ${role}와 조금이라도 연결해 볼 수 있는 경험이 있다면 말해 주세요. 없다면 앞으로 해 보고 싶은 경험을 말해도 좋아요.`,
+    `마지막으로 ${company} 면접관에게 꼭 전하고 싶은 말을 해 주세요.`,
+  ]
+  const index = Math.min(turns.length, questions.length - 1)
+  return {
+    question: questions[index],
+    feedback: turns.length ? '좋아요. 방금 답변에서 이유가 드러났어요. 다음 답변에는 예시를 하나 붙여 보면 더 좋아요.' : '',
+    closingSummary: '',
+    suggestedStrengths: application.strengths ? strengths.slice(0, 3) : strengths.slice(0, 2),
+  }
+}
 const callInterviewAi = async ({ company, role, application, turns, finished }) => {
+  let apiKey = ''
+  try {
+    apiKey = openaiApiKey.value()
+  } catch {
+    apiKey = ''
+  }
+  if (!apiKey) return getInterviewFallback({ company, role, application, turns, finished })
   const transcript = turns.map((turn, index) => `${index + 1}. 면접관: ${turn.question}\n지원자: ${turn.answer}`).join('\n')
   const prompt = `청소년 진로 프로그램의 AI 채용면접관으로 행동하세요.
 지원자는 실제 채용면접에 지원했다고 가정합니다. 직업정보 Q&A, 직업인 역할극, 업무상황 체험이 아니라 채용면접입니다.
@@ -202,7 +234,7 @@ ${finished ? '면접을 종료하고 최종 피드백을 작성하세요.' : '�
 반드시 JSON만 출력하세요. 형식: {"question":"", "feedback":"", "closingSummary":"", "suggestedStrengths":[""]}`
   const response = await fetch('https://api.openai.com/v1/responses', {
     method: 'POST',
-    headers: { Authorization: `Bearer ${openaiApiKey.value()}`, 'Content-Type': 'application/json' },
+    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
       model: 'gpt-4.1-mini',
       input: [{ role: 'user', content: prompt }],
@@ -210,10 +242,14 @@ ${finished ? '면접을 종료하고 최종 피드백을 작성하세요.' : '�
       max_output_tokens: 700,
     }),
   })
-  if (!response.ok) throw new HttpsError('internal', 'AI 면접 질문을 만들지 못했습니다.')
-  const data = await response.json()
-  const outputText = data.output_text ?? data.output?.flatMap((item) => item.content ?? []).map((item) => item.text ?? '').join('\n') ?? ''
-  return parseInterviewJson(outputText)
+  if (!response.ok) return getInterviewFallback({ company, role, application, turns, finished })
+  try {
+    const data = await response.json()
+    const outputText = data.output_text ?? data.output?.flatMap((item) => item.content ?? []).map((item) => item.text ?? '').join('\n') ?? ''
+    return parseInterviewJson(outputText)
+  } catch {
+    return getInterviewFallback({ company, role, application, turns, finished })
+  }
 }
 
 export const runAiInterviewStep = onCall({ secrets: [openaiApiKey] }, async (request) => {

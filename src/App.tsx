@@ -1006,7 +1006,7 @@ function AiInterviewActivity({ schoolName, displayName }: { schoolName: string; 
       setPhase('interview')
     } catch (caught) {
       console.error(caught)
-      setError('AI 면접을 시작하지 못했어요. Firebase Functions와 OPENAI_API_KEY 설정을 확인해 주세요.')
+      setError('AI 면접을 시작하지 못했어요. 잠시 후 다시 시도해 주세요.')
     } finally {
       setIsBusy(false)
     }
