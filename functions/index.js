@@ -181,11 +181,18 @@ const requireInterviewId = (value) => {
 }
 const sanitizeInterviewApplication = (application = {}) => ({
   role: sanitizeText(application.role, 80),
+  difficulty: ['veryEasy', 'easy', 'medium', 'hard'].includes(application.difficulty) ? application.difficulty : 'easy',
   interestReason: sanitizeText(application.interestReason, 500),
   strengths: sanitizeText(application.strengths, 500),
   experience: sanitizeText(application.experience, 500),
   closingLine: sanitizeText(application.closingLine, 220),
 })
+const getDifficultyGuide = (difficulty = 'easy') => ({
+  veryEasy: '난이도: 매우쉬움. 초등 고학년도 답할 수 있을 만큼 짧고 친절하게 묻습니다. 한 번에 하나만 묻고, 예시를 질문 안에 넣어 주세요. 압박 질문은 하지 마세요.',
+  easy: '난이도: 쉬움. 중학생도 답할 수 있게 학교생활, 취미, 친구와 한 활동, 앞으로 해 보고 싶은 일을 중심으로 묻습니다.',
+  medium: '난이도: 중간. 고등학생 수준으로 이유와 간단한 예시를 함께 말하게 하되, 실제 경력이나 전문 프로젝트는 요구하지 않습니다.',
+  hard: '난이도: 어려움. 실제 면접 느낌을 조금 더 주되, 중고등학생이 답할 수 있는 범위 안에서 꼬리 질문을 합니다. 전문 경력, 포트폴리오, 기술 문제 해결 사례는 요구하지 않습니다.',
+}[difficulty] || '난이도: 쉬움. 중학생도 답할 수 있게 학교생활, 취미, 친구와 한 활동, 앞으로 해 보고 싶은 일을 중심으로 묻습니다.')
 const sanitizeInterviewTurns = (turns = []) => {
   if (!Array.isArray(turns)) throw new HttpsError('invalid-argument', '면접 기록 형식이 올바르지 않습니다.')
   return turns.slice(0, 20).map((turn) => ({
@@ -213,7 +220,7 @@ const getInterviewDecision = (turns) => {
   return { decision: 'retry', score: average }
 }
 const getInterviewHintFallback = ({ role, currentQuestion }) => ({
-  hint: `바로 정답을 찾으려 하지 말고, 1) 왜 이 일이 궁금한지, 2) 학교나 집에서 비슷하게 해 본 작은 일, 3) 앞으로 해 보고 싶은 일을 한 문장씩 떠올려 보세요. ${role}와 정확히 맞지 않아도 괜찮아요.`,
+      hint: `바로 정답을 찾으려 하지 말고, 1) 왜 이 일이 궁금한지, 2) 학교나 집에서 비슷하게 해 본 작은 일, 3) 앞으로 해 보고 싶은 일을 한 문장씩 떠올려 보세요. ${role}와 정확히 맞지 않아도 괜찮아요.`,
   question: currentQuestion,
   feedback: '',
   closingSummary: '',
@@ -243,9 +250,9 @@ const getInterviewFallback = ({ company, role, application, turns, finished }) =
   }
   const previousScore = turns.length ? getAnswerEffortScore(turns.at(-1)?.answer) : 100
   const questions = [
-    `${company}의 ${role}에 지원한 이유를 본인 말로 설명해 주세요.`,
+    application.difficulty === 'veryEasy' ? `${company}의 ${role} 일이 왜 조금이라도 궁금했나요? 짧게 말해 주세요.` : `${company}의 ${role}에 지원한 이유를 본인 말로 설명해 주세요.`,
     `다른 지원자보다 내가 조금 더 잘할 수 있는 점은 무엇이라고 생각하나요?`,
-    `${role}로 일하는 사람에게 어떤 태도나 장점이 필요할 것 같나요?`,
+    application.difficulty === 'hard' ? `${role}로 일하는 사람에게 필요한 태도 한 가지를 고르고, 왜 중요하다고 생각하는지 말해 주세요.` : `${role}로 일하는 사람에게 어떤 태도나 장점이 필요할 것 같나요?`,
     `학교나 일상에서 ${role}와 조금이라도 연결해 볼 수 있는 경험이 있다면 말해 주세요. 없다면 앞으로 해 보고 싶은 경험을 말해도 좋아요.`,
     `${company}에서 ${role} 일을 하게 된다면 가장 먼저 배워 보고 싶은 것은 무엇인가요?`,
     `지금까지 답변한 내용을 바탕으로 면접관에게 꼭 전하고 싶은 말을 해 주세요.`,
@@ -270,8 +277,9 @@ const callInterviewAi = async ({ company, role, application, turns, finished, mo
   }
   if (!apiKey) return mode === 'hint' ? getInterviewHintFallback({ role, currentQuestion }) : getInterviewFallback({ company, role, application, turns, finished })
   const transcript = turns.map((turn, index) => `${index + 1}. 면접관: ${turn.question}\n지원자: ${turn.answer}`).join('\n')
-  const prompt = mode === 'hint' ? `청소년 진로 프로그램의 AI 채용면접 도우미로 행동하세요.
+const prompt = mode === 'hint' ? `청소년 진로 프로그램의 AI 채용면접 도우미로 행동하세요.
 지원자는 중학생 또는 고등학생입니다. 답을 대신 써 주지 말고, 현재 질문에 답하기 위한 생각 힌트만 한국어로 2~3개 주세요.
+${getDifficultyGuide(application.difficulty)}
 힌트는 학교 수업, 동아리, 친구와 한 활동, 집에서 해 본 일, 좋아하는 활동, 앞으로 해 보고 싶은 경험에서 찾도록 안내하세요.
 질문: ${currentQuestion}
 회사: ${company}
@@ -282,6 +290,7 @@ ${transcript || '아직 답변 없음'}
 반드시 JSON만 출력하세요. 형식: {"hint":""}` : `청소년 진로 프로그램의 AI 채용면접관으로 행동하세요.
 지원자는 실제 채용면접에 지원했다고 가정합니다. 직업정보 Q&A, 직업인 역할극, 업무상황 체험이 아니라 채용면접입니다.
 대상은 중학생 또는 고등학생입니다. 실제 회사 경력, 전문 프로젝트 수행 경험, 포트폴리오, 연구·개발 실적, 기술적 문제 해결 사례가 있다고 전제하지 마세요.
+${getDifficultyGuide(application.difficulty)}
 질문은 학생이 답할 수 있는 수준으로 만드세요. 학교 수업, 동아리, 친구와 한 활동, 집에서 해 본 일, 좋아하는 활동, 앞으로 해 보고 싶은 경험, 왜 관심이 생겼는지를 중심으로 물어보세요.
 금지 질문 예시: "수행했던 프로젝트를 설명하세요", "가장 도전적이었던 프로젝트는?", "기술적 문제를 어떻게 해결했나요?", "전문성을 어떻게 개발하고 있나요?", "연구나 개발 분야가 있나요?"
 직무가 전문적이어도 질문은 "이 일을 한다면 어떤 점이 재미있을 것 같나요?", "비슷하게 해 본 작은 경험이 있나요? 없다면 해 보고 싶은 일은 무엇인가요?", "이 직업에 필요한 태도는 무엇이라고 생각하나요?"처럼 바꾸세요.

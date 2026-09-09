@@ -29,7 +29,8 @@ type AdminSectionId = 'accounts' | 'activities' | 'records' | 'library'
 type SessionLockMap = Record<number, boolean>
 type MasterViewMode = 'mentor' | 'yesan-high' | 'gwangsi-middle'
 type InterviewCompany = { name: string; fields: string[]; description: string; roles: string[]; strengths: string[] }
-type InterviewApplication = { role: string; interestReason: string; strengths: string; experience: string; closingLine: string }
+type InterviewDifficulty = 'veryEasy' | 'easy' | 'medium' | 'hard'
+type InterviewApplication = { role: string; difficulty: InterviewDifficulty; interestReason: string; strengths: string; experience: string; closingLine: string }
 type InterviewTurn = { question: string; answer: string; feedback?: string }
 type InterviewDecision = 'pass' | 'hold' | 'retry'
 type InterviewStepResponse = { interviewId: string; question: string; feedback?: string; hint?: string; closingSummary?: string; suggestedStrengths?: string[]; decision?: InterviewDecision; score?: number; aiSource?: 'openai' | 'fallback'; status: 'inProgress' | 'completed' }
@@ -171,7 +172,8 @@ const interviewCompanies: InterviewCompany[] = [
   { name: '예청군청', fields: ['행정', '복지', '지역정책'], description: '지역 주민의 생활을 돕고 예청 지역의 정책과 공공서비스를 운영하는 기관이에요. 행정직의 다양한 모습을 살펴볼 수 있어요.', roles: ['일반행정직', '사회복지직', '청소년정책 담당자', '문화관광 담당자'], strengths: ['책임감', '문서정리능력', '공정성', '의사소통능력'] },
 ]
 
-const blankInterviewApplication: InterviewApplication = { role: '', interestReason: '', strengths: '', experience: '', closingLine: '' }
+const interviewDifficultyLabels: Record<InterviewDifficulty, string> = { veryEasy: '매우쉬움', easy: '쉬움', medium: '중간', hard: '어려움' }
+const blankInterviewApplication: InterviewApplication = { role: '', difficulty: 'easy', interestReason: '', strengths: '', experience: '', closingLine: '' }
 
 function PartnerFooter() {
   return (
@@ -1127,6 +1129,16 @@ function AiInterviewActivity({ schoolName, displayName }: { schoolName: string; 
             </div>
           </fieldset>
           {application.role === '직접 입력' && <label>직무 직접 입력<input value={customRole} onChange={(event) => setCustomRole(event.target.value)} maxLength={80} placeholder="지원하고 싶은 직무를 적어 주세요." /></label>}
+          <fieldset className="role-button-field">
+            <legend>면접 난이도</legend>
+            <div className="difficulty-button-grid">
+              {(Object.keys(interviewDifficultyLabels) as InterviewDifficulty[]).map((difficulty) => (
+                <button type="button" className={application.difficulty === difficulty ? 'selected' : ''} onClick={() => setApplication({ ...application, difficulty })} key={difficulty}>
+                  {interviewDifficultyLabels[difficulty]}
+                </button>
+              ))}
+            </div>
+          </fieldset>
           <label>우리 회사에 지원한 이유가 무엇인가요?<textarea value={application.interestReason} onChange={(event) => setApplication({ ...application, interestReason: event.target.value })} maxLength={500} placeholder="이 회사나 이 일이 왜 궁금한지, 어떤 점이 끌렸는지 적어 주세요." /></label>
           <label>다른 사람에 비해 내가 더 잘하는 게 있나요?<textarea value={application.strengths} onChange={(event) => setApplication({ ...application, strengths: event.target.value })} maxLength={500} placeholder="꼭 대단한 능력이 아니어도 괜찮아요. 내가 조금 더 자신 있는 점을 적어 주세요." /></label>
           <label>비슷하게 해 본 일이 있나요?<textarea value={application.experience} onChange={(event) => setApplication({ ...application, experience: event.target.value })} maxLength={500} placeholder="수업, 동아리, 친구와 한 활동, 집에서 해 본 일처럼 작아도 괜찮아요. 없다면 '아직 없어요'라고 적어도 돼요." /></label>
