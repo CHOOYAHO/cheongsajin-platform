@@ -31,7 +31,7 @@ type MasterViewMode = 'mentor' | 'yesan-high' | 'gwangsi-middle'
 type InterviewCompany = { name: string; fields: string[]; description: string; roles: string[]; strengths: string[] }
 type InterviewApplication = { role: string; interestReason: string; strengths: string; experience: string; closingLine: string }
 type InterviewTurn = { question: string; answer: string; feedback?: string }
-type InterviewStepResponse = { interviewId: string; question: string; feedback?: string; closingSummary?: string; suggestedStrengths?: string[]; status: 'inProgress' | 'completed' }
+type InterviewStepResponse = { interviewId: string; question: string; feedback?: string; closingSummary?: string; suggestedStrengths?: string[]; aiSource?: 'openai' | 'fallback'; status: 'inProgress' | 'completed' }
 const defaultSessionLocks: SessionLockMap = { 1: true, 2: true, 3: false, 4: false, 5: false }
 const sessionTemplates: SessionTemplate[] = [
   { number: 1, title: '청사진을 위한 첫 만남', subtitle: '나와 멘토, 새로운 가능성을 만나요', icon: '👋' },
@@ -968,6 +968,7 @@ function AiInterviewActivity({ schoolName, displayName }: { schoolName: string; 
   const [lastFeedback, setLastFeedback] = useState('')
   const [closingSummary, setClosingSummary] = useState('')
   const [suggestedStrengths, setSuggestedStrengths] = useState<string[]>([])
+  const [aiSource, setAiSource] = useState<'idle' | 'openai' | 'fallback'>('idle')
   const [isBusy, setIsBusy] = useState(false)
   const [error, setError] = useState('')
 
@@ -1001,6 +1002,7 @@ function AiInterviewActivity({ schoolName, displayName }: { schoolName: string; 
     try {
       const result = await runInterviewStep([], false)
       if (!result?.question) throw new Error('question-missing')
+      setAiSource(result.aiSource ?? 'fallback')
       setCurrentQuestion(result.question)
       setLastFeedback(result.feedback ?? '')
       setPhase('interview')
@@ -1029,6 +1031,7 @@ function AiInterviewActivity({ schoolName, displayName }: { schoolName: string; 
       setLastFeedback(result?.feedback ?? '')
       setClosingSummary(result?.closingSummary ?? '')
       setSuggestedStrengths(result?.suggestedStrengths ?? [])
+      setAiSource(result?.aiSource ?? 'fallback')
       if (shouldFinish) {
         setCurrentQuestion('')
         setPhase('result')
@@ -1056,13 +1059,14 @@ function AiInterviewActivity({ schoolName, displayName }: { schoolName: string; 
     setLastFeedback('')
     setClosingSummary('')
     setSuggestedStrengths([])
+    setAiSource('idle')
     setError('')
   }
 
   return (
     <section className="ai-interview-panel">
       <div className="ai-interview-heading">
-        <span>AI 가상면접</span>
+        <div className="ai-kicker"><span>AI 가상면접</span><i className={`ai-signal ${aiSource}`} aria-label={aiSource === 'openai' ? 'AI 응답 연결됨' : aiSource === 'fallback' ? '기본 질문 모드' : 'AI 대기 중'} /></div>
         <h2>희망 직업 채용면접 시뮬레이션</h2>
         <p>회사를 고르고 간단 지원서를 작성하면 AI 면접관이 지원 직무에 맞춰 질문을 이어 가요. 면접 질문과 답변은 활동 기록으로 저장됩니다.</p>
       </div>

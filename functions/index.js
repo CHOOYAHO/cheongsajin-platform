@@ -196,6 +196,7 @@ const getInterviewFallback = ({ company, role, application, turns, finished }) =
       feedback: turns.length ? '답변을 끝까지 이어 간 점이 좋아요. 다음에는 구체적인 상황을 하나 더 붙이면 더 설득력 있게 말할 수 있어요.' : '',
       closingSummary: `${company}의 ${role} 면접을 마쳤어요. 내가 왜 관심을 가졌는지, 어떤 점을 잘하는지, 앞으로 어떤 경험을 더 쌓으면 좋을지 돌아보세요.`,
       suggestedStrengths: strengths.slice(0, 3),
+      aiSource: 'fallback',
     }
   }
   const questions = [
@@ -211,6 +212,7 @@ const getInterviewFallback = ({ company, role, application, turns, finished }) =
     feedback: turns.length ? '좋아요. 방금 답변에서 이유가 드러났어요. 다음 답변에는 예시를 하나 붙여 보면 더 좋아요.' : '',
     closingSummary: '',
     suggestedStrengths: application.strengths ? strengths.slice(0, 3) : strengths.slice(0, 2),
+    aiSource: 'fallback',
   }
 }
 const callInterviewAi = async ({ company, role, application, turns, finished }) => {
@@ -246,7 +248,7 @@ ${finished ? '면접을 종료하고 최종 피드백을 작성하세요.' : '�
   try {
     const data = await response.json()
     const outputText = data.output_text ?? data.output?.flatMap((item) => item.content ?? []).map((item) => item.text ?? '').join('\n') ?? ''
-    return parseInterviewJson(outputText)
+    return { ...parseInterviewJson(outputText), aiSource: 'openai' }
   } catch {
     return getInterviewFallback({ company, role, application, turns, finished })
   }
@@ -279,6 +281,7 @@ export const runAiInterviewStep = onCall({ secrets: [openaiApiKey] }, async (req
     lastFeedback: aiResult.feedback,
     closingSummary: aiResult.closingSummary,
     suggestedStrengths: aiResult.suggestedStrengths,
+    aiSource: aiResult.aiSource,
     createdAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
   }, { merge: true })
@@ -289,6 +292,7 @@ export const runAiInterviewStep = onCall({ secrets: [openaiApiKey] }, async (req
     feedback: aiResult.feedback,
     closingSummary: aiResult.closingSummary,
     suggestedStrengths: aiResult.suggestedStrengths,
+    aiSource: aiResult.aiSource,
     status: finished ? 'completed' : 'inProgress',
   }
 })
