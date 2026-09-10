@@ -230,7 +230,9 @@ service cloud.firestore {
           && request.resource.data.nickname is string
           && request.resource.data.nickname.size() > 0
           && request.resource.data.nickname.size() <= 12;
-        allow update, delete: if false;
+        allow update: if false;
+        allow delete: if signedIn()
+          && get(/databases/$(database)/documents/brainstormRooms/$(roomId)).data.hostId == request.auth.uid;
       }
     }
 
