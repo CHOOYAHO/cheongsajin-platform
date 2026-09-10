@@ -1,6 +1,6 @@
 # 청·사·진 플랫폼 인수인계
 
-마지막 정리일: 2026-09-09
+마지막 정리일: 2026-09-10
 
 ## 프로젝트 개요
 
@@ -49,7 +49,8 @@
 - Cloud Functions 2세대와 Secret Manager를 활성화함
 - AI 가상면접 Callable Function `runAiInterviewStep` 배포 완료. `OPENAI_API_KEY`는 Firebase Secret Manager에 저장되어 있으며, 키 원문은 코드·문서·채팅에 기록하지 않는다.
 - 3회기 핵심 역량 브레인스토밍은 Cloud Functions 없이 Firestore `brainstormRooms` 컬렉션으로 실시간 동기화한다. 관련 Firestore 규칙은 `cheongsajin-57ffc`에 배포 완료했다.
-- 멘토 7명·교사용 2명·관리자 2명의 6자리 PIN 계정을 발급함. PIN 원문은 저장하지 않고 서버 함수에서 해시 검증함
+- 멘토 9명·교사용 2명·관리자 2명의 6자리 PIN 계정을 발급함. PIN 원문은 저장하지 않고 서버 함수에서 해시 검증함
+- 2026-09-10에 엄시내·전승혜 멘토 계정을 관리자 화면에서 등록 완료함. PIN 원문은 이 문서와 저장소에 기록하지 않음
 - PIN 5회 실패 시 15분 잠금, Firebase Secret 기반 관리자 코드 잠금 해제를 구현함
 - Cloud Firestore 데이터베이스를 생성함
 - `firestore.rules`를 Firebase Console에 게시함
