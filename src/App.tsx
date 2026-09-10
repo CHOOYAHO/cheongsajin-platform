@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 import { onAuthStateChanged, signInAnonymously, signOut } from 'firebase/auth'
-import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, limit, onSnapshot, orderBy, query, serverTimestamp, setDoc, updateDoc, where } from 'firebase/firestore'
+import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, limit, onSnapshot, orderBy, query, serverTimestamp, setDoc, updateDoc, where, writeBatch } from 'firebase/firestore'
 import { httpsCallable } from 'firebase/functions'
 import './App.css'
 import { auth, db, functions, isFirebaseConfigured } from './lib/firebase'
@@ -40,9 +40,10 @@ type InterviewFeedbackLevel = 'excellent' | 'good' | 'neutral' | 'weak' | 'bad'
 type InterviewStepResponse = { interviewId: string; question: string; questionTopic?: string; feedback?: string; feedbackTone?: InterviewFeedbackTone; hint?: string; hintIntent?: string; hintGuide?: string; closingSummary?: string; suggestedStrengths?: string[]; decision?: InterviewDecision; score?: number; turns?: InterviewTurn[]; aiSource?: 'openai' | 'fallback'; status: 'inProgress' | 'completed' }
 type BrainstormParticipant = { id: string; nickname: string; role: 'host' | 'participant'; connected?: boolean }
 type BrainstormSubmission = { id: string; userId?: string; nickname: string; round: number; part: 'tasks' | 'strengths'; text: string }
+type BrainstormDeletedSubmission = BrainstormSubmission & { originalSubmissionId?: string; deletedBy?: string; deletedByName?: string; deletedAt?: { toMillis: () => number } }
 type BrainstormRoom = { id?: string; hostId: string; hostName?: string; gameState: 'WAITING' | 'COUNTDOWN' | 'TASKS' | 'STRENGTHS' | 'ROUND_RESULT' | 'RESULT' | 'CLOSED'; round: number; totalRounds: number; timeLimit: number; currentJob: string; phaseEndsAt?: { toMillis: () => number }; updatedAt?: { toMillis: () => number } }
 type BrainstormScore = { id: string; nickname: string; score: number; submissions: number }
-type BrainstormRecordRoom = BrainstormRoom & { id: string; createdAt?: { toMillis: () => number }; updatedAt?: { toMillis: () => number }; submissions: BrainstormSubmission[]; scores?: BrainstormScore[] }
+type BrainstormRecordRoom = BrainstormRoom & { id: string; createdAt?: { toMillis: () => number }; updatedAt?: { toMillis: () => number }; submissions: BrainstormSubmission[]; deletedSubmissions?: BrainstormDeletedSubmission[]; scores?: BrainstormScore[] }
 type BrainstormSavedResult = BrainstormRecordRoom & { schoolName?: string; participantCount?: number; taskCount?: number; strengthCount?: number }
 type InterviewLogRecord = { id: string; userRole?: string; displayName?: string; loginDisplayName?: string; participantDisplayName?: string; schoolName?: string; participantSchoolName?: string; company?: string; application?: InterviewApplication; turns?: InterviewTurn[]; status?: 'inProgress' | 'completed'; decision?: InterviewDecision; score?: number; updatedAt?: { toMillis: () => number } }
 type InterviewRecordFilter = 'all' | 'gwangsi' | 'yesan' | 'staff' | 'admin'
@@ -1311,8 +1312,22 @@ function CareerBrainstormGame({ schoolName, studentName }: { schoolName: string;
     setAnswer('')
   }
   const deleteSubmission = async (submissionId: string) => {
-    if (!db || !roomCode || !isHost) return
-    await deleteDoc(doc(db, 'brainstormRooms', roomCode, 'submissions', submissionId)).catch((caught) => console.error(caught))
+    const currentUser = auth?.currentUser
+    if (!db || !currentUser || !roomCode || !isHost) return
+    const submissionRef = doc(db, 'brainstormRooms', roomCode, 'submissions', submissionId)
+    const submissionSnapshot = await getDoc(submissionRef)
+    if (!submissionSnapshot.exists()) return
+    const submission = submissionSnapshot.data() as Omit<BrainstormSubmission, 'id'>
+    const batch = writeBatch(db)
+    batch.set(doc(db, 'brainstormRooms', roomCode, 'deletedSubmissions', submissionId), {
+      ...submission,
+      originalSubmissionId: submissionId,
+      deletedBy: currentUser.uid,
+      deletedByName: myName,
+      deletedAt: serverTimestamp(),
+    })
+    batch.delete(submissionRef)
+    await batch.commit().catch((caught) => console.error(caught))
   }
   const leaveBrainstormRoom = async () => {
     if (db && auth?.currentUser && roomCode) {
@@ -1577,13 +1592,17 @@ function AdminBrainstormResultsPanel() {
 
   useEffect(() => {
     if (!db) return
+    const firestore = db
     setIsLoading(true)
     setError('')
-    return onSnapshot(query(collection(db, 'brainstormResults'), orderBy('updatedAt', 'desc'), limit(50)), (snapshot) => {
-      setRooms(snapshot.docs.map((roomDoc) => {
+    return onSnapshot(query(collection(firestore, 'brainstormResults'), orderBy('updatedAt', 'desc'), limit(50)), async (snapshot) => {
+      const nextRooms = await Promise.all(snapshot.docs.map(async (roomDoc) => {
         const data = roomDoc.data() as Omit<BrainstormSavedResult, 'id'>
-        return { id: roomDoc.id, ...data, submissions: [...(data.submissions ?? [])].sort((left, right) => left.round - right.round || left.part.localeCompare(right.part, 'ko')) }
+        const deletedSnapshot = await getDocs(collection(firestore, 'brainstormRooms', roomDoc.id, 'deletedSubmissions')).catch(() => null)
+        const deletedSubmissions = deletedSnapshot?.docs.map((item) => ({ id: item.id, ...(item.data() as Omit<BrainstormDeletedSubmission, 'id'>) })) ?? []
+        return { id: roomDoc.id, ...data, submissions: [...(data.submissions ?? [])].sort((left, right) => left.round - right.round || left.part.localeCompare(right.part, 'ko')), deletedSubmissions: deletedSubmissions.sort((left, right) => left.round - right.round || left.part.localeCompare(right.part, 'ko')) }
       }))
+      setRooms(nextRooms)
       setIsLoading(false)
     }, (caught) => {
         console.error(caught)
@@ -1592,7 +1611,7 @@ function AdminBrainstormResultsPanel() {
     })
   }, [])
 
-  return <section className="admin-result-panel"><div className="admin-result-panel-heading"><div><span>3회기</span><h3>핵심 역량 브레인스토밍 결과</h3><p>방별로 모인 수행 업무와 필요 역량 제출 기록을 실시간으로 확인합니다.</p></div><b>{rooms.length}개 방</b></div>{isLoading && <div className="empty-auction-records"><b>기록을 불러오는 중이에요.</b></div>}{error && <p className="entry-error" role="alert">{error}</p>}{!isLoading && !error && (rooms.length ? <div className="admin-brainstorm-records">{rooms.map((room) => <article key={room.id}><header><div><span>{room.schoolName || '학교 미기록'} · 방 {room.id}</span><b>{room.hostName || '방장 미기록'}</b></div><small>{room.gameState} · {room.totalRounds}라운드 · 업무 {room.taskCount ?? 0}개 · 역량 {room.strengthCount ?? 0}개 · {room.updatedAt?.toMillis ? new Date(room.updatedAt.toMillis()).toLocaleString('ko-KR') : '시간 미기록'}</small></header>{(room.scores ?? []).length > 0 && <div className="admin-brainstorm-scores">{(room.scores ?? []).map((score) => <p key={score.id}><span>{score.nickname}</span><b>{score.score}점</b><small>{score.submissions}개</small></p>)}</div>}{Array.from({ length: room.totalRounds || 1 }, (_, index) => index + 1).map((roundNumber) => { const roundItems = room.submissions.filter((item) => item.round === roundNumber); return <section key={roundNumber}><h4>{roundNumber}라운드</h4><div><div><b>수행 업무</b>{roundItems.filter((item) => item.part === 'tasks').map((item) => <p key={item.id}><span>{item.nickname}</span>{item.text}</p>)}</div><div><b>필요 역량</b>{roundItems.filter((item) => item.part === 'strengths').map((item) => <p key={item.id}><span>{item.nickname}</span>{item.text}</p>)}</div></div></section> })}</article>)}</div> : <div className="empty-auction-records"><b>아직 저장된 브레인스토밍 기록이 없어요.</b><p>3회기 브레인스토밍 방을 만들고 활동하면 이곳에 실시간 저장본이 표시됩니다.</p></div>)}</section>
+  return <section className="admin-result-panel"><div className="admin-result-panel-heading"><div><span>3회기</span><h3>핵심 역량 브레인스토밍 결과</h3><p>방별로 모인 수행 업무와 필요 역량 제출 기록을 실시간으로 확인합니다.</p></div><b>{rooms.length}개 방</b></div>{isLoading && <div className="empty-auction-records"><b>기록을 불러오는 중이에요.</b></div>}{error && <p className="entry-error" role="alert">{error}</p>}{!isLoading && !error && (rooms.length ? <div className="admin-brainstorm-records">{rooms.map((room) => <article key={room.id}><header><div><span>{room.schoolName || '학교 미기록'} · 방 {room.id}</span><b>{room.hostName || '방장 미기록'}</b></div><small>{room.gameState} · {room.totalRounds}라운드 · 업무 {room.taskCount ?? 0}개 · 역량 {room.strengthCount ?? 0}개 · {room.updatedAt?.toMillis ? new Date(room.updatedAt.toMillis()).toLocaleString('ko-KR') : '시간 미기록'}</small></header>{(room.scores ?? []).length > 0 && <div className="admin-brainstorm-scores">{(room.scores ?? []).map((score) => <p key={score.id}><span>{score.nickname}</span><b>{score.score}점</b><small>{score.submissions}개</small></p>)}</div>}{Array.from({ length: room.totalRounds || 1 }, (_, index) => index + 1).map((roundNumber) => { const roundItems = room.submissions.filter((item) => item.round === roundNumber); return <section key={roundNumber}><h4>{roundNumber}라운드</h4><div><div><b>수행 업무</b>{roundItems.filter((item) => item.part === 'tasks').map((item) => <p key={item.id}><span>{item.nickname}</span>{item.text}</p>)}</div><div><b>필요 역량</b>{roundItems.filter((item) => item.part === 'strengths').map((item) => <p key={item.id}><span>{item.nickname}</span>{item.text}</p>)}</div></div></section> })}{(room.deletedSubmissions ?? []).length > 0 && <section className="admin-brainstorm-deleted"><h4>방장 삭제 이력</h4><div>{(room.deletedSubmissions ?? []).map((item) => <p key={item.id}><span>{item.nickname} · {item.round}라운드 · {item.part === 'tasks' ? '수행 업무' : '필요 역량'} · 삭제자 {item.deletedByName || '방장'}{item.deletedAt?.toMillis ? ` · ${new Date(item.deletedAt.toMillis()).toLocaleString('ko-KR')}` : ''}</span>{item.text}</p>)}</div></section>}</article>)}</div> : <div className="empty-auction-records"><b>아직 저장된 브레인스토밍 기록이 없어요.</b><p>3회기 브레인스토밍 방을 만들고 활동하면 이곳에 실시간 저장본이 표시됩니다.</p></div>)}</section>
 }
 
 function AdminInterviewResultsPanel() {

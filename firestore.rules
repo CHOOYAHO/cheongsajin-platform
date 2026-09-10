@@ -238,6 +238,29 @@ service cloud.firestore {
         allow delete: if signedIn()
           && get(/databases/$(database)/documents/brainstormRooms/$(roomId)).data.hostId == request.auth.uid;
       }
+
+      match /deletedSubmissions/{submissionId} {
+        allow read: if hasActiveStaffSession()
+          && get(/databases/$(database)/documents/staffSessions/$(request.auth.uid)).data.role in ['mentor', 'admin'];
+        allow create: if signedIn()
+          && get(/databases/$(database)/documents/brainstormRooms/$(roomId)).data.hostId == request.auth.uid
+          && request.resource.data.userId is string
+          && request.resource.data.round is int
+          && request.resource.data.round >= 1
+          && request.resource.data.part in ['tasks', 'strengths']
+          && request.resource.data.text is string
+          && request.resource.data.text.size() > 0
+          && request.resource.data.text.size() <= 240
+          && request.resource.data.nickname is string
+          && request.resource.data.nickname.size() > 0
+          && request.resource.data.nickname.size() <= 12
+          && request.resource.data.originalSubmissionId == submissionId
+          && request.resource.data.deletedBy == request.auth.uid
+          && request.resource.data.deletedByName is string
+          && request.resource.data.deletedByName.size() > 0
+          && request.resource.data.deletedByName.size() <= 12;
+        allow update, delete: if false;
+      }
     }
 
     match /brainstormResults/{roomId} {
