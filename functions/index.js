@@ -239,6 +239,9 @@ const sanitizeInterviewTurns = (turns = []) => {
     question: sanitizeText(turn?.question, 500),
     answer: sanitizeText(turn?.answer, 1200),
     feedback: sanitizeText(turn?.feedback, 700),
+    feedbackTone: ['good', 'neutral', 'bad'].includes(turn?.feedbackTone) ? turn.feedbackTone : undefined,
+    answerScore: Number.isFinite(Number(turn?.answerScore)) ? Math.max(0, Math.min(100, Math.round(Number(turn.answerScore)))) : undefined,
+    cumulativeScore: Number.isFinite(Number(turn?.cumulativeScore)) ? Math.max(0, Math.min(100, Math.round(Number(turn.cumulativeScore)))) : undefined,
   })).filter((turn) => turn.question && turn.answer)
 }
 const getAnswerEffortScore = (answer) => {
@@ -251,9 +254,21 @@ const getAnswerEffortScore = (answer) => {
   if (text.length < 8) score -= 25
   return Math.max(0, Math.min(100, Math.round(score)))
 }
+const scoreInterviewTurns = (turns) => {
+  let total = 0
+  return turns.map((turn, index) => {
+    const answerScore = getAnswerEffortScore(turn.answer)
+    total += answerScore
+    return {
+      ...turn,
+      answerScore,
+      cumulativeScore: Math.round(total / (index + 1)),
+    }
+  })
+}
 const getInterviewDecision = (turns) => {
   if (!turns.length) return { decision: 'retry', score: 0 }
-  const scores = turns.map((turn) => getAnswerEffortScore(turn.answer))
+  const scores = scoreInterviewTurns(turns).map((turn) => turn.answerScore)
   const average = Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length)
   if (average >= 70) return { decision: 'pass', score: average }
   if (average >= 45) return { decision: 'hold', score: average }
@@ -352,7 +367,7 @@ feedbackTone은 직전 답변 피드백의 색상입니다. 좋은 답변이면 
 지금까지의 면접:
 ${transcript || '아직 답변 없음'}
 ${finished ? '면접을 종료하고 최종 피드백을 작성하세요.' : '다음 면접 질문 1개를 작성하세요. 이전 답변이 있다면 짧은 피드백도 함께 주세요. 다음 질문은 반드시 중고등학생이 자신의 학교생활·일상·관심·앞으로의 계획으로 답할 수 있어야 합니다.'}
-반드시 JSON만 출력하세요. 형식: {"question":"", "feedback":"", "feedbackTone":"neutral", "closingSummary":"", "suggestedStrengths":[""], "decision":"hold", "score":60}`
+반드시 JSON만 출력하세요. 형식: {"question":"", "feedback":"", "feedbackTone":"neutral", "closingSummary":"", "suggestedStrengths":[""], "decision":"hold", "score":0}`
   const response = await fetch('https://api.openai.com/v1/responses', {
     method: 'POST',
     headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
@@ -408,7 +423,8 @@ export const runAiInterviewStep = onCall({ secrets: [openaiApiKey] }, async (req
   const recordRef = db.doc(`aiInterviewLogs/${uid}_${interviewId}`)
   const existingRecord = await recordRef.get()
   const actorContext = await getInterviewActorContext(uid, schoolName, displayName)
-  const savedTurns = turns.map((turn, index) => index === turns.length - 1 && aiResult.feedback
+  const scoredTurns = scoreInterviewTurns(turns)
+  const savedTurns = scoredTurns.map((turn, index) => index === scoredTurns.length - 1 && aiResult.feedback
     ? { ...turn, feedback: aiResult.feedback, feedbackTone: aiResult.feedbackTone }
     : turn)
   await recordRef.set({
@@ -448,6 +464,7 @@ export const runAiInterviewStep = onCall({ secrets: [openaiApiKey] }, async (req
     decision: aiResult.decision,
     feedbackTone: aiResult.feedbackTone,
     score: aiResult.score,
+    turns: savedTurns,
     aiSource: aiResult.aiSource,
     status: finished ? 'completed' : 'inProgress',
   }
