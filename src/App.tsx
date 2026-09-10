@@ -1048,8 +1048,8 @@ function CareerBrainstormTest({ role, playerName, onExit }: { role: BrainstormTe
   const job = customJob.trim() || selectedJob
   const participants = role === 'host' ? [testName, '지민', '서준', '하윤'] : ['가상 방장', testName, '지민', '서준']
   const brainstormJobs = ['교사', '간호사', '로봇공학자', '사회복지사', '공무원', '요리사', '데이터 분석가', '콘텐츠 기획자', '자동차 정비사', '심리상담사']
-  const taskExamples = ['수업을 준비하고 진행해요', '학생과 상담해요', '행정 문서를 처리해요', '행사와 체험활동을 준비해요']
-  const strengthExamples = ['의사소통능력', '책임감', '계획성', '공감능력']
+  const taskExamples = ['수업을 준비하고 진행해요', '학생과 상담해요', '행정 문서를 처리해요', '행사와 체험활동을 준비해요', '학생의 과제와 학습 상황을 확인해요', '학부모와 학생 생활에 대해 소통해요', '교실에서 생긴 갈등을 조정해요', '수업 자료와 평가 문제를 만들어요', '학생의 진로 탐색을 도와요']
+  const strengthExamples = ['의사소통능력', '책임감', '계획성', '공감능력', '문제해결능력', '관찰력', '협업능력', '창의성', '인내심']
   const currentTasks = tasks.filter((item) => item.round === round)
   const currentStrengths = strengths.filter((item) => item.round === round)
   const testHeader = <div className="test-mode-bar"><div><b>{role === 'host' ? '방장용' : '참여자용'} 브레인스토밍 테스트</b><span>Firebase에 저장되지 않는 연습 모드</span></div><button type="button" onClick={onExit}>테스트 종료</button></div>
@@ -1060,13 +1060,6 @@ function CareerBrainstormTest({ role, playerName, onExit }: { role: BrainstormTe
     else setStrengths((current) => [...current, item])
     setAnswer('')
   }
-  const addBots = (part: 'tasks' | 'strengths') => {
-    const examples = part === 'tasks' ? taskExamples : strengthExamples
-    const names = participants.filter((name) => name !== testName && name !== '가상 방장')
-    const items = names.map((name, index) => ({ id: `${part}-${round}-${name}`, nickname: name, round, part, text: examples[index % examples.length] }))
-    if (part === 'tasks') setTasks((current) => [...current.filter((item) => !(item.round === round && item.id.startsWith(`${part}-${round}-`))), ...items])
-    else setStrengths((current) => [...current.filter((item) => !(item.round === round && item.id.startsWith(`${part}-${round}-`))), ...items])
-  }
   const beginCountdown = () => {
     setPhase('COUNTDOWN')
     setRemaining(5)
@@ -1074,7 +1067,6 @@ function CareerBrainstormTest({ role, playerName, onExit }: { role: BrainstormTe
   const beginPart = (part: 'TASKS' | 'STRENGTHS') => {
     setPhase(part)
     setRemaining(timeLimit)
-    addBots(part === 'TASKS' ? 'tasks' : 'strengths')
   }
   const nextRound = () => {
     if (round >= totalRounds) setPhase('RESULT')
@@ -1098,6 +1090,30 @@ function CareerBrainstormTest({ role, playerName, onExit }: { role: BrainstormTe
     if (phase === 'TASKS' && role === 'participant') beginPart('STRENGTHS')
     if (phase === 'STRENGTHS' && role === 'participant') setPhase('ROUND_RESULT')
   }, [phase, remaining, role])
+
+  useEffect(() => {
+    if (phase !== 'TASKS' && phase !== 'STRENGTHS') return
+    const part: BrainstormSubmission['part'] = phase === 'TASKS' ? 'tasks' : 'strengths'
+    const examples = part === 'tasks' ? taskExamples : strengthExamples
+    const botNames = participants.filter((name) => name !== testName && name !== '가상 방장')
+    const queue = botNames.flatMap((name, botIndex) => {
+      const responseCount = 2 + ((round + botIndex) % 2)
+      return Array.from({ length: responseCount }, (_, responseIndex) => ({
+        name,
+        text: examples[(botIndex * 3 + responseIndex + round - 1) % examples.length],
+      }))
+    }).sort(() => Math.random() - 0.5)
+    let delay = 1200 + Math.floor(Math.random() * 1000)
+    const timers = queue.map((item, index) => {
+      delay += index === 0 ? 0 : 1800 + Math.floor(Math.random() * 2200)
+      return window.setTimeout(() => {
+        const submission: BrainstormSubmission = { id: `${part}-${round}-${item.name}-${index}-${Date.now()}`, nickname: item.name, round, part, text: item.text }
+        if (part === 'tasks') setTasks((current) => [...current, submission])
+        else setStrengths((current) => [...current, submission])
+      }, delay)
+    })
+    return () => timers.forEach((timer) => window.clearTimeout(timer))
+  }, [phase, role, round, testName])
 
   if (phase === 'WAITING') return <div className="brainstorm-room">{testHeader}<div className="room-summary"><div><span>방 코드</span><strong>TEST</strong></div><div><span>라운드</span><strong>{round} / {totalRounds}</strong></div><div><span>내 역할</span><strong>{role === 'host' ? '방장' : '참가자'}</strong></div></div><section className="brainstorm-waiting"><div className="auction-section-title"><h3>테스트 참가자</h3><span>가상 참가자 자동 응답</span></div><ul className="participant-list">{participants.map((name, index) => <li key={name}><i />{name}{index === 0 ? <b>방장</b> : <span>{name === testName ? '나' : 'BOT'}</span>}</li>)}</ul>{role === 'host' && <div className="brainstorm-host-settings"><label>라운드 수<input type="number" min={1} max={5} value={totalRounds} onChange={(event) => setTotalRounds(Math.max(1, Math.min(5, Number(event.target.value))))} /></label><label>제한시간<select value={timeLimit} onChange={(event) => setTimeLimit(Number(event.target.value))}><option value={30}>30초</option><option value={60}>60초</option><option value={90}>90초</option></select></label></div>}<div className="brainstorm-job-picker"><h3>{round}라운드 직업 선택</h3><div className="job-options">{brainstormJobs.map((item) => <button type="button" className={selectedJob === item && !customJob ? 'selected' : ''} onClick={() => { setSelectedJob(item); setCustomJob('') }} disabled={role === 'participant'} key={item}>{item}</button>)}</div>{role === 'host' && <label>직업 직접 입력<input value={customJob} onChange={(event) => setCustomJob(event.target.value)} maxLength={24} placeholder="예: 행정직 공무원" /></label>}<button type="button" className="auction-primary" onClick={beginCountdown}>{role === 'host' ? '테스트 시작' : '가상 방장에게 시작 요청'}</button></div></section></div>
   if (phase === 'COUNTDOWN') return <div className="brainstorm-room">{testHeader}<section className="brainstorm-countdown"><p>이번 직업은</p><h2>{job}</h2><strong>{remaining}</strong><span>초 뒤 시작합니다</span>{role === 'host' && remaining <= 0 && <button type="button" onClick={() => beginPart('TASKS')}>파트 1 시작</button>}</section></div>
