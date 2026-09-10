@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 import { onAuthStateChanged, signInAnonymously, signOut } from 'firebase/auth'
-import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, onSnapshot, query, serverTimestamp, setDoc, updateDoc, where } from 'firebase/firestore'
+import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, limit, onSnapshot, orderBy, query, serverTimestamp, setDoc, updateDoc, where } from 'firebase/firestore'
 import { httpsCallable } from 'firebase/functions'
 import './App.css'
 import { auth, db, functions, isFirebaseConfigured } from './lib/firebase'
@@ -40,6 +40,8 @@ type InterviewStepResponse = { interviewId: string; question: string; feedback?:
 type BrainstormParticipant = { id: string; nickname: string; role: 'host' | 'participant'; connected?: boolean }
 type BrainstormSubmission = { id: string; userId?: string; nickname: string; round: number; part: 'tasks' | 'strengths'; text: string }
 type BrainstormRoom = { id?: string; hostId: string; hostName?: string; gameState: 'WAITING' | 'COUNTDOWN' | 'TASKS' | 'STRENGTHS' | 'ROUND_RESULT' | 'RESULT'; round: number; totalRounds: number; timeLimit: number; currentJob: string; phaseEndsAt?: { toMillis: () => number } }
+type BrainstormRecordRoom = BrainstormRoom & { id: string; createdAt?: { toMillis: () => number }; updatedAt?: { toMillis: () => number }; submissions: BrainstormSubmission[] }
+type InterviewLogRecord = { id: string; userRole?: string; displayName?: string; loginDisplayName?: string; participantDisplayName?: string; schoolName?: string; participantSchoolName?: string; company?: string; application?: InterviewApplication; turns?: InterviewTurn[]; status?: 'inProgress' | 'completed'; decision?: InterviewDecision; score?: number; updatedAt?: { toMillis: () => number } }
 type BrainstormTestRole = 'host' | 'participant'
 const defaultSessionLockMap: SessionLockMap = { 1: true, 2: true, 3: false, 4: false, 5: false }
 const defaultSessionLocks: SessionLocksByTarget = {
@@ -1456,6 +1458,68 @@ function AiInterviewActivity({ schoolName, displayName }: { schoolName: string; 
   )
 }
 
+function AdminBrainstormResultsPanel() {
+  const [rooms, setRooms] = useState<BrainstormRecordRoom[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    const loadRecords = async () => {
+      if (!db) return
+      setIsLoading(true)
+      setError('')
+      try {
+        const roomSnapshot = await getDocs(query(collection(db, 'brainstormRooms'), orderBy('updatedAt', 'desc'), limit(20)))
+        const loadedRooms = await Promise.all(roomSnapshot.docs.map(async (roomDoc) => {
+          const submissionSnapshot = await getDocs(collection(db, 'brainstormRooms', roomDoc.id, 'submissions'))
+          const submissions = submissionSnapshot.docs
+            .map((item) => ({ id: item.id, ...(item.data() as Omit<BrainstormSubmission, 'id'>) }))
+            .sort((left, right) => left.round - right.round || left.part.localeCompare(right.part, 'ko'))
+          return { id: roomDoc.id, ...(roomDoc.data() as Omit<BrainstormRecordRoom, 'id' | 'submissions'>), submissions }
+        }))
+        setRooms(loadedRooms)
+      } catch (caught) {
+        console.error(caught)
+        setError('브레인스토밍 기록을 불러오지 못했어요.')
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    void loadRecords()
+  }, [])
+
+  return <section className="admin-result-panel"><div className="admin-result-panel-heading"><div><span>3회기</span><h3>핵심 역량 브레인스토밍 결과</h3><p>방별로 모인 수행 업무와 필요 역량 제출 기록을 확인합니다.</p></div><b>{rooms.length}개 방</b></div>{isLoading && <div className="empty-auction-records"><b>기록을 불러오는 중이에요.</b></div>}{error && <p className="entry-error" role="alert">{error}</p>}{!isLoading && !error && (rooms.length ? <div className="admin-brainstorm-records">{rooms.map((room) => <article key={room.id}><header><div><span>방 {room.id}</span><b>{room.hostName || '방장 미기록'}</b></div><small>{room.gameState} · {room.totalRounds}라운드 · {room.updatedAt?.toMillis ? new Date(room.updatedAt.toMillis()).toLocaleString('ko-KR') : '시간 미기록'}</small></header>{Array.from({ length: room.totalRounds || 1 }, (_, index) => index + 1).map((roundNumber) => { const roundItems = room.submissions.filter((item) => item.round === roundNumber); return <section key={roundNumber}><h4>{roundNumber}라운드</h4><div><div><b>수행 업무</b>{roundItems.filter((item) => item.part === 'tasks').map((item) => <p key={item.id}><span>{item.nickname}</span>{item.text}</p>)}</div><div><b>필요 역량</b>{roundItems.filter((item) => item.part === 'strengths').map((item) => <p key={item.id}><span>{item.nickname}</span>{item.text}</p>)}</div></div></section> })}</article>)}</div> : <div className="empty-auction-records"><b>아직 저장된 브레인스토밍 기록이 없어요.</b><p>3회기 브레인스토밍 방을 만들고 활동하면 이곳에 표시됩니다.</p></div>)}</section>
+}
+
+function AdminInterviewResultsPanel() {
+  const [records, setRecords] = useState<InterviewLogRecord[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    const loadRecords = async () => {
+      if (!db) return
+      setIsLoading(true)
+      setError('')
+      try {
+        const snapshot = await getDocs(query(collection(db, 'aiInterviewLogs'), orderBy('updatedAt', 'desc'), limit(40)))
+        setRecords(snapshot.docs.map((item) => ({ id: item.id, ...(item.data() as Omit<InterviewLogRecord, 'id'>) })))
+      } catch (caught) {
+        console.error(caught)
+        setError('면접 기록을 불러오지 못했어요.')
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    void loadRecords()
+  }, [])
+
+  const decisionLabel = (decision?: InterviewDecision) => decision === 'pass' ? '합격' : decision === 'retry' ? '재도전' : decision === 'hold' ? '보류' : '진행 중'
+  const roleLabel = (role?: string) => role === 'admin' ? '관리자' : role === 'mentor' ? '멘토' : role === 'teacher' ? '교사' : '학생'
+
+  return <section className="admin-result-panel"><div className="admin-result-panel-heading"><div><span>3회기</span><h3>면접 결과</h3><p>학생, 멘토, 교사, 관리자까지 모든 면접 질문·답변 기록을 확인합니다.</p></div><b>{records.length}건</b></div>{isLoading && <div className="empty-auction-records"><b>기록을 불러오는 중이에요.</b></div>}{error && <p className="entry-error" role="alert">{error}</p>}{!isLoading && !error && (records.length ? <div className="admin-interview-records">{records.map((record) => <article key={record.id}><header><div><span>{roleLabel(record.userRole)}</span><b>{record.participantDisplayName || record.loginDisplayName || record.displayName || '이름 미기록'}</b><small>{record.participantSchoolName || record.schoolName || '학교 미기록'}</small></div><div><b>{decisionLabel(record.decision)}</b><small>{record.score ? `${record.score}점` : record.status === 'completed' ? '판정 완료' : '진행 중'}</small></div></header><h4>{record.company || '회사 미기록'} · {record.application?.role || '직무 미기록'}</h4>{record.turns?.length ? <div className="admin-interview-turns">{record.turns.map((turn, index) => <section key={`${record.id}-${index}`}><b>Q{index + 1}. {turn.question}</b><p>{turn.answer}</p>{turn.feedback && <small>{turn.feedback}</small>}</section>)}</div> : <p>아직 저장된 답변이 없어요.</p>}</article>)}</div> : <div className="empty-auction-records"><b>아직 저장된 면접 기록이 없어요.</b><p>면접에서 한 문항 이상 답변하면 이곳에 표시됩니다.</p></div>)}</section>
+}
+
 function AdminAuctionResultsPanel() {
   const [records, setRecords] = useState<AuctionResultRecord[]>([])
   const [rooms, setRooms] = useState<AdminAuctionRoomRecord[]>([])
@@ -1527,7 +1591,7 @@ function AdminAuctionResultsPanel() {
 function AdminPage({ displayName, accountTools, sessionLocks, sessionLockBusy, sessionLockError, onToggleSessionLock, onOpenPreferenceRecords, onOpenSession, onBack, onLeave }: { displayName: string; accountTools: ReactNode; sessionLocks: SessionLocksByTarget; sessionLockBusy: string | null; sessionLockError: string; onToggleSessionLock: (sessionNumber: number, target: SessionLockTarget, unlocked: boolean) => void; onOpenPreferenceRecords: () => void; onOpenSession: (sessionNumber: number) => void; onBack: () => void; onLeave: () => void }) {
   const [activeSection, setActiveSection] = useState<AdminSectionId | null>(null)
   const [activeRecordSession, setActiveRecordSession] = useState<number | null>(null)
-  const [activeRecordDetail, setActiveRecordDetail] = useState<'auction' | null>(null)
+  const [activeRecordDetail, setActiveRecordDetail] = useState<'auction' | 'brainstorm' | 'interview' | null>(null)
   const adminSections = [
     { id: 'accounts' as const, title: '계정 관리', description: '학생, 교사, 멘토, 관리자(마스터) 계정과 PIN을 조회하고 정비하는 영역입니다.', items: ['학교별 학생 PIN', '교사·멘토 계정', '마스터 등급'], action: '계정 관리 열기', tone: 'blue' },
     { id: 'activities' as const, title: '활동 관리', description: '회기별 활동 공개 범위와 강점 경매장 운영 흐름을 관리하는 영역입니다.', items: ['회기 잠금 설정', '활동 화면 점검', '경매장 진행 관리'], action: '활동 관리 열기', tone: 'green' },
@@ -1556,7 +1620,7 @@ function AdminPage({ displayName, accountTools, sessionLocks, sessionLockBusy, s
         {!activeSection && <section className="admin-section-grid">{adminSections.map((section) => <article className={`admin-section-card ${section.tone}`} key={section.title}><h2>{section.title}</h2><p>{section.description}</p><ul>{section.items.map((item) => <li key={item}>{item}</li>)}</ul><button type="button" onClick={() => setActiveSection(section.id)}>{section.action}</button></article>)}</section>}
         {activeSection === 'accounts' && <section className="admin-detail-panel account-admin-panel"><div className="admin-detail-heading"><span>계정 관리</span><h2>학생 PIN 관리</h2><p>학교별 학생 계정 목록을 확인하고, 없는 계정 발급이나 PIN 재발급을 처리합니다.</p></div>{accountTools}</section>}
         {activeSection === 'activities' && <section className="admin-detail-panel"><div className="admin-detail-heading"><span>활동 관리</span><h2>회기별 잠금 관리</h2><p>예산고, 광시중, 멘토의 활동 공개 여부를 각각 설정합니다. 교사는 소속 학교 설정을 따릅니다.</p></div>{sessionLockError && <p className="entry-error" role="alert">{sessionLockError}</p>}<div className="admin-session-list">{sessionTemplates.map((session) => <article key={session.number}><span>{session.number}회기</span><div><h3>{session.title}</h3><p>{session.subtitle}</p><small>대상별로 따로 잠그거나 풀 수 있어요.</small></div><div className="admin-session-targets"><button type="button" onClick={() => onOpenSession(session.number)}>활동 확인</button>{([['yesan', '예산고'], ['gwangsi', '광시중'], ['mentor', '멘토']] as const).map(([target, label]) => { const unlocked = sessionLocks[target][session.number] === true; const busyKey = `${target}-${session.number}`; return <div key={target}><b>{label}</b><button type="button" className={`session-lock-toggle ${unlocked ? 'open' : 'locked'}`} onClick={() => onToggleSessionLock(session.number, target, !unlocked)} disabled={sessionLockBusy === busyKey}>{sessionLockBusy === busyKey ? '저장 중' : unlocked ? '잠그기' : '풀기'}</button><small>{unlocked ? '공개 중' : '잠김'}</small></div> })}</div></article>)}</div><div className="admin-placeholder-note"><b>잠금 기준</b><p>예산고·광시중 학생과 교사는 각 학교 설정을 따르고, 멘토는 멘토 설정을 따릅니다. 관리자는 잠금 여부와 관계없이 활동 확인으로 들어갈 수 있습니다.</p></div></section>}
-        {activeSection === 'records' && <section className="admin-detail-panel"><div className="admin-detail-heading"><span>활동 기록</span><h2>회기별 결과 보기</h2><p>활동 결과를 회기별로 나눠 확인합니다. 현재 저장된 선호 탐색과 강점 경매장 기록은 2회기 결과에 모았습니다.</p></div>{!activeRecordSession ? <div className="admin-record-session-grid">{sessionTemplates.map((session) => { const ready = session.number === 2; return <button type="button" className={`admin-record-session-card ${ready ? 'available' : ''}`} key={session.number} onClick={() => openRecordSession(session.number)} disabled={!ready}><span>{session.number}회기</span><b>{session.title}</b><p>{ready ? '선호 탐색과 강점 경매장 결과를 확인합니다.' : '아직 결과 보기 화면을 준비 중입니다.'}</p><small>{ready ? '결과 열기' : '준비 중'}</small></button> })}</div> : <div className="admin-record-session-detail"><div className="admin-record-session-heading"><button type="button" onClick={closeRecordSession}>← 회기별 결과로</button><div><span>{activeRecordSession}회기 결과</span><h3>{sessionTemplates.find((session) => session.number === activeRecordSession)?.title}</h3></div></div>{activeRecordSession === 2 ? <><div className="admin-record-actions"><button type="button" onClick={onOpenPreferenceRecords}><span>2회기</span><b>선호 탐색 결과 보기</b><small>좋아·싫어 결과와 워드클라우드 확인</small></button><button type="button" className={activeRecordDetail === 'auction' ? 'active' : ''} onClick={() => setActiveRecordDetail(activeRecordDetail === 'auction' ? null : 'auction')}><span>2회기</span><b>강점 경매장 결과 보기</b><small>확정 결과, 방 내부 자료, 복구 백업 확인</small></button></div>{activeRecordDetail === 'auction' ? <AdminAuctionResultsPanel /> : <div className="admin-placeholder-note"><b>2회기 결과가 접혀 있어요.</b><p>선호 탐색은 별도 결과 화면으로 열고, 강점 경매장은 위 버튼을 누르면 이 자리에서 펼쳐집니다.</p></div>}</> : <div className="admin-placeholder-note"><b>{activeRecordSession}회기 결과 준비 중</b><p>해당 회기의 활동 기록 저장 구조가 확정되면 이곳에 결과 화면을 연결합니다.</p></div>}</div>}</section>}
+        {activeSection === 'records' && <section className="admin-detail-panel"><div className="admin-detail-heading"><span>활동 기록</span><h2>회기별 결과 보기</h2><p>활동 결과를 회기별로 나눠 확인합니다. 2회기는 선호 탐색·강점 경매장, 3회기는 브레인스토밍·면접 결과를 확인합니다.</p></div>{!activeRecordSession ? <div className="admin-record-session-grid">{sessionTemplates.map((session) => { const ready = [2, 3].includes(session.number); return <button type="button" className={`admin-record-session-card ${ready ? 'available' : ''}`} key={session.number} onClick={() => openRecordSession(session.number)} disabled={!ready}><span>{session.number}회기</span><b>{session.title}</b><p>{session.number === 2 ? '선호 탐색과 강점 경매장 결과를 확인합니다.' : session.number === 3 ? '핵심 역량 브레인스토밍과 면접 결과를 확인합니다.' : '아직 결과 보기 화면을 준비 중입니다.'}</p><small>{ready ? '결과 열기' : '준비 중'}</small></button> })}</div> : <div className="admin-record-session-detail"><div className="admin-record-session-heading"><button type="button" onClick={closeRecordSession}>← 회기별 결과로</button><div><span>{activeRecordSession}회기 결과</span><h3>{sessionTemplates.find((session) => session.number === activeRecordSession)?.title}</h3></div></div>{activeRecordSession === 2 ? <><div className="admin-record-actions"><button type="button" onClick={onOpenPreferenceRecords}><span>2회기</span><b>선호 탐색 결과 보기</b><small>좋아·싫어 결과와 워드클라우드 확인</small></button><button type="button" className={activeRecordDetail === 'auction' ? 'active' : ''} onClick={() => setActiveRecordDetail(activeRecordDetail === 'auction' ? null : 'auction')}><span>2회기</span><b>강점 경매장 결과 보기</b><small>확정 결과, 방 내부 자료, 복구 백업 확인</small></button></div>{activeRecordDetail === 'auction' ? <AdminAuctionResultsPanel /> : <div className="admin-placeholder-note"><b>2회기 결과가 접혀 있어요.</b><p>선호 탐색은 별도 결과 화면으로 열고, 강점 경매장은 위 버튼을 누르면 이 자리에서 펼쳐집니다.</p></div>}</> : activeRecordSession === 3 ? <><div className="admin-record-actions"><button type="button" className={activeRecordDetail === 'brainstorm' ? 'active' : ''} onClick={() => setActiveRecordDetail(activeRecordDetail === 'brainstorm' ? null : 'brainstorm')}><span>3회기</span><b>핵심 역량 브레인스토밍</b><small>방별 수행 업무와 필요 역량 기록 확인</small></button><button type="button" className={activeRecordDetail === 'interview' ? 'active' : ''} onClick={() => setActiveRecordDetail(activeRecordDetail === 'interview' ? null : 'interview')}><span>3회기</span><b>면접 결과 보기</b><small>질문, 답변, 피드백, 판정 결과 확인</small></button></div>{activeRecordDetail === 'brainstorm' ? <AdminBrainstormResultsPanel /> : activeRecordDetail === 'interview' ? <AdminInterviewResultsPanel /> : <div className="admin-placeholder-note"><b>3회기 결과가 접혀 있어요.</b><p>브레인스토밍과 면접 중 확인할 기록을 선택해 주세요.</p></div>}</> : <div className="admin-placeholder-note"><b>{activeRecordSession}회기 결과 준비 중</b><p>해당 회기의 활동 기록 저장 구조가 확정되면 이곳에 결과 화면을 연결합니다.</p></div>}</div>}</section>}
         {activeSection === 'library' && <section className="admin-detail-panel"><div className="admin-detail-heading"><span>자료실</span><h2>핵심 자료 보관함</h2><p>수업 중 자주 쓰는 자료, 운영 문서, 외부 링크를 한곳에 모아 두는 관리자용 자료실입니다.</p></div><div className="admin-library-grid"><article><span>수업 자료</span><h3>회기별 진행 자료</h3><p>활동 안내, 멘토 진행안, 학생용 안내문을 회기별로 정리해 둘 자리입니다.</p><button type="button" disabled>자료 추가 준비 중</button></article><article><span>운영 문서</span><h3>계정·배포·운영 메모</h3><p>PIN 발급 이력, 배포 체크리스트, 현장 운영 메모를 저장할 수 있게 확장할 자리입니다.</p><button type="button" disabled>문서 추가 준비 중</button></article><article><span>외부 링크</span><h3>바로가기 모음</h3><p>수련관 홈페이지, 프로그램 접수, 공유 드라이브 등 자주 여는 링크를 모아둘 자리입니다.</p><div className="admin-library-links"><a href="http://www.yesanyouth.or.kr/main_sub/sub.php?folder_idx=2&folder_page_idx=69" target="_blank" rel="noreferrer">수련관 홈페이지</a><a href="http://www.yesanyouth.or.kr/edu/edu_list.php?folder_idx=2&folder_page_idx=40" target="_blank" rel="noreferrer">프로그램 접수</a></div></article></div><div className="admin-placeholder-note"><b>다음 확장</b><p>실제 업로드까지 붙일 때는 Firebase Storage 권한과 자료 메타데이터 저장 구조를 함께 설계하면 됩니다.</p></div></section>}
         {!activeSection && <section className="admin-note"><b>운영 원칙</b><p>학생 PIN은 담당자에게 조회 가능해야 하며, 마스터 코드와 Firebase 설정값은 화면·문서·코드에 노출하지 않습니다.</p></section>}
       </main>
