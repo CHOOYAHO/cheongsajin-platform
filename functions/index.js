@@ -156,6 +156,40 @@ const requireInterviewUser = (request) => {
   if (!request.auth?.uid) throw new HttpsError('unauthenticated', 'Firebase 로그인이 필요합니다.')
   return request.auth.uid
 }
+const getInterviewActorContext = async (uid, fallbackSchoolName, fallbackDisplayName) => {
+  const staffSession = await db.doc(`staffSessions/${uid}`).get()
+  const staffData = staffSession.data()
+  if (staffSession.exists && staffData?.expiresAt?.toMillis?.() > Date.now()) {
+    return {
+      userRole: staffData.role ?? 'staff',
+      accountNumber: staffData.accountNumber ?? null,
+      loginDisplayName: staffData.displayName ?? fallbackDisplayName,
+      loginSchoolName: staffData.schoolName ?? null,
+      participantDisplayName: fallbackDisplayName,
+      participantSchoolName: fallbackSchoolName,
+    }
+  }
+  const studentSession = await db.doc(`studentSessions/${uid}`).get()
+  const studentData = studentSession.data()
+  if (studentSession.exists && studentData?.expiresAt?.toMillis?.() > Date.now()) {
+    return {
+      userRole: 'student',
+      accountNumber: studentData.accountNumber ?? null,
+      loginDisplayName: studentData.displayName ?? fallbackDisplayName,
+      loginSchoolName: studentData.schoolName ?? fallbackSchoolName,
+      participantDisplayName: fallbackDisplayName || studentData.displayName,
+      participantSchoolName: fallbackSchoolName || studentData.schoolName,
+    }
+  }
+  return {
+    userRole: 'guest',
+    accountNumber: null,
+    loginDisplayName: fallbackDisplayName,
+    loginSchoolName: fallbackSchoolName,
+    participantDisplayName: fallbackDisplayName,
+    participantSchoolName: fallbackSchoolName,
+  }
+}
 const parseInterviewJson = (text) => {
   try {
     const cleaned = String(text ?? '').replace(/^```json\s*/i, '').replace(/```$/i, '').trim()
@@ -372,24 +406,33 @@ export const runAiInterviewStep = onCall({ secrets: [openaiApiKey] }, async (req
     }
   }
   const recordRef = db.doc(`aiInterviewLogs/${uid}_${interviewId}`)
+  const existingRecord = await recordRef.get()
+  const actorContext = await getInterviewActorContext(uid, schoolName, displayName)
+  const savedTurns = turns.map((turn, index) => index === turns.length - 1 && aiResult.feedback
+    ? { ...turn, feedback: aiResult.feedback, feedbackTone: aiResult.feedbackTone }
+    : turn)
   await recordRef.set({
     userId: uid,
     interviewId,
     company,
     schoolName,
     displayName,
+    ...actorContext,
     application,
-    turns,
+    turns: savedTurns,
     status: finished ? 'completed' : 'inProgress',
     lastQuestion: finished ? '' : aiResult.question,
     lastFeedback: aiResult.feedback,
+    answerCount: savedTurns.length,
+    questionCount: savedTurns.length + (finished || !aiResult.question ? 0 : 1),
     closingSummary: aiResult.closingSummary,
     suggestedStrengths: aiResult.suggestedStrengths,
     decision: aiResult.decision,
     feedbackTone: aiResult.feedbackTone,
     score: aiResult.score,
     aiSource: aiResult.aiSource,
-    createdAt: FieldValue.serverTimestamp(),
+    createdAt: existingRecord.exists ? existingRecord.data()?.createdAt ?? FieldValue.serverTimestamp() : FieldValue.serverTimestamp(),
+    lastAnsweredAt: savedTurns.length ? FieldValue.serverTimestamp() : null,
     updatedAt: FieldValue.serverTimestamp(),
   }, { merge: true })
 
