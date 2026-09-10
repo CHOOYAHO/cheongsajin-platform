@@ -99,6 +99,7 @@ const staffDirectory = {
   '김승주': { number: '50', role: 'mentor' },
   '이영우': { number: '60', role: 'mentor' },
   '엄시내': { number: '65', role: 'mentor', storageKey: 'mentor-eom-sinae' },
+  '전승혜': { number: '66', role: 'mentor', storageKey: 'mentor-jeon-seunghye' },
   '추규한': { number: '70', role: 'admin' },
   '관리자1': { number: '80', role: 'admin', storageKey: '80' },
   '관리자2': { number: '90', role: 'admin', storageKey: '90' },
