@@ -1466,12 +1466,13 @@ function AdminBrainstormResultsPanel() {
   useEffect(() => {
     const loadRecords = async () => {
       if (!db) return
+      const database = db
       setIsLoading(true)
       setError('')
       try {
-        const roomSnapshot = await getDocs(query(collection(db, 'brainstormRooms'), orderBy('updatedAt', 'desc'), limit(20)))
+        const roomSnapshot = await getDocs(query(collection(database, 'brainstormRooms'), orderBy('updatedAt', 'desc'), limit(20)))
         const loadedRooms = await Promise.all(roomSnapshot.docs.map(async (roomDoc) => {
-          const submissionSnapshot = await getDocs(collection(db, 'brainstormRooms', roomDoc.id, 'submissions'))
+          const submissionSnapshot = await getDocs(collection(database, 'brainstormRooms', roomDoc.id, 'submissions'))
           const submissions = submissionSnapshot.docs
             .map((item) => ({ id: item.id, ...(item.data() as Omit<BrainstormSubmission, 'id'>) }))
             .sort((left, right) => left.round - right.round || left.part.localeCompare(right.part, 'ko'))
