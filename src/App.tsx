@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 import { onAuthStateChanged, signInAnonymously, signOut } from 'firebase/auth'
 import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, onSnapshot, query, serverTimestamp, setDoc, updateDoc, where } from 'firebase/firestore'
@@ -1249,6 +1249,13 @@ function AiInterviewActivity({ schoolName, displayName }: { schoolName: string; 
   const [aiSource, setAiSource] = useState<'idle' | 'openai' | 'fallback'>('idle')
   const [isBusy, setIsBusy] = useState(false)
   const [error, setError] = useState('')
+  const chatLogRef = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    if (phase !== 'interview' || !chatLogRef.current) return
+    const chatLog = chatLogRef.current
+    chatLog.scrollTo({ top: chatLog.scrollHeight, behavior: 'smooth' })
+  }, [phase, turns, currentQuestion, lastFeedback, currentHint])
 
   const runInterviewStep = async (nextTurns: InterviewTurn[], finished: boolean, mode: 'interview' | 'hint' = 'interview') => {
     if (!selectedCompany) return null
@@ -1390,7 +1397,7 @@ function AiInterviewActivity({ schoolName, displayName }: { schoolName: string; 
   return (
     <section className="ai-interview-panel">
       <div className="ai-interview-heading">
-        <div className="ai-kicker"><span>AI 가상면접</span><i className={`ai-signal ${aiSource}`} aria-label={aiSource === 'openai' ? 'AI 응답 연결됨' : aiSource === 'fallback' ? '기본 질문 모드' : 'AI 대기 중'} /></div>
+        <div className="ai-kicker"><span>면접</span><i className={`ai-signal ${aiSource}`} aria-label={aiSource === 'openai' ? 'AI 응답 연결됨' : aiSource === 'fallback' ? '기본 질문 모드' : 'AI 대기 중'} /></div>
         <h2>희망 직업 채용면접 시뮬레이션</h2>
         <p>회사를 고르고 간단 지원서를 작성하면 AI 면접관이 지원 직무에 맞춰 질문을 이어 가요. 면접 질문과 답변은 활동 기록으로 저장됩니다.</p>
       </div>
@@ -1442,7 +1449,7 @@ function AiInterviewActivity({ schoolName, displayName }: { schoolName: string; 
           <button type="submit" disabled={isBusy}>{isBusy ? '첫 질문 만드는 중' : 'AI 면접 시작하기'}</button>
         </form>
       )}
-      {phase === 'interview' && selectedCompany && <div className="ai-interview-room"><div className="interview-status"><span>{selectedCompany.name}</span><b>{application.role === '직접 입력' ? customRole : application.role} 면접</b><small>{turns.length > 0 ? `${turns.length}번 답변함` : '진행 중'}</small></div><div className="interview-chat-log">{turns.map((turn, index) => <article key={`${turn.question}-${index}`}><div className="chat-bubble interviewer"><span>면접관</span><p>{turn.question}</p></div><div className="chat-bubble applicant"><span>나</span><p>{turn.answer}</p></div></article>)}{currentQuestion && <div className="chat-bubble interviewer current"><span>AI 면접관</span><p>{currentQuestion}</p></div>}</div>{lastFeedback && <div className={`interview-feedback ${feedbackTone}`}><b>방금 답변 피드백</b><p>{lastFeedback}</p></div>}{(currentHint.intent || currentHint.guide) && <div className="interview-hint"><section><b>질문의 의도</b><p>{currentHint.intent}</p></section><section><b>답변 가이드</b><p>{currentHint.guide}</p></section></div>}<label>내 답변<textarea value={answer} onChange={(event) => setAnswer(event.target.value)} maxLength={1200} placeholder="지원자처럼 답변해 보세요." /></label>{error && <p className="entry-error" role="alert">{error}</p>}<div className="interview-actions"><button type="button" className="secondary" onClick={() => void submitAnswer(true)} disabled={isBusy}>{isBusy ? '결과 정리 중' : '면접 마치고 결과 보기'}</button><button type="button" className="secondary" onClick={() => void requestHint()} disabled={isBusy}>{isBusy ? '불러오는 중' : '힌트 보기'}</button><button type="button" onClick={() => void submitAnswer(false)} disabled={isBusy}>{isBusy ? '다음 질문 만드는 중' : '답변 보내기'}</button></div></div>}
+      {phase === 'interview' && selectedCompany && <div className="ai-interview-room"><div className="interview-status"><span>{selectedCompany.name}</span><b>{application.role === '직접 입력' ? customRole : application.role} 면접</b><small>{turns.length > 0 ? `${turns.length}번 답변함` : '진행 중'}</small></div><div className="interview-chat-log" ref={chatLogRef}>{turns.map((turn, index) => <article key={`${turn.question}-${index}`}><div className="chat-bubble interviewer"><span>면접관</span><p>{turn.question}</p></div><div className="chat-bubble applicant"><span>나</span><p>{turn.answer}</p></div></article>)}{currentQuestion && <div className="chat-bubble interviewer current"><span>AI 면접관</span><p>{currentQuestion}</p></div>}</div>{lastFeedback && <div className={`interview-feedback ${feedbackTone}`}><b>방금 답변 피드백</b><p>{lastFeedback}</p></div>}{(currentHint.intent || currentHint.guide) && <div className="interview-hint"><section><b>질문의 의도</b><p>{currentHint.intent}</p></section><section><b>답변 가이드</b><p>{currentHint.guide}</p></section></div>}<label>내 답변<textarea value={answer} onChange={(event) => setAnswer(event.target.value)} maxLength={1200} placeholder="지원자처럼 답변해 보세요." /></label>{error && <p className="entry-error" role="alert">{error}</p>}<div className="interview-actions"><button type="button" className="secondary" onClick={() => void submitAnswer(true)} disabled={isBusy}>{isBusy ? '결과 정리 중' : '면접 마치고 결과 보기'}</button><button type="button" className="secondary" onClick={() => void requestHint()} disabled={isBusy}>{isBusy ? '불러오는 중' : '힌트 보기'}</button><button type="button" onClick={() => void submitAnswer(false)} disabled={isBusy}>{isBusy ? '다음 질문 만드는 중' : '답변 보내기'}</button></div></div>}
       {phase === 'result' && <div className={`ai-result-card ${decision}`}><span>면접 완료</span><div className="interview-decision"><b>{decision === 'pass' ? '합격' : decision === 'hold' ? '보류' : '재도전'}</b><small>{interviewScore > 0 ? `${interviewScore}점` : '판정 완료'}</small></div><h3>{selectedCompany?.name} · {application.role === '직접 입력' ? customRole : application.role}</h3>{closingSummary ? <p>{closingSummary}</p> : <p>면접 답변이 활동 기록으로 저장됐어요. 선생님과 멘토가 이후 활동에서 함께 돌아볼 수 있습니다.</p>}<div className="score-rubric"><b>점수 기준</b><div><span>지원 이유</span><span>내 강점</span><span>경험·계획</span><span>성실한 답변</span></div><p>답변이 구체적이고 질문에 맞을수록 올라가요. 장난식 답변, 너무 짧은 답변, 질문과 상관없는 답변은 점수가 내려갑니다.</p></div>{suggestedStrengths.length > 0 && <div className="result-strengths">{suggestedStrengths.map((strength) => <b key={strength}>{strength}</b>)}</div>}<div className="interview-log-preview">{turns.map((turn, index) => <article key={`${turn.question}-${index}`}><strong>Q{index + 1}. {turn.question}</strong><p>{turn.answer}</p></article>)}</div><button type="button" onClick={resetInterview}>새 면접 시작하기</button></div>}
       {detailCompany && <div className="company-modal-backdrop" onClick={(event) => { if (event.target === event.currentTarget) setDetailCompany(null) }}><section className="company-modal" role="dialog" aria-modal="true"><button type="button" className="company-modal-close" onClick={() => setDetailCompany(null)} aria-label="회사 상세 닫기">×</button><span>{detailCompany.fields.join(' · ')}</span><h2>{detailCompany.name}</h2><p>{detailCompany.description}</p><h3>지원해 볼 수 있는 직무</h3><div>{detailCompany.roles.map((role) => <small key={role}>{role}</small>)}</div><h3>면접에서 연결할 역량</h3><div>{detailCompany.strengths.map((strength) => <small key={strength}>{strength}</small>)}</div><button type="button" onClick={() => selectCompany(detailCompany)}>이 회사 선택하기</button></section></div>}
     </section>
