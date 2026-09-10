@@ -98,6 +98,7 @@ const staffDirectory = {
   '안지윤': { number: '40', role: 'mentor' },
   '김승주': { number: '50', role: 'mentor' },
   '이영우': { number: '60', role: 'mentor' },
+  '엄시내': { number: '65', role: 'mentor', storageKey: 'mentor-eom-sinae' },
   '추규한': { number: '70', role: 'admin' },
   '관리자1': { number: '80', role: 'admin', storageKey: '80' },
   '관리자2': { number: '90', role: 'admin', storageKey: '90' },
@@ -581,6 +582,33 @@ export const updateSessionLock = onCall(async (request) => {
     updatedBy: request.auth.uid,
   }, { merge: true })
   return { sessionNumber, target, unlocked }
+})
+
+export const createStaffAccount = onCall({ secrets: [pinPepper] }, async (request) => {
+  await requireActiveAdminSession(request)
+  const displayName = normalizeName(request.data?.displayName)
+  const pin = String(request.data?.pin ?? '')
+  const account = staffDirectory[displayName]
+  if (!account) throw new HttpsError('invalid-argument', '등록할 수 있는 직원 계정인지 확인해 주세요.')
+  if (!/^\d{6}$/.test(pin)) throw new HttpsError('invalid-argument', 'PIN은 숫자 6자리여야 합니다.')
+  const accountRef = db.doc(`staffAccounts/${account.storageKey ?? account.number}`)
+  if ((await accountRef.get()).exists) throw new HttpsError('already-exists', '이미 등록된 계정입니다.')
+  const pinSalt = randomBytes(16).toString('hex')
+  const pinHash = await hashPin(pin, pinSalt)
+  await accountRef.create({
+    displayName,
+    accountNumber: account.number,
+    role: account.role,
+    schoolName: account.schoolName ?? null,
+    pinSalt,
+    pinHash,
+    failedAttempts: 0,
+    lockedUntil: null,
+    active: true,
+    createdAt: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp(),
+  })
+  return { displayName, role: account.role }
 })
 
 export const backupAuctionData = onCall(async (request) => {

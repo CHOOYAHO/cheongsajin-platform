@@ -1560,6 +1560,9 @@ function App() {
   const [managedStudentAccounts, setManagedStudentAccounts] = useState<ManagedStudentAccount[]>([])
   const [studentIssueError, setStudentIssueError] = useState('')
   const [isIssuingStudentPins, setIsIssuingStudentPins] = useState(false)
+  const [staffAccountName, setStaffAccountName] = useState('')
+  const [staffAccountPin, setStaffAccountPin] = useState('')
+  const [staffAccountState, setStaffAccountState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
   const [sessionLocks, setSessionLocks] = useState<SessionLocksByTarget>(defaultSessionLocks)
   const [sessionLockBusy, setSessionLockBusy] = useState<string | null>(null)
   const [sessionLockError, setSessionLockError] = useState('')
@@ -1973,6 +1976,20 @@ function App() {
       setIsIssuingStudentPins(false)
     }
   }
+  const createMentorAccount = async (event: FormEvent) => {
+    event.preventDefault()
+    if (!functions || !staffAccountName.trim() || !/^\d{6}$/.test(staffAccountPin)) return
+    setStaffAccountState('saving')
+    try {
+      const createAccount = httpsCallable<{ displayName: string; pin: string }, { displayName: string; role: string }>(functions, 'createStaffAccount')
+      await createAccount({ displayName: staffAccountName.trim(), pin: staffAccountPin })
+      setStaffAccountPin('')
+      setStaffAccountState('saved')
+    } catch (error) {
+      console.error(error)
+      setStaffAccountState('error')
+    }
+  }
   const openSecondActivity = (step: number) => {
     setActiveSecondActivity(step)
     setActiveThirdActivity(null)
@@ -2078,7 +2095,7 @@ function App() {
     if (!db) throw new Error('Firebase 연결이 필요합니다.')
     await updateDoc(doc(db, 'mentorQuestions', question.id), { answer, status: 'answered', readAt: serverTimestamp(), answeredAt: serverTimestamp() })
   }
-  const accountManagementTools = <div className="admin-account-tools"><label>대상 학교<select value={studentIssueSchool} onChange={(event) => { setStudentIssueSchool(event.target.value as 'yesan-high' | 'gwangsi-middle'); setManagedStudentAccounts([]); setIssuedStudentPins([]); setStudentIssueError('') }}><option value="yesan-high">예산고등학교</option><option value="gwangsi-middle">광시중학교</option></select></label><div className="pin-admin-actions"><button type="button" onClick={loadStudentPinAccounts} disabled={isIssuingStudentPins}>계정 목록 보기</button><button type="button" onClick={issueStudentPins} disabled={isIssuingStudentPins}>{isIssuingStudentPins ? '처리 중…' : '없는 계정 발급'}</button><button type="button" onClick={resetAllStudentPins} disabled={isIssuingStudentPins}>전체 PIN 재발급</button></div>{studentIssueError && <p className="entry-error" role="alert">{studentIssueError}</p>}{issuedStudentPins.length > 0 && <ol className="issued-pin-list">{issuedStudentPins.map((credential) => <li key={`${credential.accountNumber}-${credential.pin}`}><span>{credential.accountNumber}번{credential.displayName ? ` · ${credential.displayName}` : ''}</span><b>{credential.pin}</b></li>)}</ol>}{managedStudentAccounts.length > 0 && <div className="student-pin-table"><div><b>번호</b><b>이름</b><b>현재 PIN</b><b>관리</b></div>{managedStudentAccounts.map((account) => <div key={account.id}><span>{account.accountNumber}</span><span>{account.displayName || '이름 미등록'}</span><strong>{account.currentPin || '재발급 필요'}</strong><button type="button" onClick={() => resetStudentPin(account.id)}>PIN 재발급</button></div>)}</div>}</div>
+  const accountManagementTools = <div className="admin-account-tools"><form className="staff-account-create" onSubmit={createMentorAccount}><div><small>멘토 계정</small><h3>새 멘토 등록</h3><p>PIN은 서버에서 해시로만 저장됩니다.</p></div><label>이름<input value={staffAccountName} onChange={(event) => { setStaffAccountName(event.target.value); setStaffAccountState('idle') }} placeholder="멘토 이름" required /></label><label>PIN 번호<input type="password" inputMode="numeric" pattern="[0-9]{6}" maxLength={6} value={staffAccountPin} onChange={(event) => { setStaffAccountPin(event.target.value.replace(/\D/g, '').slice(0, 6)); setStaffAccountState('idle') }} placeholder="숫자 6자리" required /></label><button type="submit" disabled={staffAccountState === 'saving' || !staffAccountName.trim() || staffAccountPin.length !== 6}>{staffAccountState === 'saving' ? '등록 중…' : '멘토 계정 등록'}</button>{staffAccountState === 'saved' && <p className="save-message success" role="status">멘토 계정이 등록됐어요.</p>}{staffAccountState === 'error' && <p className="entry-error" role="alert">계정 등록에 실패했어요. 이름이 등록 대상인지 또는 이미 존재하는지 확인해 주세요.</p>}</form><label>대상 학교<select value={studentIssueSchool} onChange={(event) => { setStudentIssueSchool(event.target.value as 'yesan-high' | 'gwangsi-middle'); setManagedStudentAccounts([]); setIssuedStudentPins([]); setStudentIssueError('') }}><option value="yesan-high">예산고등학교</option><option value="gwangsi-middle">광시중학교</option></select></label><div className="pin-admin-actions"><button type="button" onClick={loadStudentPinAccounts} disabled={isIssuingStudentPins}>계정 목록 보기</button><button type="button" onClick={issueStudentPins} disabled={isIssuingStudentPins}>{isIssuingStudentPins ? '처리 중…' : '없는 계정 발급'}</button><button type="button" onClick={resetAllStudentPins} disabled={isIssuingStudentPins}>전체 PIN 재발급</button></div>{studentIssueError && <p className="entry-error" role="alert">{studentIssueError}</p>}{issuedStudentPins.length > 0 && <ol className="issued-pin-list">{issuedStudentPins.map((credential) => <li key={`${credential.accountNumber}-${credential.pin}`}><span>{credential.accountNumber}번{credential.displayName ? ` · ${credential.displayName}` : ''}</span><b>{credential.pin}</b></li>)}</ol>}{managedStudentAccounts.length > 0 && <div className="student-pin-table"><div><b>번호</b><b>이름</b><b>현재 PIN</b><b>관리</b></div>{managedStudentAccounts.map((account) => <div key={account.id}><span>{account.accountNumber}</span><span>{account.displayName || '이름 미등록'}</span><strong>{account.currentPin || '재발급 필요'}</strong><button type="button" onClick={() => resetStudentPin(account.id)}>PIN 재발급</button></div>)}</div>}</div>
 
   if (!entered) return (
     <div className="welcome-page">
