@@ -238,36 +238,70 @@ const sanitizeInterviewTurns = (turns = []) => {
   return turns.slice(0, 20).map((turn) => ({
     question: sanitizeText(turn?.question, 500),
     answer: sanitizeText(turn?.answer, 1200),
+    topic: sanitizeText(turn?.topic, 40),
     feedback: sanitizeText(turn?.feedback, 700),
     feedbackTone: ['good', 'neutral', 'bad'].includes(turn?.feedbackTone) ? turn.feedbackTone : undefined,
     answerScore: Number.isFinite(Number(turn?.answerScore)) ? Math.max(0, Math.min(100, Math.round(Number(turn.answerScore)))) : undefined,
     cumulativeScore: Number.isFinite(Number(turn?.cumulativeScore)) ? Math.max(0, Math.min(100, Math.round(Number(turn.cumulativeScore)))) : undefined,
   })).filter((turn) => turn.question && turn.answer)
 }
+const interviewQuestionFlow = [
+  { topic: 'motivation', label: '지원 동기', allowFollowUp: false },
+  { topic: 'jobUnderstanding', label: '직무 이해', allowFollowUp: true },
+  { topic: 'strength', label: '자기 강점', allowFollowUp: true },
+  { topic: 'experiencePlan', label: '경험·계획', allowFollowUp: true },
+  { topic: 'problemSolvingAttitude', label: '문제해결·협력 태도', allowFollowUp: true },
+  { topic: 'closing', label: '마무리 표현', allowFollowUp: false },
+]
+const getInterviewTopicCounts = (turns) => turns.reduce((counts, turn) => {
+  if (turn.topic) counts[turn.topic] = (counts[turn.topic] ?? 0) + 1
+  return counts
+}, {})
+const getNextInterviewTopic = (turns) => {
+  const topicCounts = getInterviewTopicCounts(turns)
+  const previousTurn = turns.at(-1)
+  const previousTopicConfig = interviewQuestionFlow.find((item) => item.topic === previousTurn?.topic)
+  const previousScore = previousTurn ? getAnswerEffortScore(previousTurn.answer, previousTurn.question) : 100
+  if (previousTopicConfig?.allowFollowUp && previousScore < 45 && (topicCounts[previousTopicConfig.topic] ?? 0) < 2) {
+    return { ...previousTopicConfig, isFollowUp: true }
+  }
+  return interviewQuestionFlow.find((item) => !topicCounts[item.topic]) ?? null
+}
 const getAnswerEffortScore = (answer, question = '') => {
   const text = sanitizeText(answer, 1200)
   if (!text) return 0
   const normalized = text.replace(/\s/g, '')
   const questionText = sanitizeText(question, 500)
-  const hasBadSignal = /(개새|새끼|씨발|시발|병신|꺼져|싫어|귀찮|대충|몰라|없어|ㅋㅋ|ㅎㅎ|ㅋ{2,}|ㅎ{2,}|장난|집에|돈벌|까꿍|오줌)/.test(normalized)
+  const hasBadSignal = /(개새|새끼|씨발|시발|병신|꺼져|싫어|귀찮|대충|몰라|없어|ㅋㅋ|ㅎㅎ|ㅋ{2,}|ㅎ{2,}|장난|집에|돈벌|까꿍|오줌|화장실|경배|들러리)/.test(normalized)
+  const hasRefusalSignal = /(왜.*같은질문|언제끝|면접.*끝|안한다고|안해요|못해요|싫어요|필요하지않|상관없|모르겠|몰라요|야$|^야$)/.test(normalized)
+  const hasHostileSignal = /(개새|새끼|씨발|시발|병신|꺼져|야$|^야$)/.test(normalized)
+  const hasBoundarySignal = /(화장실|경배|스토킹|사생활|몰래|들러리|고급인력)/.test(normalized)
   const isVeryShort = normalized.length < 8
   const questionKeywords = questionText
     .replace(/[^\p{L}\p{N}\s]/gu, ' ')
     .split(/\s+/)
     .filter((word) => word.length >= 2 && !/(어떤|있나요|주세요|한다면|그리고|학교|친구|함께|활동|경험|생각|말해|설명|대해|직업|직무)/.test(word))
     .slice(0, 8)
-  let score = 0
-  if (normalized.length >= 8) score += 10
-  if (normalized.length >= 25) score += 10
-  if (normalized.length >= 60) score += 10
-  if (/[.!?。？！요다까죠음함해요]$/.test(text)) score += 8
-  if (/(왜냐|이유|때문|관심|좋아|하고싶|해보고|해봤|경험|노력|배우|도움|책임|생각|앞으로|동아리|수업|친구|가족|학교)/.test(text)) score += 15
-  if (/(예를|예시|구체|먼저|그래서|그때|이런|저는|제가)/.test(text)) score += 12
-  if (questionKeywords.some((keyword) => text.includes(keyword))) score += 15
-  if (/(존중|협력|소통|역할|책임|계획|창의|분석|꼼꼼|배려|성실|노력|도전|관찰|표현)/.test(text)) score += 10
-  if (hasBadSignal) score -= 55
-  if (isVeryShort) score -= 30
+  let contentScore = 0
+  let attitudeScore = 25
+  if (normalized.length >= 8) contentScore += 8
+  if (normalized.length >= 25) contentScore += 12
+  if (normalized.length >= 60) contentScore += 10
+  if (/(왜냐|이유|때문|관심|좋아|하고싶|해보고|해봤|경험|노력|배우|도움|책임|생각|앞으로|동아리|수업|친구|가족|학교)/.test(text)) contentScore += 15
+  if (/(예를|예시|구체|먼저|그래서|그때|이런|저는|제가)/.test(text)) contentScore += 10
+  if (questionKeywords.some((keyword) => text.includes(keyword))) contentScore += 12
+  if (/(직업|회사|업무|영상|제작|수업|상담|행정|연구|품질|건설|자동차|금융|식품|콘텐츠|기획|개발|관리)/.test(text)) contentScore += 8
+  if (!/[.!?。？！요다까죠음함해요]$/.test(text)) attitudeScore -= 5
+  if (/(존중|협력|소통|역할|책임|계획|창의|분석|꼼꼼|배려|성실|노력|도전|관찰|표현)/.test(text)) attitudeScore += 5
+  if (hasBadSignal) attitudeScore -= 35
+  if (hasRefusalSignal) attitudeScore -= 25
+  if (hasBoundarySignal) attitudeScore -= 25
+  if (hasHostileSignal) attitudeScore -= 45
+  if (isVeryShort) contentScore -= 20
+  let score = Math.max(0, Math.min(75, contentScore)) + Math.max(0, Math.min(25, attitudeScore))
   if (hasBadSignal && normalized.length < 30) score = Math.min(score, 15)
+  if (hasRefusalSignal || hasBoundarySignal) score = Math.min(score, 20)
+  if (hasHostileSignal) score = 0
   return Math.max(0, Math.min(100, Math.round(score)))
 }
 const scoreInterviewTurns = (turns) => {
@@ -281,6 +315,15 @@ const scoreInterviewTurns = (turns) => {
       cumulativeScore: Math.round(total / (index + 1)),
     }
   })
+}
+const getInterviewAutoFinish = (turns) => {
+  if (turns.length >= 10) return true
+  if (turns.length < 5) return false
+  const latestAnswer = turns.at(-1)?.answer?.replace(/\s/g, '') ?? ''
+  if (/(언제끝|면접.*끝|그만|끝내|왜.*같은질문|자꾸.*같은질문)/.test(latestAnswer)) return true
+  const scored = scoreInterviewTurns(turns)
+  const recentLowAnswers = scored.slice(-3).filter((turn) => turn.answerScore <= 20).length
+  return recentLowAnswers >= 3 || !getNextInterviewTopic(turns)
 }
 const getInterviewDecision = (turns) => {
   if (!turns.length) return { decision: 'retry', score: 0 }
@@ -324,37 +367,18 @@ const getInterviewFallback = ({ company, role, application, turns, finished }) =
     }
   }
   const previousScore = turns.length ? getAnswerEffortScore(turns.at(-1)?.answer, turns.at(-1)?.question) : 100
-  const questionTopics = [
-    { topic: 'interest', question: application.difficulty === 'veryEasy' ? `${company}의 ${role} 일이 왜 조금이라도 궁금했나요? 짧게 말해 주세요.` : `${company}의 ${role}에 지원한 이유를 본인 말로 설명해 주세요.` },
-    { topic: 'strength', question: `다른 지원자보다 내가 조금 더 잘할 수 있는 점은 무엇이라고 생각하나요?` },
-    { topic: 'attitude', question: application.difficulty === 'hard' ? `${role}로 일하는 사람에게 필요한 태도 한 가지를 고르고, 왜 중요하다고 생각하는지 말해 주세요.` : `${role}로 일하는 사람에게 어떤 태도나 장점이 필요할 것 같나요?` },
-    { topic: 'experience', question: `학교나 일상에서 ${role}와 조금이라도 연결해 볼 수 있는 경험이 있다면 말해 주세요. 없다면 앞으로 해 보고 싶은 경험을 말해도 좋아요.` },
-    { topic: 'learning', question: `${company}에서 ${role} 일을 하게 된다면 가장 먼저 배워 보고 싶은 것은 무엇인가요?` },
-    { topic: 'closing', question: `지금까지 답변한 내용을 바탕으로 면접관에게 꼭 전하고 싶은 말을 해 주세요.` },
-  ]
-  const followUps = [
-    { topic: 'interest', question: `${role}에 관심을 갖게 된 이유를 조금 더 구체적으로 말해 줄 수 있나요? 좋아하는 활동이나 기억나는 장면과 연결해도 좋아요.` },
-    { topic: 'strength', question: `내가 잘한다고 생각한 점이 드러난 학교생활이나 일상 속 작은 장면이 있다면 하나만 더 말해 주세요.` },
-    { topic: 'attitude', question: `그 태도가 왜 ${role}에게 중요하다고 생각하는지, 친구들이 이해할 수 있게 한 문장 더 설명해 주세요.` },
-    { topic: 'experience', question: `비슷한 경험이 없다면 앞으로 어떤 경험을 해 보고 싶은지 구체적으로 말해 주세요.` },
-  ]
-  const usedTopics = turns.map((turn) => turn.topic).filter(Boolean)
-  const previousTopic = turns.at(-1)?.topic
-  const canFollowUp = previousScore < 45 && previousTopic && usedTopics.filter((topic) => topic === previousTopic).length < 2
-  const fallbackQuestion = canFollowUp
-    ? followUps.find((item) => item.topic === previousTopic)?.question
-    : questionTopics.find((item) => !usedTopics.includes(item.topic))?.question
-  const questions = [
-    application.difficulty === 'veryEasy' ? `${company}의 ${role} 일이 왜 조금이라도 궁금했나요? 짧게 말해 주세요.` : `${company}의 ${role}에 지원한 이유를 본인 말로 설명해 주세요.`,
-    `다른 지원자보다 내가 조금 더 잘할 수 있는 점은 무엇이라고 생각하나요?`,
-    application.difficulty === 'hard' ? `${role}로 일하는 사람에게 필요한 태도 한 가지를 고르고, 왜 중요하다고 생각하는지 말해 주세요.` : `${role}로 일하는 사람에게 어떤 태도나 장점이 필요할 것 같나요?`,
-    `학교나 일상에서 ${role}와 조금이라도 연결해 볼 수 있는 경험이 있다면 말해 주세요. 없다면 앞으로 해 보고 싶은 경험을 말해도 좋아요.`,
-    `${company}에서 ${role} 일을 하게 된다면 가장 먼저 배워 보고 싶은 것은 무엇인가요?`,
-    `지금까지 답변한 내용을 바탕으로 면접관에게 꼭 전하고 싶은 말을 해 주세요.`,
-  ]
-  const index = Math.min(turns.length, questions.length - 1)
+  const nextTopic = getNextInterviewTopic(turns) ?? interviewQuestionFlow.at(-1)
+  const questions = {
+    motivation: application.difficulty === 'veryEasy' ? `${company}의 ${role} 일이 왜 조금이라도 궁금했나요? 짧게 말해 주세요.` : `${company}의 ${role}에 지원한 이유를 본인 말로 설명해 주세요.`,
+    jobUnderstanding: nextTopic?.isFollowUp ? `${role}이 실제로 어떤 일을 하는지 한 가지를 더 구체적으로 말해 줄 수 있나요? 학교나 일상에서 비슷하게 떠올릴 수 있는 장면과 연결해도 좋아요.` : `${role}은 실제로 어떤 일을 하는 사람일 것 같나요? 알고 있는 것과 상상한 것을 함께 말해 주세요.`,
+    strength: nextTopic?.isFollowUp ? `그 장점이 드러난 학교생활이나 일상 속 작은 장면을 하나만 더 말해 주세요.` : `다른 지원자보다 내가 조금 더 잘할 수 있는 점은 무엇이라고 생각하나요?`,
+    experiencePlan: nextTopic?.isFollowUp ? `비슷한 경험이 없다면 앞으로 어떤 경험을 해 보고 싶은지 조금 더 구체적으로 말해 주세요.` : `학교나 일상에서 ${role}와 조금이라도 연결해 볼 수 있는 경험이 있다면 말해 주세요. 없다면 앞으로 해 보고 싶은 경험을 말해도 좋아요.`,
+    problemSolvingAttitude: nextTopic?.isFollowUp ? `방금 말한 태도를 실제 상황에서 어떻게 보여 줄 수 있을지 한 문장만 더 설명해 주세요.` : `${role}로 일하다가 어려운 일이나 의견 차이가 생기면 어떻게 해결해 보고 싶나요?`,
+    closing: `마지막으로 ${company} 면접관에게 꼭 전하고 싶은 말을 해 주세요.`,
+  }
   return {
-    question: fallbackQuestion || questions[index],
+    question: questions[nextTopic?.topic] ?? questions.closing,
+    questionTopic: nextTopic?.topic ?? 'closing',
     feedback: turns.length ? previousScore < 40 ? '방금 답변은 너무 짧거나 장난스럽게 들릴 수 있어요. 다음 답변은 진짜 이유나 예시를 한 문장만 더 붙여 보세요.' : '방금 답변에서 방향은 보였어요. 다음 답변에는 구체적인 예시를 하나 붙이면 더 좋아요.' : '',
     closingSummary: '',
     suggestedStrengths: application.strengths ? strengths.slice(0, 3) : strengths.slice(0, 2),
@@ -364,7 +388,7 @@ const getInterviewFallback = ({ company, role, application, turns, finished }) =
     aiSource: 'fallback',
   }
 }
-const callInterviewAi = async ({ company, role, application, turns, finished, mode = 'interview', currentQuestion = '' }) => {
+const callInterviewAi = async ({ company, role, application, turns, finished, mode = 'interview', currentQuestion = '', nextTopic = null }) => {
   let apiKey = ''
   try {
     apiKey = openaiApiKey.value()
@@ -390,10 +414,14 @@ ${transcript || '아직 답변 없음'}
 대상은 중학생 또는 고등학생입니다. 실제 회사 경력, 전문 프로젝트 수행 경험, 포트폴리오, 연구·개발 실적, 기술적 문제 해결 사례가 있다고 전제하지 마세요.
 ${getDifficultyGuide(application.difficulty)}
 질문은 학생이 답할 수 있는 수준으로 만드세요. 학교 수업, 동아리, 친구와 한 활동, 집에서 해 본 일, 좋아하는 활동, 앞으로 해 보고 싶은 경험, 왜 관심이 생겼는지를 중심으로 물어보세요.
+이번 질문 영역은 "${nextTopic?.label ?? '마무리 표현'}"입니다. 이 영역에서만 질문하고 다른 영역으로 새지 마세요.
+질문 흐름은 지원 동기 → 직무 이해 → 자기 강점 → 경험·계획 → 문제해결·협력 태도 → 마무리 표현입니다. 지원 동기와 마무리 표현은 꼬리질문을 하지 않습니다. 나머지 영역은 부족할 때만 꼬리질문을 1회까지 합니다.
+각 답변은 내용 75점, 태도 25점 기준으로 평가한다고 생각하세요. 내용은 질문 적합성, 구체성, 직업 연결을 보고, 태도는 성실성, 존중, 면접 상황에 맞는 표현을 봅니다.
 금지 질문 예시: "수행했던 프로젝트를 설명하세요", "가장 도전적이었던 프로젝트는?", "기술적 문제를 어떻게 해결했나요?", "전문성을 어떻게 개발하고 있나요?", "연구나 개발 분야가 있나요?"
 직무가 전문적이어도 질문은 "이 일을 한다면 어떤 점이 재미있을 것 같나요?", "비슷하게 해 본 작은 경험이 있나요? 없다면 해 보고 싶은 일은 무엇인가요?", "이 직업에 필요한 태도는 무엇이라고 생각하나요?"처럼 바꾸세요.
 평가처럼 겁주지는 말되, 답변이 너무 짧거나 장난스럽거나 질문과 무관하면 "좋아요"로 시작하지 말고 분명히 다시 답하라고 안내하세요. 개인정보, 연락처, 주민번호, 실제 주소는 요구하지 마세요.
-면접은 고정 5문항이 아니라 라이브 채팅처럼 이어집니다. 이전 답변을 바탕으로 자연스럽게 후속 질문을 하되, 같은 주제를 반복하지 마세요. 7문항 이후에는 마무리해도 좋다는 짧은 안내를 feedback에 넣을 수 있습니다.
+면접은 고정 5문항이 아니라 라이브 채팅처럼 이어지지만 보통 6~8문항 안에서 마무리합니다. 이전 답변을 바탕으로 자연스럽게 후속 질문을 하되, 같은 주제를 반복하지 마세요. 8문항 이후에는 반드시 마무리를 유도하고, 10문항을 넘기지 마세요.
+지원자가 "언제 끝나나요", "그만", "왜 같은 질문을 하냐"처럼 종료 의사를 보이면 다음 질문을 만들지 말고 면접을 종료하세요.
 답변이 부족하거나 장난스럽더라도 같은 주제의 재질문 또는 꼬리질문은 한 번까지만 하세요. 한 번 더 물었는데도 충분히 답하지 않으면 그 주제는 더 반복하지 말고 다른 평가 축(지원 이유, 강점, 태도, 경험·계획, 마무리)으로 넘어가세요.
 면접 종료 시 decision은 pass, hold, retry 중 하나로 판정하세요. pass는 답변이 구체적이고 진지할 때, hold는 방향은 있으나 보완이 필요할 때, retry는 장난·무성의·무관한 답변이 많을 때입니다. score는 0~100 정수입니다.
 feedbackTone은 직전 답변 피드백의 색상입니다. 좋은 답변이면 good, 보완이 필요하면 neutral, 장난·무성의·질문과 무관한 답변이면 bad로 주세요.
@@ -440,7 +468,10 @@ export const runAiInterviewStep = onCall({ secrets: [openaiApiKey] }, async (req
   if (!company || !application.role) throw new HttpsError('invalid-argument', '회사와 지원 직무를 선택해 주세요.')
   if (finished && !turns.length) throw new HttpsError('failed-precondition', '면접 답변이 아직 없습니다.')
 
-  const aiResult = await callInterviewAi({ company, role: application.role, application, turns, finished, mode, currentQuestion })
+  const nextTopic = getNextInterviewTopic(turns)
+  const shouldAutoFinish = mode === 'interview' && !finished && getInterviewAutoFinish(turns)
+  const effectiveFinished = finished || shouldAutoFinish
+  const aiResult = await callInterviewAi({ company, role: application.role, application, turns, finished: effectiveFinished, mode, currentQuestion, nextTopic })
   if (mode === 'hint') {
     return {
       interviewId,
@@ -462,10 +493,10 @@ export const runAiInterviewStep = onCall({ secrets: [openaiApiKey] }, async (req
   const existingRecord = await recordRef.get()
   const actorContext = await getInterviewActorContext(uid, schoolName, displayName)
   const scoredTurns = scoreInterviewTurns(turns)
-  const serverDecision = finished ? getInterviewDecision(scoredTurns) : { decision: aiResult.decision, score: aiResult.score }
-  const finalDecision = finished ? serverDecision.decision : aiResult.decision
-  const finalScore = finished ? serverDecision.score : aiResult.score
-  const finalFeedbackTone = finished
+  const serverDecision = effectiveFinished ? getInterviewDecision(scoredTurns) : { decision: aiResult.decision, score: aiResult.score }
+  const finalDecision = effectiveFinished ? serverDecision.decision : aiResult.decision
+  const finalScore = effectiveFinished ? serverDecision.score : aiResult.score
+  const finalFeedbackTone = effectiveFinished
     ? finalDecision === 'pass' ? 'good' : finalDecision === 'retry' ? 'bad' : 'neutral'
     : aiResult.feedbackTone
   const savedTurns = scoredTurns.map((turn, index) => index === scoredTurns.length - 1 && aiResult.feedback
@@ -480,11 +511,12 @@ export const runAiInterviewStep = onCall({ secrets: [openaiApiKey] }, async (req
     ...actorContext,
     application,
     turns: savedTurns,
-    status: finished ? 'completed' : 'inProgress',
-    lastQuestion: finished ? '' : aiResult.question,
+    status: effectiveFinished ? 'completed' : 'inProgress',
+    lastQuestion: effectiveFinished ? '' : aiResult.question,
+    lastQuestionTopic: effectiveFinished ? '' : nextTopic?.topic ?? 'closing',
     lastFeedback: aiResult.feedback,
     answerCount: savedTurns.length,
-    questionCount: savedTurns.length + (finished || !aiResult.question ? 0 : 1),
+    questionCount: savedTurns.length + (effectiveFinished || !aiResult.question ? 0 : 1),
     closingSummary: aiResult.closingSummary,
     suggestedStrengths: aiResult.suggestedStrengths,
     decision: finalDecision,
@@ -498,7 +530,8 @@ export const runAiInterviewStep = onCall({ secrets: [openaiApiKey] }, async (req
 
   return {
     interviewId,
-    question: finished ? '' : aiResult.question,
+    question: effectiveFinished ? '' : aiResult.question,
+    questionTopic: effectiveFinished ? '' : nextTopic?.topic ?? 'closing',
     feedback: aiResult.feedback,
     hint: aiResult.hint,
     hintIntent: aiResult.hintIntent,
@@ -510,7 +543,7 @@ export const runAiInterviewStep = onCall({ secrets: [openaiApiKey] }, async (req
     score: finalScore,
     turns: savedTurns,
     aiSource: aiResult.aiSource,
-    status: finished ? 'completed' : 'inProgress',
+    status: effectiveFinished ? 'completed' : 'inProgress',
   }
 })
 const createStudentAccountRecord = async (school, schoolConfig, accountNumber, used) => {
