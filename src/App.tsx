@@ -42,6 +42,7 @@ type BrainstormSubmission = { id: string; userId?: string; nickname: string; rou
 type BrainstormRoom = { id?: string; hostId: string; hostName?: string; gameState: 'WAITING' | 'COUNTDOWN' | 'TASKS' | 'STRENGTHS' | 'ROUND_RESULT' | 'RESULT'; round: number; totalRounds: number; timeLimit: number; currentJob: string; phaseEndsAt?: { toMillis: () => number } }
 type BrainstormRecordRoom = BrainstormRoom & { id: string; createdAt?: { toMillis: () => number }; updatedAt?: { toMillis: () => number }; submissions: BrainstormSubmission[] }
 type InterviewLogRecord = { id: string; userRole?: string; displayName?: string; loginDisplayName?: string; participantDisplayName?: string; schoolName?: string; participantSchoolName?: string; company?: string; application?: InterviewApplication; turns?: InterviewTurn[]; status?: 'inProgress' | 'completed'; decision?: InterviewDecision; score?: number; updatedAt?: { toMillis: () => number } }
+type InterviewRecordFilter = 'all' | 'gwangsi' | 'yesan' | 'staff' | 'admin'
 type BrainstormTestRole = 'host' | 'participant'
 const defaultSessionLockMap: SessionLockMap = { 1: true, 2: true, 3: false, 4: false, 5: false }
 const defaultSessionLocks: SessionLocksByTarget = {
@@ -1496,6 +1497,8 @@ function AdminInterviewResultsPanel() {
   const [records, setRecords] = useState<InterviewLogRecord[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
+  const [activeFilter, setActiveFilter] = useState<InterviewRecordFilter>('all')
+  const [openRecordId, setOpenRecordId] = useState<string | null>(null)
 
   useEffect(() => {
     const loadRecords = async () => {
@@ -1517,8 +1520,26 @@ function AdminInterviewResultsPanel() {
 
   const decisionLabel = (decision?: InterviewDecision) => decision === 'pass' ? '합격' : decision === 'retry' ? '재도전' : decision === 'hold' ? '보류' : '진행 중'
   const roleLabel = (role?: string) => role === 'admin' ? '관리자' : role === 'mentor' ? '멘토' : role === 'teacher' ? '교사' : '학생'
+  const recordName = (record: InterviewLogRecord) => record.participantDisplayName || record.loginDisplayName || record.displayName || '이름 미기록'
+  const recordSchool = (record: InterviewLogRecord) => record.participantSchoolName || record.schoolName || '학교 미기록'
+  const matchesFilter = (record: InterviewLogRecord, filter: InterviewRecordFilter) => {
+    const school = recordSchool(record)
+    if (filter === 'all') return true
+    if (filter === 'gwangsi') return school.includes('광시')
+    if (filter === 'yesan') return school.includes('예산')
+    if (filter === 'staff') return record.userRole === 'mentor' || record.userRole === 'teacher'
+    return record.userRole === 'admin'
+  }
+  const filteredRecords = records.filter((record) => matchesFilter(record, activeFilter))
+  const filterTabs: { id: InterviewRecordFilter; label: string }[] = [
+    { id: 'all', label: '전체' },
+    { id: 'gwangsi', label: '광시중' },
+    { id: 'yesan', label: '예산고' },
+    { id: 'staff', label: '멘토/교사' },
+    { id: 'admin', label: '관리자' },
+  ]
 
-  return <section className="admin-result-panel"><div className="admin-result-panel-heading"><div><span>3회기</span><h3>면접 결과</h3><p>학생, 멘토, 교사, 관리자까지 모든 면접 질문·답변 기록을 확인합니다.</p></div><b>{records.length}건</b></div>{isLoading && <div className="empty-auction-records"><b>기록을 불러오는 중이에요.</b></div>}{error && <p className="entry-error" role="alert">{error}</p>}{!isLoading && !error && (records.length ? <div className="admin-interview-records">{records.map((record) => <article key={record.id}><header><div><span>{roleLabel(record.userRole)}</span><b>{record.participantDisplayName || record.loginDisplayName || record.displayName || '이름 미기록'}</b><small>{record.participantSchoolName || record.schoolName || '학교 미기록'}</small></div><div><b>{decisionLabel(record.decision)}</b><small>{record.score ? `${record.score}점` : record.status === 'completed' ? '판정 완료' : '진행 중'}</small></div></header><h4>{record.company || '회사 미기록'} · {record.application?.role || '직무 미기록'}</h4>{record.turns?.length ? <div className="admin-interview-turns">{record.turns.map((turn, index) => <section key={`${record.id}-${index}`}><b>Q{index + 1}. {turn.question}</b><p>{turn.answer}</p>{turn.feedback && <small>{turn.feedback}</small>}</section>)}</div> : <p>아직 저장된 답변이 없어요.</p>}</article>)}</div> : <div className="empty-auction-records"><b>아직 저장된 면접 기록이 없어요.</b><p>면접에서 한 문항 이상 답변하면 이곳에 표시됩니다.</p></div>)}</section>
+  return <section className="admin-result-panel"><div className="admin-result-panel-heading"><div><span>3회기</span><h3>면접 결과</h3><p>학생, 멘토, 교사, 관리자까지 모든 면접 기록을 대상군별로 나눠 확인합니다.</p></div><b>{filteredRecords.length} / {records.length}건</b></div><div className="admin-record-filter-tabs">{filterTabs.map((tab) => <button type="button" className={activeFilter === tab.id ? 'active' : ''} onClick={() => { setActiveFilter(tab.id); setOpenRecordId(null) }} key={tab.id}>{tab.label}</button>)}</div>{isLoading && <div className="empty-auction-records"><b>기록을 불러오는 중이에요.</b></div>}{error && <p className="entry-error" role="alert">{error}</p>}{!isLoading && !error && (filteredRecords.length ? <div className="admin-interview-records">{filteredRecords.map((record) => { const isOpen = openRecordId === record.id; const turns = record.turns ?? []; const savedFeedback = [...turns].reverse().find((turn) => turn.feedback)?.feedback; const latestFeedback = savedFeedback || (record.status === 'completed' ? '면접이 완료된 기록입니다.' : '진행 중인 면접 기록입니다.'); return <article className={isOpen ? 'open' : ''} key={record.id}><button type="button" className="admin-interview-summary" onClick={() => setOpenRecordId(isOpen ? null : record.id)}><span>{roleLabel(record.userRole)}</span><div><b>{recordName(record)}</b><small>{recordSchool(record)}</small></div><div><strong>{record.company || '회사 미기록'} · {record.application?.role || '직무 미기록'}</strong><p>{latestFeedback}</p></div><div><b>{decisionLabel(record.decision)}</b><small>{record.score ? `${record.score}점` : record.status === 'completed' ? '판정 완료' : '진행 중'}</small></div><i>{isOpen ? '접기' : '펼치기'}</i></button>{isOpen && (turns.length ? <div className="admin-interview-turns">{turns.map((turn, index) => <section key={`${record.id}-${index}`}><b>Q{index + 1}. {turn.question}</b><p>{turn.answer}</p>{turn.feedback && <small>{turn.feedback}</small>}</section>)}</div> : <p className="admin-interview-empty">아직 저장된 답변이 없어요.</p>)}</article> })}</div> : <div className="empty-auction-records"><b>해당 조건의 면접 기록이 없어요.</b><p>면접에서 한 문항 이상 답변하면 이곳에 표시됩니다.</p></div>)}</section>
 }
 
 function AdminAuctionResultsPanel() {
