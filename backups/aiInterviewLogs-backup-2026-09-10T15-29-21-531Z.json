@@ -1,0 +1,1736 @@
+{
+  "projectId": "cheongsajin-57ffc",
+  "collectionId": "aiInterviewLogs",
+  "backedUpAt": "2026-09-10T15:29:21.532Z",
+  "count": 12,
+  "documents": [
+    {
+      "name": "projects/cheongsajin-57ffc/databases/(default)/documents/aiInterviewLogs/CmMmMRvZhObuYmeU9TNTwzpaB6l2_interview-1788919527310-552h2hf",
+      "fields": {
+        "lastFeedback": {
+          "stringValue": "답변을 끝까지 이어 간 점이 좋아요. 다음에는 구체적인 상황을 하나 더 붙이면 더 설득력 있게 말할 수 있어요."
+        },
+        "company": {
+          "stringValue": "예청전자"
+        },
+        "userId": {
+          "stringValue": "CmMmMRvZhObuYmeU9TNTwzpaB6l2"
+        },
+        "createdAt": {
+          "timestampValue": "2026-09-09T02:07:20.330Z"
+        },
+        "schoolName": {
+          "stringValue": "멘토"
+        },
+        "suggestedStrengths": {
+          "arrayValue": {
+            "values": [
+              {
+                "stringValue": "의사소통능력"
+              },
+              {
+                "stringValue": "책임감"
+              },
+              {
+                "stringValue": "문제해결능력"
+              }
+            ]
+          }
+        },
+        "closingSummary": {
+          "stringValue": "예청전자의 품질관리자 면접을 마쳤어요. 내가 왜 관심을 가졌는지, 어떤 점을 잘하는지, 앞으로 어떤 경험을 더 쌓으면 좋을지 돌아보세요."
+        },
+        "lastQuestion": {
+          "stringValue": ""
+        },
+        "displayName": {
+          "stringValue": "추규한"
+        },
+        "status": {
+          "stringValue": "completed"
+        },
+        "interviewId": {
+          "stringValue": "interview-1788919527310-552h2hf"
+        },
+        "turns": {
+          "arrayValue": {
+            "values": [
+              {
+                "mapValue": {
+                  "fields": {
+                    "question": {
+                      "stringValue": "예청전자의 품질관리자에 지원한 이유를 본인 말로 설명해 주세요."
+                    },
+                    "answer": {
+                      "stringValue": "돈 벌려구요"
+                    },
+                    "feedback": {
+                      "stringValue": ""
+                    }
+                  }
+                }
+              },
+              {
+                "mapValue": {
+                  "fields": {
+                    "question": {
+                      "stringValue": "다른 지원자보다 내가 조금 더 잘할 수 있는 점은 무엇이라고 생각하나요?"
+                    },
+                    "answer": {
+                      "stringValue": "오줌을 잘 싸요"
+                    },
+                    "feedback": {
+                      "stringValue": "좋아요. 방금 답변에서 이유가 드러났어요. 다음 답변에는 예시를 하나 붙여 보면 더 좋아요."
+                    }
+                  }
+                }
+              },
+              {
+                "mapValue": {
+                  "fields": {
+                    "question": {
+                      "stringValue": "품질관리자로 일하려면 어떤 태도나 역량이 가장 중요하다고 생각하나요?"
+                    },
+                    "answer": {
+                      "stringValue": "달리기를 잘 해야 해요."
+                    },
+                    "feedback": {
+                      "stringValue": "좋아요. 방금 답변에서 이유가 드러났어요. 다음 답변에는 예시를 하나 붙여 보면 더 좋아요."
+                    }
+                  }
+                }
+              },
+              {
+                "mapValue": {
+                  "fields": {
+                    "question": {
+                      "stringValue": "학교나 일상에서 품질관리자와 조금이라도 연결해 볼 수 있는 경험이 있다면 말해 주세요. 없다면 앞으로 해 보고 싶은 경험을 말해도 좋아요."
+                    },
+                    "answer": {
+                      "stringValue": "없어요 그런 거"
+                    },
+                    "feedback": {
+                      "stringValue": "좋아요. 방금 답변에서 이유가 드러났어요. 다음 답변에는 예시를 하나 붙여 보면 더 좋아요."
+                    }
+                  }
+                }
+              },
+              {
+                "mapValue": {
+                  "fields": {
+                    "question": {
+                      "stringValue": "마지막으로 예청전자 면접관에게 꼭 전하고 싶은 말을 해 주세요."
+                    },
+                    "answer": {
+                      "stringValue": "집에 가고 싶어요."
+                    },
+                    "feedback": {
+                      "stringValue": "좋아요. 방금 답변에서 이유가 드러났어요. 다음 답변에는 예시를 하나 붙여 보면 더 좋아요."
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "application": {
+          "mapValue": {
+            "fields": {
+              "experience": {
+                "stringValue": ""
+              },
+              "role": {
+                "stringValue": "품질관리자"
+              },
+              "strengths": {
+                "stringValue": ""
+              },
+              "closingLine": {
+                "stringValue": ""
+              },
+              "interestReason": {
+                "stringValue": ""
+              }
+            }
+          }
+        },
+        "updatedAt": {
+          "timestampValue": "2026-09-09T02:07:20.330Z"
+        }
+      },
+      "createTime": "2026-09-09T02:05:38.215393Z",
+      "updateTime": "2026-09-09T02:07:20.347719Z"
+    },
+    {
+      "name": "projects/cheongsajin-57ffc/databases/(default)/documents/aiInterviewLogs/CmMmMRvZhObuYmeU9TNTwzpaB6l2_interview-1788919915126-s8xj9cd",
+      "fields": {
+        "schoolName": {
+          "stringValue": "멘토"
+        },
+        "displayName": {
+          "stringValue": "추규한"
+        },
+        "status": {
+          "stringValue": "completed"
+        },
+        "createdAt": {
+          "timestampValue": "2026-09-09T02:13:18.815Z"
+        },
+        "turns": {
+          "arrayValue": {
+            "values": [
+              {
+                "mapValue": {
+                  "fields": {
+                    "question": {
+                      "stringValue": "예청엔터테인먼트의 콘텐츠 기획자에 지원한 이유를 본인 말로 설명해 주세요."
+                    },
+                    "answer": {
+                      "stringValue": "연예인이 보고 싶어서요."
+                    },
+                    "feedback": {
+                      "stringValue": ""
+                    }
+                  }
+                }
+              },
+              {
+                "mapValue": {
+                  "fields": {
+                    "question": {
+                      "stringValue": "다른 지원자보다 내가 조금 더 잘할 수 있는 점은 무엇이라고 생각하나요?"
+                    },
+                    "answer": {
+                      "stringValue": "오줌 잘 싸요."
+                    },
+                    "feedback": {
+                      "stringValue": "좋아요. 방금 답변에서 이유가 드러났어요. 다음 답변에는 예시를 하나 붙여 보면 더 좋아요."
+                    }
+                  }
+                }
+              },
+              {
+                "mapValue": {
+                  "fields": {
+                    "question": {
+                      "stringValue": "콘텐츠 기획자로 일하려면 어떤 태도나 역량이 가장 중요하다고 생각하나요?"
+                    },
+                    "answer": {
+                      "stringValue": "오줌 잘 싸기"
+                    },
+                    "feedback": {
+                      "stringValue": "좋아요. 방금 답변에서 이유가 드러났어요. 다음 답변에는 예시를 하나 붙여 보면 더 좋아요."
+                    }
+                  }
+                }
+              },
+              {
+                "mapValue": {
+                  "fields": {
+                    "question": {
+                      "stringValue": "학교나 일상에서 콘텐츠 기획자와 조금이라도 연결해 볼 수 있는 경험이 있다면 말해 주세요. 없다면 앞으로 해 보고 싶은 경험을 말해도 좋아요."
+                    },
+                    "answer": {
+                      "stringValue": "오줌"
+                    },
+                    "feedback": {
+                      "stringValue": "좋아요. 방금 답변에서 이유가 드러났어요. 다음 답변에는 예시를 하나 붙여 보면 더 좋아요."
+                    }
+                  }
+                }
+              },
+              {
+                "mapValue": {
+                  "fields": {
+                    "question": {
+                      "stringValue": "마지막으로 예청엔터테인먼트 면접관에게 꼭 전하고 싶은 말을 해 주세요."
+                    },
+                    "answer": {
+                      "stringValue": "오줌싸세요"
+                    },
+                    "feedback": {
+                      "stringValue": "좋아요. 방금 답변에서 이유가 드러났어요. 다음 답변에는 예시를 하나 붙여 보면 더 좋아요."
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "company": {
+          "stringValue": "예청엔터테인먼트"
+        },
+        "aiSource": {
+          "stringValue": "fallback"
+        },
+        "suggestedStrengths": {
+          "arrayValue": {
+            "values": [
+              {
+                "stringValue": "의사소통능력"
+              },
+              {
+                "stringValue": "책임감"
+              },
+              {
+                "stringValue": "문제해결능력"
+              }
+            ]
+          }
+        },
+        "application": {
+          "mapValue": {
+            "fields": {
+              "strengths": {
+                "stringValue": "춤 잘 춰요"
+              },
+              "role": {
+                "stringValue": "콘텐츠 기획자"
+              },
+              "closingLine": {
+                "stringValue": ""
+              },
+              "experience": {
+                "stringValue": "없어요"
+              },
+              "interestReason": {
+                "stringValue": "연예인 보고 싶어요"
+              }
+            }
+          }
+        },
+        "userId": {
+          "stringValue": "CmMmMRvZhObuYmeU9TNTwzpaB6l2"
+        },
+        "closingSummary": {
+          "stringValue": "예청엔터테인먼트의 콘텐츠 기획자 면접을 마쳤어요. 내가 왜 관심을 가졌는지, 어떤 점을 잘하는지, 앞으로 어떤 경험을 더 쌓으면 좋을지 돌아보세요."
+        },
+        "lastFeedback": {
+          "stringValue": "답변을 끝까지 이어 간 점이 좋아요. 다음에는 구체적인 상황을 하나 더 붙이면 더 설득력 있게 말할 수 있어요."
+        },
+        "interviewId": {
+          "stringValue": "interview-1788919915126-s8xj9cd"
+        },
+        "lastQuestion": {
+          "stringValue": ""
+        },
+        "updatedAt": {
+          "timestampValue": "2026-09-09T02:13:18.815Z"
+        }
+      },
+      "createTime": "2026-09-09T02:12:03.541780Z",
+      "updateTime": "2026-09-09T02:13:18.822218Z"
+    },
+    {
+      "name": "projects/cheongsajin-57ffc/databases/(default)/documents/aiInterviewLogs/CmMmMRvZhObuYmeU9TNTwzpaB6l2_interview-1788920165002-ex9vewk",
+      "fields": {
+        "closingSummary": {
+          "stringValue": ""
+        },
+        "suggestedStrengths": {
+          "arrayValue": {
+            "values": [
+              {
+                "stringValue": "의사소통능력"
+              },
+              {
+                "stringValue": "책임감"
+              }
+            ]
+          }
+        },
+        "turns": {
+          "arrayValue": {}
+        },
+        "updatedAt": {
+          "timestampValue": "2026-09-09T02:16:11.752Z"
+        },
+        "application": {
+          "mapValue": {
+            "fields": {
+              "closingLine": {
+                "stringValue": ""
+              },
+              "strengths": {
+                "stringValue": ""
+              },
+              "interestReason": {
+                "stringValue": ""
+              },
+              "role": {
+                "stringValue": "자동차 정비사"
+              },
+              "experience": {
+                "stringValue": ""
+              }
+            }
+          }
+        },
+        "status": {
+          "stringValue": "inProgress"
+        },
+        "interviewId": {
+          "stringValue": "interview-1788920165002-ex9vewk"
+        },
+        "score": {
+          "integerValue": "0"
+        },
+        "lastFeedback": {
+          "stringValue": ""
+        },
+        "aiSource": {
+          "stringValue": "fallback"
+        },
+        "decision": {
+          "stringValue": "hold"
+        },
+        "displayName": {
+          "stringValue": "추규한"
+        },
+        "company": {
+          "stringValue": "예청모터스"
+        },
+        "lastQuestion": {
+          "stringValue": "예청모터스의 자동차 정비사에 지원한 이유를 본인 말로 설명해 주세요."
+        },
+        "userId": {
+          "stringValue": "CmMmMRvZhObuYmeU9TNTwzpaB6l2"
+        },
+        "schoolName": {
+          "stringValue": "멘토"
+        },
+        "createdAt": {
+          "timestampValue": "2026-09-09T02:16:11.752Z"
+        }
+      },
+      "createTime": "2026-09-09T02:16:11.778345Z",
+      "updateTime": "2026-09-09T02:16:11.778345Z"
+    },
+    {
+      "name": "projects/cheongsajin-57ffc/databases/(default)/documents/aiInterviewLogs/CmMmMRvZhObuYmeU9TNTwzpaB6l2_interview-1788920464180-8y13xcn",
+      "fields": {
+        "application": {
+          "mapValue": {
+            "fields": {
+              "experience": {
+                "stringValue": ""
+              },
+              "strengths": {
+                "stringValue": ""
+              },
+              "interestReason": {
+                "stringValue": ""
+              },
+              "closingLine": {
+                "stringValue": ""
+              },
+              "role": {
+                "stringValue": "건축가"
+              }
+            }
+          }
+        },
+        "createdAt": {
+          "timestampValue": "2026-09-09T02:21:12.727Z"
+        },
+        "schoolName": {
+          "stringValue": "멘토"
+        },
+        "lastQuestion": {
+          "stringValue": "예청건설의 건축가에 지원한 이유를 본인 말로 설명해 주세요."
+        },
+        "interviewId": {
+          "stringValue": "interview-1788920464180-8y13xcn"
+        },
+        "status": {
+          "stringValue": "inProgress"
+        },
+        "lastFeedback": {
+          "stringValue": ""
+        },
+        "company": {
+          "stringValue": "예청건설"
+        },
+        "displayName": {
+          "stringValue": "추규한"
+        },
+        "turns": {
+          "arrayValue": {}
+        },
+        "score": {
+          "integerValue": "0"
+        },
+        "userId": {
+          "stringValue": "CmMmMRvZhObuYmeU9TNTwzpaB6l2"
+        },
+        "updatedAt": {
+          "timestampValue": "2026-09-09T02:21:12.727Z"
+        },
+        "aiSource": {
+          "stringValue": "fallback"
+        },
+        "decision": {
+          "stringValue": "hold"
+        },
+        "closingSummary": {
+          "stringValue": ""
+        },
+        "suggestedStrengths": {
+          "arrayValue": {
+            "values": [
+              {
+                "stringValue": "의사소통능력"
+              },
+              {
+                "stringValue": "책임감"
+              }
+            ]
+          }
+        }
+      },
+      "createTime": "2026-09-09T02:21:12.745757Z",
+      "updateTime": "2026-09-09T02:21:12.745757Z"
+    },
+    {
+      "name": "projects/cheongsajin-57ffc/databases/(default)/documents/aiInterviewLogs/CmMmMRvZhObuYmeU9TNTwzpaB6l2_interview-1788920825849-v3yqoly",
+      "fields": {
+        "status": {
+          "stringValue": "completed"
+        },
+        "interviewId": {
+          "stringValue": "interview-1788920825849-v3yqoly"
+        },
+        "company": {
+          "stringValue": "예청전자"
+        },
+        "createdAt": {
+          "timestampValue": "2026-09-09T02:28:40.073Z"
+        },
+        "application": {
+          "mapValue": {
+            "fields": {
+              "interestReason": {
+                "stringValue": ""
+              },
+              "strengths": {
+                "stringValue": ""
+              },
+              "experience": {
+                "stringValue": ""
+              },
+              "closingLine": {
+                "stringValue": ""
+              },
+              "role": {
+                "stringValue": "로봇공학자"
+              }
+            }
+          }
+        },
+        "decision": {
+          "stringValue": "retry"
+        },
+        "aiSource": {
+          "stringValue": "openai"
+        },
+        "updatedAt": {
+          "timestampValue": "2026-09-09T02:28:40.073Z"
+        },
+        "closingSummary": {
+          "stringValue": "지원자의 답변이 전반적으로 부족하여 직무 적합성을 판단하기 어려웠습니다. 로봇공학자로서의 전문성과 열정을 명확히 드러내는 답변이 필요합니다. 향후 준비를 더 하여 성실한 답변을 기대합니다."
+        },
+        "lastQuestion": {
+          "stringValue": ""
+        },
+        "userId": {
+          "stringValue": "CmMmMRvZhObuYmeU9TNTwzpaB6l2"
+        },
+        "turns": {
+          "arrayValue": {
+            "values": [
+              {
+                "mapValue": {
+                  "fields": {
+                    "question": {
+                      "stringValue": "로봇공학자로서 가장 도전적이었던 프로젝트와 그 문제를 어떻게 해결했는지 구체적으로 설명해 주세요."
+                    },
+                    "answer": {
+                      "stringValue": "오줌이에요."
+                    },
+                    "feedback": {
+                      "stringValue": ""
+                    }
+                  }
+                }
+              },
+              {
+                "mapValue": {
+                  "fields": {
+                    "question": {
+                      "stringValue": "로봇공학자로서 수행했던 프로젝트 중 하나를 구체적으로 설명해 주시고, 그 과정에서 본인이 맡았던 역할과 기여한 부분을 자세히 말씀해 주세요."
+                    },
+                    "answer": {
+                      "stringValue": "오줌이라니까요"
+                    },
+                    "feedback": {
+                      "stringValue": "답변이 질문과 전혀 관련이 없으니, 다시 한번 진지하게 구체적으로 답변해 주시기 바랍니다."
+                    }
+                  }
+                }
+              },
+              {
+                "mapValue": {
+                  "fields": {
+                    "question": {
+                      "stringValue": "로봇공학 분야에서 본인이 중요하게 생각하는 기술이나 역량은 무엇이며, 이를 어떻게 개발하고 있나요?"
+                    },
+                    "answer": {
+                      "stringValue": "AI활용 역량"
+                    },
+                    "feedback": {
+                      "stringValue": "답변이 질문과 관련이 없으니, 구체적이고 진지하게 다시 답변해 주세요."
+                    }
+                  }
+                }
+              },
+              {
+                "mapValue": {
+                  "fields": {
+                    "question": {
+                      "stringValue": "로봇공학자로서 본인이 직면했던 기술적 문제 중 가장 어려웠던 사례를 구체적으로 설명하고, 그 문제를 해결하기 위해 취한 방법과 결과에 대해 말씀해 주세요."
+                    },
+                    "answer": {
+                      "stringValue": "응애에요"
+                    },
+                    "feedback": {
+                      "stringValue": "답변이 구체적이지 않고 반복적이며 질문에 성실히 답하지 않았습니다. 면접에서는 자신의 경험과 역량을 명확히 전달하는 것이 중요합니다."
+                    }
+                  }
+                }
+              },
+              {
+                "mapValue": {
+                  "fields": {
+                    "question": {
+                      "stringValue": "로봇공학자로서 본인이 수행하고 싶은 구체적인 연구나 개발 분야가 있나요? 그 이유와 목표도 함께 말씀해 주세요."
+                    },
+                    "answer": {
+                      "stringValue": "저는 로봇공학자로서 오줌을 싸고 싶습니다."
+                    },
+                    "feedback": {
+                      "stringValue": "답변이 질문과 관련이 없고 구체성이 부족합니다. 로봇공학자로서의 경험이나 생각을 진지하게 표현해 주세요."
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "schoolName": {
+          "stringValue": "멘토"
+        },
+        "lastFeedback": {
+          "stringValue": "면접에서 답변이 대부분 무성의하고 질문과 관련 없는 내용이 많았습니다. 로봇공학자로서의 역량과 경험, 관심 분야에 대해 구체적이고 진지한 답변이 필요합니다. 특히 지원하는 직무에 맞는 경험과 기술에 대해 상세히 설명하는 것이 중요합니다. 다음 면접에서는 질문에 집중하여 성실하고 구체적인 답변을 준비해 주세요."
+        },
+        "score": {
+          "integerValue": "30"
+        },
+        "displayName": {
+          "stringValue": "추규한"
+        },
+        "suggestedStrengths": {
+          "arrayValue": {
+            "values": [
+              {
+                "stringValue": "전문적인 기술 역량 개발"
+              },
+              {
+                "stringValue": "구체적인 프로젝트 경험"
+              },
+              {
+                "stringValue": "문제 해결 능력"
+              },
+              {
+                "stringValue": "명확한 의사소통 능력"
+              }
+            ]
+          }
+        }
+      },
+      "createTime": "2026-09-09T02:27:08.557612Z",
+      "updateTime": "2026-09-09T02:28:40.087061Z"
+    },
+    {
+      "name": "projects/cheongsajin-57ffc/databases/(default)/documents/aiInterviewLogs/CmMmMRvZhObuYmeU9TNTwzpaB6l2_interview-1788921274530-hyxeud9",
+      "fields": {
+        "interviewId": {
+          "stringValue": "interview-1788921274530-hyxeud9"
+        },
+        "score": {
+          "integerValue": "60"
+        },
+        "schoolName": {
+          "stringValue": "멘토"
+        },
+        "aiSource": {
+          "stringValue": "openai"
+        },
+        "decision": {
+          "stringValue": "hold"
+        },
+        "application": {
+          "mapValue": {
+            "fields": {
+              "experience": {
+                "stringValue": ""
+              },
+              "role": {
+                "stringValue": "역사선생님"
+              },
+              "interestReason": {
+                "stringValue": ""
+              },
+              "closingLine": {
+                "stringValue": ""
+              },
+              "strengths": {
+                "stringValue": ""
+              }
+            }
+          }
+        },
+        "turns": {
+          "arrayValue": {
+            "values": [
+              {
+                "mapValue": {
+                  "fields": {
+                    "question": {
+                      "stringValue": "역사 선생님으로서 학생들에게 어떤 점을 가장 재미있게 가르쳐 주고 싶나요? 학교에서 배우거나 친구들과 이야기하면서 흥미로웠던 역사 이야기나 주제가 있나요?"
+                    },
+                    "answer": {
+                      "stringValue": "제2차세계대전 이야기가 매우 흥미로웠습니다. 전쟁이 발발하게 된 원인과 그에 따른 국제정세의 변화, 전쟁의 진행 과정과 결과가 현대 사회에까지 영향을 미치고 있다는 점이 특히 흥미로웠습니다."
+                    },
+                    "feedback": {
+                      "stringValue": ""
+                    }
+                  }
+                }
+              },
+              {
+                "mapValue": {
+                  "fields": {
+                    "question": {
+                      "stringValue": "역사 선생님이 된다면, 학생들이 역사를 더 잘 이해하고 흥미를 느끼도록 어떤 방법으로 수업을 진행해 보고 싶나요?"
+                    },
+                    "answer": {
+                      "stringValue": "다양한 영상 자료를 활용하고 싶습니다. 학생들이 더 흥미롭게 역사라는 주제를 접할 수 있게 하기 때문입니다."
+                    },
+                    "feedback": {
+                      "stringValue": "제2차 세계대전에 대해 구체적으로 이야기해 준 점이 좋았습니다. 다만, 역사 선생님으로서 어떻게 가르치고 싶은지에 대한 생각도 듣고 싶습니다."
+                    }
+                  }
+                }
+              },
+              {
+                "mapValue": {
+                  "fields": {
+                    "question": {
+                      "stringValue": "역사 수업에서 학생들이 흥미를 잃지 않도록 친구들과 함께 해 본 활동이나 게임, 또는 앞으로 해 보고 싶은 활동이 있나요?"
+                    },
+                    "answer": {
+                      "stringValue": "오줌싸기 게임입니다. 세계지도 위에 오줌을 싸서 나라를 맞추어 나가는 게임이었습니다. 세계지리를 이해하기에 좋았습니다."
+                    },
+                    "feedback": {
+                      "stringValue": "영상 자료를 활용하겠다는 아이디어가 좋습니다. 학생들이 흥미를 느낄 수 있는 다양한 방법을 더 구체적으로 생각해 보면 좋겠습니다."
+                    }
+                  }
+                }
+              },
+              {
+                "mapValue": {
+                  "fields": {
+                    "question": {
+                      "stringValue": "역사 선생님으로서 학생들이 이해하기 어려워하는 역사적 사건이나 인물을 쉽게 설명하려면 어떤 노력이 필요하다고 생각하나요? 학교에서 친구들에게 복잡한 내용을 설명해 본 경험이 있다면 이야기해 주세요."
+                    },
+                    "answer": {
+                      "stringValue": "우선은 암기를 우선으로 해 정보를 모두 소화시킨 뒤, 그 뒤에 역사적 사건들과 결합시켜 유기적으로 세계사에 대한 이해를 시킬 것 같습니다."
+                    },
+                    "feedback": {
+                      "stringValue": "세계지도 게임을 활용한 예시는 좋았습니다. 다만 ‘오줌싸기 게임’이라는 표현은 조금 부적절해 보일 수 있으니, 다음에는 좀 더 적절한 표현을 사용해 주세요."
+                    }
+                  }
+                }
+              },
+              {
+                "mapValue": {
+                  "fields": {
+                    "question": {
+                      "stringValue": "역사를 가르칠 때 학생들이 지루해하지 않도록 특별히 신경 쓰고 싶은 점이 있나요? 예를 들어, 수업 시간에 친구들이 집중할 수 있도록 해 본 경험이나 생각해 본 방법이 있나요?"
+                    },
+                    "answer": {
+                      "stringValue": "없습니다."
+                    },
+                    "feedback": {
+                      "stringValue": "역사를 단순 암기 뒤에 사건과 연결해 이해시키려는 접근은 좋습니다. 다만 학생들이 더 쉽게 집중할 수 있도록 구체적인 수업 방법이나 경험도 함께 이야기해 주세요."
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "createdAt": {
+          "timestampValue": "2026-09-09T02:39:55.841Z"
+        },
+        "userId": {
+          "stringValue": "CmMmMRvZhObuYmeU9TNTwzpaB6l2"
+        },
+        "company": {
+          "stringValue": "예청중학교"
+        },
+        "closingSummary": {
+          "stringValue": "역사에 대한 관심과 수업 자료 활용에 대한 아이디어가 좋았습니다. 다만 학생들의 흥미를 유지하는 방법에 대해 좀 더 구체적인 생각을 발전시키면 좋겠습니다."
+        },
+        "suggestedStrengths": {
+          "arrayValue": {
+            "values": [
+              {
+                "stringValue": "역사에 대한 관심과 기본 지식"
+              },
+              {
+                "stringValue": "영상 자료 활용 아이디어"
+              },
+              {
+                "stringValue": "학생 참여를 고려하는 태도"
+              }
+            ]
+          }
+        },
+        "updatedAt": {
+          "timestampValue": "2026-09-09T02:39:55.841Z"
+        },
+        "lastQuestion": {
+          "stringValue": ""
+        },
+        "displayName": {
+          "stringValue": "추규한"
+        },
+        "lastFeedback": {
+          "stringValue": "답변이 명확하지 않았습니다. 역사 수업에서 학생들이 흥미를 잃지 않도록 어떤 노력을 해보고 싶은지 구체적으로 다시 말씀해 주세요."
+        },
+        "status": {
+          "stringValue": "completed"
+        }
+      },
+      "createTime": "2026-09-09T02:34:37.981540Z",
+      "updateTime": "2026-09-09T02:39:55.858963Z"
+    },
+    {
+      "name": "projects/cheongsajin-57ffc/databases/(default)/documents/aiInterviewLogs/CmMmMRvZhObuYmeU9TNTwzpaB6l2_interview-1788921674258-is3plp4",
+      "fields": {
+        "suggestedStrengths": {
+          "arrayValue": {
+            "values": [
+              {
+                "stringValue": "무대 자신감"
+              },
+              {
+                "stringValue": "춤과 노래에 대한 열정"
+              },
+              {
+                "stringValue": "자기관리를 위한 신체 단련 의지"
+              }
+            ]
+          }
+        },
+        "schoolName": {
+          "stringValue": "멘토"
+        },
+        "interviewId": {
+          "stringValue": "interview-1788921674258-is3plp4"
+        },
+        "score": {
+          "integerValue": "60"
+        },
+        "application": {
+          "mapValue": {
+            "fields": {
+              "closingLine": {
+                "stringValue": "오줌!"
+              },
+              "experience": {
+                "stringValue": "없어요"
+              },
+              "strengths": {
+                "stringValue": "춤을 잘 추면서 노래도 잘 불러요"
+              },
+              "role": {
+                "stringValue": "아이돌"
+              },
+              "interestReason": {
+                "stringValue": "아이돌 구경이 하고 싶어요"
+              }
+            }
+          }
+        },
+        "turns": {
+          "arrayValue": {
+            "values": [
+              {
+                "mapValue": {
+                  "fields": {
+                    "question": {
+                      "stringValue": "아이돌 활동을 하려면 무대에서 많은 사람들 앞에서 자신을 표현해야 하는데, 학교나 친구들 앞에서 무언가를 발표하거나 공연한 경험이 있나요?"
+                    },
+                    "answer": {
+                      "stringValue": "장기자랑에서 300명이 보는 앞에서 드라군 성대모사를 한 경험이 있어요. \"리씨빙. 쌉싸라다스.”같은 느낌이었는데, 학생들부터 선생님들까지 모두 즐거워해서 그때부터 아이돌이 하고 싶었어요."
+                    },
+                    "feedback": {
+                      "stringValue": ""
+                    }
+                  }
+                }
+              },
+              {
+                "mapValue": {
+                  "fields": {
+                    "question": {
+                      "stringValue": "춤과 노래를 잘 한다고 했는데, 평소에 연습할 때 어떤 점을 가장 신경 쓰나요? 예를 들어 자세, 리듬, 표정 중에서요."
+                    },
+                    "answer": {
+                      "stringValue": "간지. 간지가 제일 중요해요. 조금 더 공식적인 표현으로 하면 무대 장악력이라고 할 수 있을 것 같아요. 무대를 즐기는 것에서 그치지 않고 관객의 시선을 사로잡을 수 있는 아우라를 만드는 데 가장 신경써요."
+                    },
+                    "feedback": {
+                      "stringValue": "드라군 성대모사로 많은 사람 앞에서 자신감을 보여준 점이 좋았어요. 아이돌에 대한 관심이 생긴 계기도 잘 설명해 주셨고요."
+                    }
+                  }
+                }
+              },
+              {
+                "mapValue": {
+                  "fields": {
+                    "question": {
+                      "stringValue": "무대에서 관객의 시선을 사로잡는 아우라를 만들기 위해 평소 학교생활이나 친구들과 있을 때 어떤 태도나 마음가짐을 가지려고 노력하나요?"
+                    },
+                    "answer": {
+                      "stringValue": "친구를 만나면 우선 눈빛으로 제압하고, '나는 너와 다르다’라는 급의 차이를 심겨주기 위해 친구에게 위압감을 가해요. 카리스마 있는 리더가 되기 위해 가장 중요한 덕목이니까요."
+                    },
+                    "feedback": {
+                      "stringValue": "아우라와 무대 장악력에 대해 구체적으로 생각해 본 점이 인상적입니다. 이제 일상생활에서 그런 태도를 어떻게 연습하는지 궁금합니다."
+                    }
+                  }
+                }
+              },
+              {
+                "mapValue": {
+                  "fields": {
+                    "question": {
+                      "stringValue": "친구들과 좋은 관계를 유지하는 것도 팀워크에 중요한데, 친구들과 갈등이 생겼을 때 보통 어떻게 해결하나요?"
+                    },
+                    "answer": {
+                      "stringValue": "힘의 차이로 극복하는 게 가장 빠르고 합리적인 방법이었어요."
+                    },
+                    "feedback": {
+                      "stringValue": "친구들에게 위압감을 주는 태도보다 서로 이해하고 협력하는 태도가 더 팀워크에 도움이 됩니다. 갈등 해결 방법에 대해 좀 더 생각해 주세요."
+                    }
+                  }
+                }
+              },
+              {
+                "mapValue": {
+                  "fields": {
+                    "question": {
+                      "stringValue": "팀워크를 위해서는 서로 존중하고 이해하는 마음이 중요한데, 학교나 동아리에서 친구들이나 팀원들과 잘 협력하기 위해 본인이 노력하는 점이 있다면 무엇인가요?"
+                    },
+                    "answer": {
+                      "stringValue": "힘을 키워요. 그래야 팀워크에 금이 갔을 때 중재도 할 수 있고, 갈등이 발생했을 때도 힘의 차이로 극복할 수 있어요."
+                    },
+                    "feedback": {
+                      "stringValue": "친구들과의 관계에서 힘을 이용하는 방법을 말씀하셨는데, 아이돌 활동에서는 서로 존중하고 협력하는 태도도 매우 중요합니다. 학교나 동아리 생활에서 어떻게 협력하는지 구체적으로 알려주세요."
+                    }
+                  }
+                }
+              },
+              {
+                "mapValue": {
+                  "fields": {
+                    "question": {
+                      "stringValue": "아우라와 카리스마도 중요하지만, 아이돌은 팬들과 따뜻한 소통도 필요해요. 학교나 친구들과 있을 때 상대방을 배려하거나 응원해준 경험이 있나요?"
+                    },
+                    "answer": {
+                      "stringValue": "친구에게 100원을 주고 아이스크림을 사 와 달라고 부탁한 적이 있는데, 나를 위해 고생해 준 친구에게 고마워서 아이스크림 꼬다리를 떼서 주는 편이에요."
+                    },
+                    "feedback": {
+                      "stringValue": "지금까지는 힘과 위압감을 강조하셨는데, 아이돌로서 팬들과 좋은 관계를 만드는 데는 배려와 소통도 중요해요. 이에 대해 생각해 보고 답해주세요."
+                    }
+                  }
+                }
+              },
+              {
+                "mapValue": {
+                  "fields": {
+                    "question": {
+                      "stringValue": "아이돌로서 무대에서 노래하고 춤출 때 팬들과 교감하는 순간이 정말 중요해요. 학교나 친구들과 있을 때, 누군가 힘들어할 때 어떻게 응원하거나 도와준 적이 있나요?"
+                    },
+                    "answer": {
+                      "stringValue": "네. 있어요."
+                    },
+                    "feedback": {
+                      "stringValue": "친구와의 관계에서 힘을 중요시하는 점은 이해했지만, 팬들과 소통할 때는 조금 더 따뜻한 마음과 배려가 필요해요. 아이돌로서 감정 표현과 배려하는 태도에 대해 조금 더 생각해 보면 좋겠습니다."
+                    }
+                  }
+                }
+              },
+              {
+                "mapValue": {
+                  "fields": {
+                    "question": {
+                      "stringValue": "힘들어하는 친구를 도와준 구체적인 상황을 하나 말해 줄 수 있나요? 그때 어떤 마음으로 행동했는지도 궁금해요."
+                    },
+                    "answer": {
+                      "stringValue": "친구가 다쳤을 때 밴드를 붙여 줬어요. 저 때문에 다친 거긴 하지만요."
+                    },
+                    "feedback": {
+                      "stringValue": "'네, 있어요'라는 답변은 너무 간단해요. 조금 더 구체적으로 어떤 상황이었고, 어떻게 도와줬는지 이야기해 주세요."
+                    }
+                  }
+                }
+              },
+              {
+                "mapValue": {
+                  "fields": {
+                    "question": {
+                      "stringValue": "친구가 다친 상황에서도 도와주었군요. 앞으로 아이돌 활동을 하면서 힘들거나 지칠 때 자신을 어떻게 격려하거나 다시 힘을 낼 계획인가요?"
+                    },
+                    "answer": {
+                      "stringValue": "강한 몸에서 강한 정신이 나와요. 신체를 단련해서 정신적인 한계도 극복할 거에요."
+                    },
+                    "feedback": {
+                      "stringValue": "친구를 도와준 경험이 있어 좋았습니다. 다만, 자신의 감정이나 동기부여 방법에 대해 조금 더 구체적으로 말해 주면 좋겠어요."
+                    }
+                  }
+                }
+              },
+              {
+                "mapValue": {
+                  "fields": {
+                    "question": {
+                      "stringValue": "아이돌 활동을 하려면 다양한 무대를 경험하는 것이 중요한데, 앞으로 학교나 지역 행사에서 노래나 춤을 해보고 싶은 기회가 있다면 어떤 무대를 가장 해보고 싶나요? 그리고 그 이유도 알려주세요."
+                    },
+                    "answer": {
+                      "stringValue": "친구들과 함께 에스파의 넥스트 레벨 안무를 공연해 보고 싶어요."
+                    },
+                    "feedback": {
+                      "stringValue": "신체 단련과 정신력 극복에 대한 계획이 인상적입니다. 앞으로 무대를 경험하면서 자신감을 더 키우는 것도 중요할 거예요."
+                    }
+                  }
+                }
+              },
+              {
+                "mapValue": {
+                  "fields": {
+                    "question": {
+                      "stringValue": "에스파의 넥스트 레벨 안무를 친구들과 함께 연습하려면 어떤 점을 가장 중요하게 생각하고 준비할 것 같나요?"
+                    },
+                    "answer": {
+                      "stringValue": "강력한 카리스마."
+                    },
+                    "feedback": {
+                      "stringValue": "친구들과 함께 공연하고 싶은 구체적인 무대도 잘 말해줬네요. 앞으로 연습할 때 무엇을 중점적으로 할지 생각해 보면 좋겠습니다."
+                    }
+                  }
+                }
+              },
+              {
+                "mapValue": {
+                  "fields": {
+                    "question": {
+                      "stringValue": "친구들과 에스파의 넥스트 레벨 안무를 완벽하게 맞추려면 연습 외에 어떤 점을 신경 써야 한다고 생각하나요? 예를 들어 서로를 배려하거나 협력하는 방법 같은 것들이요."
+                    },
+                    "answer": {
+                      "stringValue": "강력한 카리스마요."
+                    },
+                    "feedback": {
+                      "stringValue": "카리스마를 강조한 점이 인상적입니다. 다만 연습뿐 아니라 친구들과 협력할 때 필요한 태도에 대해서도 생각해 보면 좋겠습니다."
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "status": {
+          "stringValue": "completed"
+        },
+        "updatedAt": {
+          "timestampValue": "2026-09-09T02:50:02.173Z"
+        },
+        "company": {
+          "stringValue": "예청엔터테인먼트"
+        },
+        "createdAt": {
+          "timestampValue": "2026-09-09T02:50:02.173Z"
+        },
+        "lastQuestion": {
+          "stringValue": ""
+        },
+        "decision": {
+          "stringValue": "hold"
+        },
+        "aiSource": {
+          "stringValue": "openai"
+        },
+        "displayName": {
+          "stringValue": "추규한"
+        },
+        "lastFeedback": {
+          "stringValue": "답변이 강력한 카리스마에 집중되어 있네요. 팀워크와 협력도 아이돌 활동에서 매우 중요한 부분이니, 친구들과 함께 연습할 때 서로를 이해하고 도와주는 자세에 대해서도 생각해 보시면 좋겠습니다. 조금 더 구체적이고 다양한 답변을 부탁드려요."
+        },
+        "userId": {
+          "stringValue": "CmMmMRvZhObuYmeU9TNTwzpaB6l2"
+        },
+        "closingSummary": {
+          "stringValue": "무대에서 자신을 표현하는 자신감과 춤, 노래에 대한 열정이 느껴집니다. 다만, 팀워크와 협력 부분에서 답변이 반복되고 한쪽에 치우친 점이 보여 보완이 필요합니다. 아이돌 활동은 개인 역량뿐 아니라 함께하는 팀원들과 팬들과의 소통이 중요하기 때문에 이 부분을 좀 더 발전시키면 좋겠습니다."
+        }
+      },
+      "createTime": "2026-09-09T02:41:16.870304Z",
+      "updateTime": "2026-09-09T02:50:02.186608Z"
+    },
+    {
+      "name": "projects/cheongsajin-57ffc/databases/(default)/documents/aiInterviewLogs/CmMmMRvZhObuYmeU9TNTwzpaB6l2_interview-1788922279282-gxihigj",
+      "fields": {
+        "score": {
+          "integerValue": "60"
+        },
+        "updatedAt": {
+          "timestampValue": "2026-09-09T02:52:18.582Z"
+        },
+        "status": {
+          "stringValue": "completed"
+        },
+        "lastQuestion": {
+          "stringValue": ""
+        },
+        "closingSummary": {
+          "stringValue": "지원 동기가 아이돌과 관련되어 있지만, 일반행정직에 필요한 협력과 소통 능력을 더 구체적으로 표현하면 좋겠습니다. 경험이 적더라도 학교 생활 속에서 찾아볼 수 있는 사례를 생각해 보세요."
+        },
+        "decision": {
+          "stringValue": "hold"
+        },
+        "aiSource": {
+          "stringValue": "openai"
+        },
+        "turns": {
+          "arrayValue": {
+            "values": [
+              {
+                "mapValue": {
+                  "fields": {
+                    "question": {
+                      "stringValue": "일반행정직에 지원한 이유가 조금 독특한데요, 학교 생활이나 친구들과의 경험 중에 행정 업무나 조직을 도와본 적이 있나요? 있다면 어떤 점이 재미있었는지, 없다면 앞으로 어떤 활동을 해보고 싶은지 알려주세요."
+                    },
+                    "answer": {
+                      "stringValue": "춤과 노래로 행정 업무를 격려했습니다."
+                    },
+                    "feedback": {
+                      "stringValue": ""
+                    }
+                  }
+                }
+              },
+              {
+                "mapValue": {
+                  "fields": {
+                    "question": {
+                      "stringValue": "학교나 집에서 친구나 가족과 함께 무언가를 계획하거나 준비해 본 적이 있나요? 예를 들어 행사 준비나 모임 계획 같은 것들이요. 그때 어떤 역할을 맡았고, 어떤 점이 기억에 남았나요?"
+                    },
+                    "answer": {
+                      "stringValue": "없어요."
+                    },
+                    "feedback": {
+                      "stringValue": "답변이 다소 추상적이라 구체적인 경험이나 생각을 더 듣고 싶습니다. 행정직은 조직과 소통이 중요한 만큼, 구체적인 협력 경험이 있으면 좋겠어요."
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "lastFeedback": {
+          "stringValue": "답변이 조금 짧고 구체적인 내용이 부족해요. 행정직은 다양한 상황에서 협력하는 능력이 중요하니, 학교나 친구들과 함께 했던 활동 중에서 역할이나 느낀 점을 더 자세히 알려주세요."
+        },
+        "suggestedStrengths": {
+          "arrayValue": {
+            "values": [
+              {
+                "stringValue": "협력하는 자세"
+              },
+              {
+                "stringValue": "의사소통 능력"
+              },
+              {
+                "stringValue": "책임감"
+              }
+            ]
+          }
+        },
+        "schoolName": {
+          "stringValue": "멘토"
+        },
+        "displayName": {
+          "stringValue": "추규한"
+        },
+        "company": {
+          "stringValue": "예청군청"
+        },
+        "userId": {
+          "stringValue": "CmMmMRvZhObuYmeU9TNTwzpaB6l2"
+        },
+        "interviewId": {
+          "stringValue": "interview-1788922279282-gxihigj"
+        },
+        "createdAt": {
+          "timestampValue": "2026-09-09T02:52:18.582Z"
+        },
+        "application": {
+          "mapValue": {
+            "fields": {
+              "experience": {
+                "stringValue": "없습니다."
+              },
+              "interestReason": {
+                "stringValue": "아이돌이 되고 싶어서 지원하게 되었습니다."
+              },
+              "role": {
+                "stringValue": "일반행정직"
+              },
+              "strengths": {
+                "stringValue": "춤과 노래를 잘 합니다."
+              },
+              "closingLine": {
+                "stringValue": ""
+              }
+            }
+          }
+        }
+      },
+      "createTime": "2026-09-09T02:51:21.711401Z",
+      "updateTime": "2026-09-09T02:52:18.609881Z"
+    },
+    {
+      "name": "projects/cheongsajin-57ffc/databases/(default)/documents/aiInterviewLogs/CmMmMRvZhObuYmeU9TNTwzpaB6l2_interview-1788922689323-in8awhh",
+      "fields": {
+        "score": {
+          "integerValue": "60"
+        },
+        "createdAt": {
+          "timestampValue": "2026-09-09T02:58:22.133Z"
+        },
+        "lastQuestion": {
+          "stringValue": "안녕하세요! 로봇이나 기계에 관심을 가지게 된 특별한 계기가 있었나요? 예를 들어, 학교에서 했던 과학 시간 활동이나 친구들과 함께 만든 것 같은 경험이 있다면 알려주세요."
+        },
+        "lastFeedback": {
+          "stringValue": "인사로 시작해주셔서 감사합니다. 하지만 질문에 대한 구체적인 답변이 필요해요. 로봇에 관심을 갖게 된 계기를 듣고 싶습니다."
+        },
+        "turns": {
+          "arrayValue": {
+            "values": [
+              {
+                "mapValue": {
+                  "fields": {
+                    "question": {
+                      "stringValue": "로봇공학자가 되려면 어떤 점이 가장 재미있을 것 같나요? 학교나 친구들과 했던 활동 중에서 로봇이나 기계에 관심을 가지게 된 경험이 있나요?"
+                    },
+                    "answer": {
+                      "stringValue": "안녕하세요."
+                    },
+                    "feedback": {
+                      "stringValue": ""
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "status": {
+          "stringValue": "inProgress"
+        },
+        "company": {
+          "stringValue": "예청전자"
+        },
+        "displayName": {
+          "stringValue": "추규한"
+        },
+        "suggestedStrengths": {
+          "arrayValue": {
+            "values": [
+              {
+                "stringValue": "호기심"
+              },
+              {
+                "stringValue": "협동심"
+              },
+              {
+                "stringValue": "문제해결능력"
+              }
+            ]
+          }
+        },
+        "closingSummary": {
+          "stringValue": ""
+        },
+        "aiSource": {
+          "stringValue": "openai"
+        },
+        "decision": {
+          "stringValue": "hold"
+        },
+        "interviewId": {
+          "stringValue": "interview-1788922689323-in8awhh"
+        },
+        "updatedAt": {
+          "timestampValue": "2026-09-09T02:58:22.133Z"
+        },
+        "userId": {
+          "stringValue": "CmMmMRvZhObuYmeU9TNTwzpaB6l2"
+        },
+        "schoolName": {
+          "stringValue": "멘토"
+        },
+        "application": {
+          "mapValue": {
+            "fields": {
+              "interestReason": {
+                "stringValue": ""
+              },
+              "experience": {
+                "stringValue": ""
+              },
+              "role": {
+                "stringValue": "로봇공학자"
+              },
+              "strengths": {
+                "stringValue": ""
+              },
+              "closingLine": {
+                "stringValue": ""
+              }
+            }
+          }
+        }
+      },
+      "createTime": "2026-09-09T02:58:15.038537Z",
+      "updateTime": "2026-09-09T02:58:22.155113Z"
+    },
+    {
+      "name": "projects/cheongsajin-57ffc/databases/(default)/documents/aiInterviewLogs/yPlCzaZPkdMbb7AZcqt9Ha7p50C3_interview-1789038284362-uqxbxxx",
+      "fields": {
+        "aiSource": {
+          "stringValue": "openai"
+        },
+        "decision": {
+          "stringValue": "hold"
+        },
+        "userId": {
+          "stringValue": "yPlCzaZPkdMbb7AZcqt9Ha7p50C3"
+        },
+        "lastFeedback": {
+          "stringValue": "답변이 조금 더 구체적이고 질문에 맞게 자세히 설명되면 좋겠습니다. 춤과 노래에 대한 관심은 좋지만, 국어교사로서의 역할과 관련한 생각을 더 말씀해 주세요."
+        },
+        "application": {
+          "mapValue": {
+            "fields": {
+              "strengths": {
+                "stringValue": ""
+              },
+              "interestReason": {
+                "stringValue": "저는 춤추고 노래하는 거 좋아해요. 그래서 예청중학교 교사가 되어 춤과 노래를 하고 싶어요."
+              },
+              "role": {
+                "stringValue": "국어교사"
+              },
+              "closingLine": {
+                "stringValue": ""
+              },
+              "difficulty": {
+                "stringValue": "medium"
+              },
+              "experience": {
+                "stringValue": ""
+              }
+            }
+          }
+        },
+        "score": {
+          "integerValue": "60"
+        },
+        "interviewId": {
+          "stringValue": "interview-1789038284362-uqxbxxx"
+        },
+        "createdAt": {
+          "timestampValue": "2026-09-10T11:07:31.138Z"
+        },
+        "lastQuestion": {
+          "stringValue": ""
+        },
+        "turns": {
+          "arrayValue": {
+            "values": [
+              {
+                "mapValue": {
+                  "fields": {
+                    "question": {
+                      "stringValue": "국어교사가 된다면 학생들에게 어떤 점에서 도움을 주고 싶나요? 학교 생활에서 친구들이나 후배들에게 해 준 경험이 있다면 함께 이야기해 주세요."
+                    },
+                    "answer": {
+                      "stringValue": "학생들한테 멋진 춤과 노래를 통해 동기부여를 해주고 싶습니다."
+                    },
+                    "feedback": {
+                      "stringValue": "지원 동기가 춤과 노래와 관련되어 있어 국어교사 역할과 연결되는 부분에 대해 좀 더 구체적으로 생각해 보면 좋겠습니다."
+                    }
+                  }
+                }
+              },
+              {
+                "mapValue": {
+                  "fields": {
+                    "question": {
+                      "stringValue": "춤과 노래를 통해 학생들에게 동기부여를 해주고 싶다고 했는데, 학교에서 친구들이나 동아리에서 그런 활동을 해본 적이 있나요? 구체적인 경험이나 기억에 남는 일이 있다면 알려주세요."
+                    },
+                    "answer": {
+                      "stringValue": "그건 모르겠고, 춤과 노래를 하고 싶습니다!"
+                    },
+                    "feedback": {
+                      "stringValue": "춤과 노래로 학생들에게 도움을 주고 싶다는 의지가 보여 좋습니다. 하지만 구체적인 경험이 더해지면 지원 동기가 더 설득력 있을 거예요."
+                    }
+                  }
+                }
+              },
+              {
+                "mapValue": {
+                  "fields": {
+                    "question": {
+                      "stringValue": "국어 교사가 되면 학생들에게 국어 과목의 어떤 점을 재미있게 가르치고 싶나요? 학교에서 국어 수업이나 독서 활동 중에 재미있었던 경험이 있다면 함께 이야기해 주세요."
+                    },
+                    "answer": {
+                      "stringValue": "춤과 노래!!!만세!!"
+                    },
+                    "feedback": {
+                      "stringValue": "답변이 구체적이지 않아 조금 아쉬워요. 춤과 노래를 좋아하는 점은 알겠지만, 국어 교사로서 어떤 도움을 줄 수 있는지 좀 더 구체적으로 말해주면 좋겠어요."
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "displayName": {
+          "stringValue": "추규한"
+        },
+        "updatedAt": {
+          "timestampValue": "2026-09-10T11:07:31.138Z"
+        },
+        "company": {
+          "stringValue": "예청중학교"
+        },
+        "status": {
+          "stringValue": "completed"
+        },
+        "schoolName": {
+          "stringValue": "멘토"
+        },
+        "closingSummary": {
+          "stringValue": "면접을 마무리하겠습니다. 국어교사라는 직무와 관련한 구체적인 생각과 경험을 좀 더 발전시키면 좋겠습니다. 앞으로 다양한 활동을 통해 교사로서의 역할에 대해 고민해 보기를 바랍니다."
+        },
+        "suggestedStrengths": {
+          "arrayValue": {
+            "values": [
+              {
+                "stringValue": "학생들과 소통하는 능력"
+              },
+              {
+                "stringValue": "창의적인 활동을 통한 동기부여"
+              },
+              {
+                "stringValue": "긍정적인 태도"
+              }
+            ]
+          }
+        },
+        "feedbackTone": {
+          "stringValue": "neutral"
+        }
+      },
+      "createTime": "2026-09-10T11:04:54.437408Z",
+      "updateTime": "2026-09-10T11:07:31.150874Z"
+    },
+    {
+      "name": "projects/cheongsajin-57ffc/databases/(default)/documents/aiInterviewLogs/yPlCzaZPkdMbb7AZcqt9Ha7p50C3_interview-1789049686864-4dl8vy5",
+      "fields": {
+        "decision": {
+          "stringValue": "hold"
+        },
+        "aiSource": {
+          "stringValue": "openai"
+        },
+        "status": {
+          "stringValue": "inProgress"
+        },
+        "lastFeedback": {
+          "stringValue": "농사일이 힘들지만 보람 있다는 점을 잘 표현해 주었어요. 이제는 학교생활이나 친구와의 경험에 대해서도 조금 더 이야기해 볼게요."
+        },
+        "turns": {
+          "arrayValue": {
+            "values": [
+              {
+                "mapValue": {
+                  "fields": {
+                    "question": {
+                      "stringValue": "학교에서나 집에서 농사일을 하면서 가장 재미있었던 순간이나 기억에 남는 일이 있나요?"
+                    },
+                    "answer": {
+                      "stringValue": "고구마가 디게 크게 자랐슈"
+                    },
+                    "feedback": {
+                      "stringValue": ""
+                    }
+                  }
+                }
+              },
+              {
+                "mapValue": {
+                  "fields": {
+                    "question": {
+                      "stringValue": "고구마가 크게 자란 걸 직접 보면서 농사일에서 어떤 점이 가장 재미있다고 느꼈나요?"
+                    },
+                    "answer": {
+                      "stringValue": "보람차쥬 아무래두. 뭔가 내 노력이 이렇게 결실을 맺는다는 기."
+                    },
+                    "feedback": {
+                      "stringValue": "잘 자란 작물을 본 경험이 좋네요. 이번에는 농사일에서 느낀 재미를 좀 더 구체적으로 이야기해 주세요."
+                    }
+                  }
+                }
+              },
+              {
+                "mapValue": {
+                  "fields": {
+                    "question": {
+                      "stringValue": "농사일을 하면서 힘들거나 어려웠던 일이 있었나요? 그때 어떻게 극복했는지 이야기해 주세요."
+                    },
+                    "answer": {
+                      "stringValue": "아무래도 몸이 힘들쥬. 매번 밭 매랴 물 대랴... 아유 말도 마유"
+                    },
+                    "feedback": {
+                      "stringValue": "노력이 결실을 맺는다는 점을 잘 표현했네요. 이번에는 농사일의 어려움과 해결 방법에 대해 더 구체적으로 말해보면 좋겠습니다."
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "createdAt": {
+          "timestampValue": "2026-09-10T14:16:33.092Z"
+        },
+        "lastQuestion": {
+          "stringValue": "농사일 말고 학교나 친구들과 함께 하면서 가장 즐거웠던 활동은 무엇인가요?"
+        },
+        "suggestedStrengths": {
+          "arrayValue": {
+            "values": [
+              {
+                "stringValue": "성실함"
+              },
+              {
+                "stringValue": "노력"
+              },
+              {
+                "stringValue": "협동심"
+              }
+            ]
+          }
+        },
+        "displayName": {
+          "stringValue": "추규한"
+        },
+        "score": {
+          "integerValue": "60"
+        },
+        "company": {
+          "stringValue": "예청농업"
+        },
+        "interviewId": {
+          "stringValue": "interview-1789049686864-4dl8vy5"
+        },
+        "userId": {
+          "stringValue": "yPlCzaZPkdMbb7AZcqt9Ha7p50C3"
+        },
+        "feedbackTone": {
+          "stringValue": "neutral"
+        },
+        "closingSummary": {
+          "stringValue": ""
+        },
+        "schoolName": {
+          "stringValue": "멘토"
+        },
+        "application": {
+          "mapValue": {
+            "fields": {
+              "strengths": {
+                "stringValue": "밭일 논일 잘해유"
+              },
+              "closingLine": {
+                "stringValue": ""
+              },
+              "difficulty": {
+                "stringValue": "easy"
+              },
+              "experience": {
+                "stringValue": "집에서 농사 졌슈"
+              },
+              "interestReason": {
+                "stringValue": "쌀재배할라구유"
+              },
+              "role": {
+                "stringValue": "농부"
+              }
+            }
+          }
+        },
+        "updatedAt": {
+          "timestampValue": "2026-09-10T14:16:33.092Z"
+        }
+      },
+      "createTime": "2026-09-10T14:14:54.884461Z",
+      "updateTime": "2026-09-10T14:16:33.107259Z"
+    },
+    {
+      "name": "projects/cheongsajin-57ffc/databases/(default)/documents/aiInterviewLogs/yPlCzaZPkdMbb7AZcqt9Ha7p50C3_interview-1789050542685-0pvdokw",
+      "fields": {
+        "createdAt": {
+          "timestampValue": "2026-09-10T14:30:20.609Z"
+        },
+        "application": {
+          "mapValue": {
+            "fields": {
+              "role": {
+                "stringValue": "요리사"
+              },
+              "closingLine": {
+                "stringValue": ""
+              },
+              "strengths": {
+                "stringValue": "엉덩이가 큼"
+              },
+              "experience": {
+                "stringValue": "엉덩이 요리"
+              },
+              "difficulty": {
+                "stringValue": "easy"
+              },
+              "interestReason": {
+                "stringValue": "엉덩이~"
+              }
+            }
+          }
+        },
+        "turns": {
+          "arrayValue": {
+            "values": [
+              {
+                "mapValue": {
+                  "fields": {
+                    "question": {
+                      "stringValue": "요리사라는 직업에 관심을 가지게 된 계기가 무엇인가요? 학교나 집에서 요리해 본 경험이 있다면 알려주세요."
+                    },
+                    "answer": {
+                      "stringValue": "엉덩이가 너무 커서 요리에 관심을 가지게 되었습니다. 입으로 음식이 들어가면 엉덩이로 빠져나오다 보니 더 관심이 가게 된 것 같아요."
+                    },
+                    "feedback": {
+                      "stringValue": "지원 동기에 대해 좀 더 구체적으로 이야기해 주세요. 예를 들어, 어떤 요리를 좋아하는지, 요리를 하면서 느낀 점이 있다면 좋습니다."
+                    }
+                  }
+                }
+              },
+              {
+                "mapValue": {
+                  "fields": {
+                    "question": {
+                      "stringValue": "요리를 할 때 가장 재미있거나 뿌듯했던 경험이 있나요? 학교 급식이나 집에서 친구나 가족과 함께 요리해 본 적이 있다면 알려주세요."
+                    },
+                    "answer": {
+                      "stringValue": "요리를 할 때에는 오직 이 음식이 입으로 들어가서 엉덩이로 빠져나오는 것만 생각해요."
+                    },
+                    "feedback": {
+                      "stringValue": "조금 엉뚱한 답변이었지만 솔직하게 말해줘서 고마워요. 요리에 관심을 가지게 된 구체적인 이유를 좀 더 생각해 보면 좋겠어요."
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "lastFeedback": {
+          "stringValue": "요리에 대해 이야기할 때 음식이 몸을 통과하는 과정에만 집중하는 것 같아요. 요리 자체의 즐거움이나 의미에 대해 조금 더 생각해 보면 좋을 것 같아요."
+        },
+        "schoolName": {
+          "stringValue": "멘토"
+        },
+        "status": {
+          "stringValue": "inProgress"
+        },
+        "lastQuestion": {
+          "stringValue": "요리사로 일한다면 어떤 점이 가장 재미있을 것 같나요? 학교에서 배우거나 해 보고 싶은 요리 활동이 있다면 함께 이야기해 주세요."
+        },
+        "score": {
+          "integerValue": "60"
+        },
+        "interviewId": {
+          "stringValue": "interview-1789050542685-0pvdokw"
+        },
+        "company": {
+          "stringValue": "예청식품"
+        },
+        "closingSummary": {
+          "stringValue": ""
+        },
+        "displayName": {
+          "stringValue": "추규한"
+        },
+        "suggestedStrengths": {
+          "arrayValue": {
+            "values": [
+              {
+                "stringValue": "관심이 독특함"
+              },
+              {
+                "stringValue": "유머 감각"
+              }
+            ]
+          }
+        },
+        "decision": {
+          "stringValue": "hold"
+        },
+        "aiSource": {
+          "stringValue": "openai"
+        },
+        "feedbackTone": {
+          "stringValue": "neutral"
+        },
+        "updatedAt": {
+          "timestampValue": "2026-09-10T14:30:20.609Z"
+        },
+        "userId": {
+          "stringValue": "yPlCzaZPkdMbb7AZcqt9Ha7p50C3"
+        }
+      },
+      "createTime": "2026-09-10T14:29:08.683596Z",
+      "updateTime": "2026-09-10T14:30:20.621289Z"
+    }
+  ]
+}
