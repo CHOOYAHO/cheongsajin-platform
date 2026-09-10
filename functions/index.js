@@ -244,20 +244,36 @@ const sanitizeInterviewTurns = (turns = []) => {
     cumulativeScore: Number.isFinite(Number(turn?.cumulativeScore)) ? Math.max(0, Math.min(100, Math.round(Number(turn.cumulativeScore)))) : undefined,
   })).filter((turn) => turn.question && turn.answer)
 }
-const getAnswerEffortScore = (answer) => {
+const getAnswerEffortScore = (answer, question = '') => {
   const text = sanitizeText(answer, 1200)
   if (!text) return 0
-  let score = Math.min(45, text.length * 1.4)
+  const normalized = text.replace(/\s/g, '')
+  const questionText = sanitizeText(question, 500)
+  const hasBadSignal = /(개새|새끼|씨발|시발|병신|꺼져|싫어|귀찮|대충|몰라|없어|ㅋㅋ|ㅎㅎ|ㅋ{2,}|ㅎ{2,}|장난|집에|돈벌|까꿍|오줌)/.test(normalized)
+  const isVeryShort = normalized.length < 8
+  const questionKeywords = questionText
+    .replace(/[^\p{L}\p{N}\s]/gu, ' ')
+    .split(/\s+/)
+    .filter((word) => word.length >= 2 && !/(어떤|있나요|주세요|한다면|그리고|학교|친구|함께|활동|경험|생각|말해|설명|대해|직업|직무)/.test(word))
+    .slice(0, 8)
+  let score = 0
+  if (normalized.length >= 8) score += 10
+  if (normalized.length >= 25) score += 10
+  if (normalized.length >= 60) score += 10
   if (/[.!?。？！요다까죠음함해요]$/.test(text)) score += 8
-  if (/(왜냐|이유|관심|좋아|잘|해봤|경험|노력|배우|도움|책임|생각|앞으로|친구|학교|동아리)/.test(text)) score += 18
-  if (/(돈|집에|몰라|없어|귀찮|장난|ㅋㅋ|ㅎㅎ|ㅋ|ㅎ|싫어|대충)/.test(text)) score -= 28
-  if (text.length < 8) score -= 25
+  if (/(왜냐|이유|때문|관심|좋아|하고싶|해보고|해봤|경험|노력|배우|도움|책임|생각|앞으로|동아리|수업|친구|가족|학교)/.test(text)) score += 15
+  if (/(예를|예시|구체|먼저|그래서|그때|이런|저는|제가)/.test(text)) score += 12
+  if (questionKeywords.some((keyword) => text.includes(keyword))) score += 15
+  if (/(존중|협력|소통|역할|책임|계획|창의|분석|꼼꼼|배려|성실|노력|도전|관찰|표현)/.test(text)) score += 10
+  if (hasBadSignal) score -= 55
+  if (isVeryShort) score -= 30
+  if (hasBadSignal && normalized.length < 30) score = Math.min(score, 15)
   return Math.max(0, Math.min(100, Math.round(score)))
 }
 const scoreInterviewTurns = (turns) => {
   let total = 0
   return turns.map((turn, index) => {
-    const answerScore = getAnswerEffortScore(turn.answer)
+    const answerScore = getAnswerEffortScore(turn.answer, turn.question)
     total += answerScore
     return {
       ...turn,
@@ -307,7 +323,7 @@ const getInterviewFallback = ({ company, role, application, turns, finished }) =
       aiSource: 'fallback',
     }
   }
-  const previousScore = turns.length ? getAnswerEffortScore(turns.at(-1)?.answer) : 100
+  const previousScore = turns.length ? getAnswerEffortScore(turns.at(-1)?.answer, turns.at(-1)?.question) : 100
   const questionTopics = [
     { topic: 'interest', question: application.difficulty === 'veryEasy' ? `${company}의 ${role} 일이 왜 조금이라도 궁금했나요? 짧게 말해 주세요.` : `${company}의 ${role}에 지원한 이유를 본인 말로 설명해 주세요.` },
     { topic: 'strength', question: `다른 지원자보다 내가 조금 더 잘할 수 있는 점은 무엇이라고 생각하나요?` },
@@ -382,6 +398,7 @@ ${getDifficultyGuide(application.difficulty)}
 면접 종료 시 decision은 pass, hold, retry 중 하나로 판정하세요. pass는 답변이 구체적이고 진지할 때, hold는 방향은 있으나 보완이 필요할 때, retry는 장난·무성의·무관한 답변이 많을 때입니다. score는 0~100 정수입니다.
 feedbackTone은 직전 답변 피드백의 색상입니다. 좋은 답변이면 good, 보완이 필요하면 neutral, 장난·무성의·질문과 무관한 답변이면 bad로 주세요.
 점수는 지원 이유 25점, 내 강점 표현 25점, 학교·일상 경험이나 앞으로의 계획 25점, 질문에 맞춘 성실한 태도 25점으로 계산하세요. 답변이 장난스럽거나 지나치게 짧거나 질문과 무관하면 해당 항목을 낮게 주세요.
+score는 예시값을 따라 쓰지 말고 전체 답변을 실제로 평가해 산정하세요. 장난·무성의·무관한 답변이 절반 이상이면 40점 이하와 retry가 원칙입니다.
 회사: ${company}
 지원 직무: ${role}
 간단 지원서: ${JSON.stringify(application)}
@@ -445,6 +462,12 @@ export const runAiInterviewStep = onCall({ secrets: [openaiApiKey] }, async (req
   const existingRecord = await recordRef.get()
   const actorContext = await getInterviewActorContext(uid, schoolName, displayName)
   const scoredTurns = scoreInterviewTurns(turns)
+  const serverDecision = finished ? getInterviewDecision(scoredTurns) : { decision: aiResult.decision, score: aiResult.score }
+  const finalDecision = finished ? serverDecision.decision : aiResult.decision
+  const finalScore = finished ? serverDecision.score : aiResult.score
+  const finalFeedbackTone = finished
+    ? finalDecision === 'pass' ? 'good' : finalDecision === 'retry' ? 'bad' : 'neutral'
+    : aiResult.feedbackTone
   const savedTurns = scoredTurns.map((turn, index) => index === scoredTurns.length - 1 && aiResult.feedback
     ? { ...turn, feedback: aiResult.feedback, feedbackTone: aiResult.feedbackTone }
     : turn)
@@ -464,9 +487,9 @@ export const runAiInterviewStep = onCall({ secrets: [openaiApiKey] }, async (req
     questionCount: savedTurns.length + (finished || !aiResult.question ? 0 : 1),
     closingSummary: aiResult.closingSummary,
     suggestedStrengths: aiResult.suggestedStrengths,
-    decision: aiResult.decision,
-    feedbackTone: aiResult.feedbackTone,
-    score: aiResult.score,
+    decision: finalDecision,
+    feedbackTone: finalFeedbackTone,
+    score: finalScore,
     aiSource: aiResult.aiSource,
     createdAt: existingRecord.exists ? existingRecord.data()?.createdAt ?? FieldValue.serverTimestamp() : FieldValue.serverTimestamp(),
     lastAnsweredAt: savedTurns.length ? FieldValue.serverTimestamp() : null,
@@ -482,9 +505,9 @@ export const runAiInterviewStep = onCall({ secrets: [openaiApiKey] }, async (req
     hintGuide: aiResult.hintGuide,
     closingSummary: aiResult.closingSummary,
     suggestedStrengths: aiResult.suggestedStrengths,
-    decision: aiResult.decision,
-    feedbackTone: aiResult.feedbackTone,
-    score: aiResult.score,
+    decision: finalDecision,
+    feedbackTone: finalFeedbackTone,
+    score: finalScore,
     turns: savedTurns,
     aiSource: aiResult.aiSource,
     status: finished ? 'completed' : 'inProgress',
