@@ -205,7 +205,7 @@ service cloud.firestore {
       match /participants/{userId} {
         allow read: if signedIn();
         allow create: if isOwner(userId)
-          && get(/databases/$(database)/documents/brainstormRooms/$(roomId)).data.gameState == 'WAITING'
+          && get(/databases/$(database)/documents/brainstormRooms/$(roomId)).data.gameState in ['WAITING', 'COUNTDOWN', 'TASKS', 'STRENGTHS', 'ROUND_RESULT']
           && request.resource.data.role in ['host', 'participant']
           && (request.resource.data.role == 'participant'
             || get(/databases/$(database)/documents/brainstormRooms/$(roomId)).data.hostId == request.auth.uid)
@@ -213,7 +213,11 @@ service cloud.firestore {
           && request.resource.data.nickname.size() > 0
           && request.resource.data.nickname.size() <= 12;
         allow update: if isOwner(userId)
-          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['connected']);
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['connected', 'nickname', 'lastSeenAt'])
+          && request.resource.data.role == resource.data.role
+          && request.resource.data.nickname is string
+          && request.resource.data.nickname.size() > 0
+          && request.resource.data.nickname.size() <= 12;
         allow delete: if false;
       }
 
