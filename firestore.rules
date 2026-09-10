@@ -253,7 +253,9 @@ service cloud.firestore {
         && request.resource.data.currentJob is string
         && request.resource.data.currentJob.size() <= 24
         && request.resource.data.submissions is list
-        && request.resource.data.submissions.size() <= 300;
+        && request.resource.data.submissions.size() <= 300
+        && request.resource.data.scores is list
+        && request.resource.data.scores.size() <= 80;
       allow delete: if false;
     }
 
