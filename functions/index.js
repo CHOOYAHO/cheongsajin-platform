@@ -308,6 +308,26 @@ const getInterviewFallback = ({ company, role, application, turns, finished }) =
     }
   }
   const previousScore = turns.length ? getAnswerEffortScore(turns.at(-1)?.answer) : 100
+  const questionTopics = [
+    { topic: 'interest', question: application.difficulty === 'veryEasy' ? `${company}의 ${role} 일이 왜 조금이라도 궁금했나요? 짧게 말해 주세요.` : `${company}의 ${role}에 지원한 이유를 본인 말로 설명해 주세요.` },
+    { topic: 'strength', question: `다른 지원자보다 내가 조금 더 잘할 수 있는 점은 무엇이라고 생각하나요?` },
+    { topic: 'attitude', question: application.difficulty === 'hard' ? `${role}로 일하는 사람에게 필요한 태도 한 가지를 고르고, 왜 중요하다고 생각하는지 말해 주세요.` : `${role}로 일하는 사람에게 어떤 태도나 장점이 필요할 것 같나요?` },
+    { topic: 'experience', question: `학교나 일상에서 ${role}와 조금이라도 연결해 볼 수 있는 경험이 있다면 말해 주세요. 없다면 앞으로 해 보고 싶은 경험을 말해도 좋아요.` },
+    { topic: 'learning', question: `${company}에서 ${role} 일을 하게 된다면 가장 먼저 배워 보고 싶은 것은 무엇인가요?` },
+    { topic: 'closing', question: `지금까지 답변한 내용을 바탕으로 면접관에게 꼭 전하고 싶은 말을 해 주세요.` },
+  ]
+  const followUps = [
+    { topic: 'interest', question: `${role}에 관심을 갖게 된 이유를 조금 더 구체적으로 말해 줄 수 있나요? 좋아하는 활동이나 기억나는 장면과 연결해도 좋아요.` },
+    { topic: 'strength', question: `내가 잘한다고 생각한 점이 드러난 학교생활이나 일상 속 작은 장면이 있다면 하나만 더 말해 주세요.` },
+    { topic: 'attitude', question: `그 태도가 왜 ${role}에게 중요하다고 생각하는지, 친구들이 이해할 수 있게 한 문장 더 설명해 주세요.` },
+    { topic: 'experience', question: `비슷한 경험이 없다면 앞으로 어떤 경험을 해 보고 싶은지 구체적으로 말해 주세요.` },
+  ]
+  const usedTopics = turns.map((turn) => turn.topic).filter(Boolean)
+  const previousTopic = turns.at(-1)?.topic
+  const canFollowUp = previousScore < 45 && previousTopic && usedTopics.filter((topic) => topic === previousTopic).length < 2
+  const fallbackQuestion = canFollowUp
+    ? followUps.find((item) => item.topic === previousTopic)?.question
+    : questionTopics.find((item) => !usedTopics.includes(item.topic))?.question
   const questions = [
     application.difficulty === 'veryEasy' ? `${company}의 ${role} 일이 왜 조금이라도 궁금했나요? 짧게 말해 주세요.` : `${company}의 ${role}에 지원한 이유를 본인 말로 설명해 주세요.`,
     `다른 지원자보다 내가 조금 더 잘할 수 있는 점은 무엇이라고 생각하나요?`,
@@ -318,7 +338,7 @@ const getInterviewFallback = ({ company, role, application, turns, finished }) =
   ]
   const index = Math.min(turns.length, questions.length - 1)
   return {
-    question: questions[index],
+    question: fallbackQuestion || questions[index],
     feedback: turns.length ? previousScore < 40 ? '방금 답변은 너무 짧거나 장난스럽게 들릴 수 있어요. 다음 답변은 진짜 이유나 예시를 한 문장만 더 붙여 보세요.' : '방금 답변에서 방향은 보였어요. 다음 답변에는 구체적인 예시를 하나 붙이면 더 좋아요.' : '',
     closingSummary: '',
     suggestedStrengths: application.strengths ? strengths.slice(0, 3) : strengths.slice(0, 2),
@@ -358,6 +378,7 @@ ${getDifficultyGuide(application.difficulty)}
 직무가 전문적이어도 질문은 "이 일을 한다면 어떤 점이 재미있을 것 같나요?", "비슷하게 해 본 작은 경험이 있나요? 없다면 해 보고 싶은 일은 무엇인가요?", "이 직업에 필요한 태도는 무엇이라고 생각하나요?"처럼 바꾸세요.
 평가처럼 겁주지는 말되, 답변이 너무 짧거나 장난스럽거나 질문과 무관하면 "좋아요"로 시작하지 말고 분명히 다시 답하라고 안내하세요. 개인정보, 연락처, 주민번호, 실제 주소는 요구하지 마세요.
 면접은 고정 5문항이 아니라 라이브 채팅처럼 이어집니다. 이전 답변을 바탕으로 자연스럽게 후속 질문을 하되, 같은 주제를 반복하지 마세요. 7문항 이후에는 마무리해도 좋다는 짧은 안내를 feedback에 넣을 수 있습니다.
+답변이 부족하거나 장난스럽더라도 같은 주제의 재질문 또는 꼬리질문은 한 번까지만 하세요. 한 번 더 물었는데도 충분히 답하지 않으면 그 주제는 더 반복하지 말고 다른 평가 축(지원 이유, 강점, 태도, 경험·계획, 마무리)으로 넘어가세요.
 면접 종료 시 decision은 pass, hold, retry 중 하나로 판정하세요. pass는 답변이 구체적이고 진지할 때, hold는 방향은 있으나 보완이 필요할 때, retry는 장난·무성의·무관한 답변이 많을 때입니다. score는 0~100 정수입니다.
 feedbackTone은 직전 답변 피드백의 색상입니다. 좋은 답변이면 good, 보완이 필요하면 neutral, 장난·무성의·질문과 무관한 답변이면 bad로 주세요.
 점수는 지원 이유 25점, 내 강점 표현 25점, 학교·일상 경험이나 앞으로의 계획 25점, 질문에 맞춘 성실한 태도 25점으로 계산하세요. 답변이 장난스럽거나 지나치게 짧거나 질문과 무관하면 해당 항목을 낮게 주세요.
