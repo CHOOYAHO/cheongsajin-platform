@@ -42,6 +42,7 @@ type BrainstormParticipant = { id: string; nickname: string; role: 'host' | 'par
 type BrainstormSubmission = { id: string; userId?: string; nickname: string; round: number; part: 'tasks' | 'strengths'; text: string }
 type BrainstormRoom = { id?: string; hostId: string; hostName?: string; gameState: 'WAITING' | 'COUNTDOWN' | 'TASKS' | 'STRENGTHS' | 'ROUND_RESULT' | 'RESULT' | 'CLOSED'; round: number; totalRounds: number; timeLimit: number; currentJob: string; phaseEndsAt?: { toMillis: () => number }; updatedAt?: { toMillis: () => number } }
 type BrainstormRecordRoom = BrainstormRoom & { id: string; createdAt?: { toMillis: () => number }; updatedAt?: { toMillis: () => number }; submissions: BrainstormSubmission[] }
+type BrainstormSavedResult = BrainstormRecordRoom & { schoolName?: string; participantCount?: number; taskCount?: number; strengthCount?: number }
 type InterviewLogRecord = { id: string; userRole?: string; displayName?: string; loginDisplayName?: string; participantDisplayName?: string; schoolName?: string; participantSchoolName?: string; company?: string; application?: InterviewApplication; turns?: InterviewTurn[]; status?: 'inProgress' | 'completed'; decision?: InterviewDecision; score?: number; updatedAt?: { toMillis: () => number } }
 type InterviewRecordFilter = 'all' | 'gwangsi' | 'yesan' | 'staff' | 'admin'
 type BrainstormTestRole = 'host' | 'participant'
@@ -1045,7 +1046,7 @@ function ThirdActivityDetail({ step, schoolName, studentName, masterViewLabel, o
           <div className="mentor-note"><b>기억해요</b><p>AI 가상면접은 직업정보 Q&A가 아니라 희망 직업에 지원했다고 가정하는 채용면접 시뮬레이션이에요.</p></div>
         </section>}
 
-        {step === 2 && <section className="detail-panel brainstorm-panel"><CareerBrainstormGame studentName={studentName} /></section>}
+        {step === 2 && <section className="detail-panel brainstorm-panel"><CareerBrainstormGame schoolName={schoolName} studentName={studentName} /></section>}
 
         {step === 3 && <AiInterviewActivity schoolName={schoolName} displayName={studentName} />}
 
@@ -1159,7 +1160,7 @@ function CareerBrainstormTest({ role, playerName, onExit }: { role: BrainstormTe
   return <div className="brainstorm-room">{testHeader}<section className="brainstorm-result"><h2>테스트 활동 결과</h2><p>Firebase에 저장되지 않은 연습 결과입니다.</p><div>{Array.from({ length: totalRounds }, (_, index) => index + 1).map((roundNumber) => <article key={roundNumber}><h3>{roundNumber}라운드</h3>{[...tasks, ...strengths].filter((item) => item.round === roundNumber).map((item) => <p key={item.id}><b>{item.part === 'tasks' ? '업무' : '역량'}</b> {item.text}</p>)}</article>)}</div><button type="button" className="auction-primary" onClick={onExit}>테스트 선택으로 돌아가기</button></section></div>
 }
 
-function CareerBrainstormGame({ studentName }: { studentName: string }) {
+function CareerBrainstormGame({ schoolName, studentName }: { schoolName: string; studentName: string }) {
   const [roomCode, setRoomCode] = useState('')
   const [joinCode, setJoinCode] = useState('')
   const [nickname, setNickname] = useState(studentName || '')
@@ -1220,6 +1221,29 @@ function CareerBrainstormGame({ studentName }: { studentName: string }) {
     const timer = window.setInterval(tick, 500)
     return () => window.clearInterval(timer)
   }, [roomData?.phaseEndsAt])
+
+  useEffect(() => {
+    if (!db || !auth?.currentUser || !roomCode || !roomData) return
+    const taskCount = submissions.filter((item) => item.part === 'tasks').length
+    const strengthCount = submissions.filter((item) => item.part === 'strengths').length
+    void setDoc(doc(db, 'brainstormResults', roomCode), {
+      roomId: roomCode,
+      schoolName,
+      hostId: roomData.hostId,
+      hostName: roomData.hostName || '',
+      gameState: roomData.gameState,
+      round: roomData.round,
+      totalRounds: roomData.totalRounds,
+      timeLimit: roomData.timeLimit,
+      currentJob: roomData.currentJob || '',
+      participantCount: participants.length,
+      taskCount,
+      strengthCount,
+      participants: participants.map(({ id, nickname, role, connected }) => ({ id, nickname, role, connected: connected !== false })),
+      submissions: submissions.map(({ id, userId, nickname, round, part, text }) => ({ id, userId: userId || '', nickname, round, part, text })),
+      updatedAt: serverTimestamp(),
+    }, { merge: true }).catch((caught) => console.error(caught))
+  }, [roomCode, roomData, participants, submissions, schoolName])
 
   const createRoom = async () => {
     if (!db || !auth?.currentUser) return
@@ -1527,37 +1551,28 @@ function AiInterviewActivity({ schoolName, displayName }: { schoolName: string; 
 }
 
 function AdminBrainstormResultsPanel() {
-  const [rooms, setRooms] = useState<BrainstormRecordRoom[]>([])
+  const [rooms, setRooms] = useState<BrainstormSavedResult[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
 
   useEffect(() => {
-    const loadRecords = async () => {
-      if (!db) return
-      const database = db
-      setIsLoading(true)
-      setError('')
-      try {
-        const roomSnapshot = await getDocs(query(collection(database, 'brainstormRooms'), orderBy('updatedAt', 'desc'), limit(20)))
-        const loadedRooms = await Promise.all(roomSnapshot.docs.map(async (roomDoc) => {
-          const submissionSnapshot = await getDocs(collection(database, 'brainstormRooms', roomDoc.id, 'submissions'))
-          const submissions = submissionSnapshot.docs
-            .map((item) => ({ id: item.id, ...(item.data() as Omit<BrainstormSubmission, 'id'>) }))
-            .sort((left, right) => left.round - right.round || left.part.localeCompare(right.part, 'ko'))
-          return { id: roomDoc.id, ...(roomDoc.data() as Omit<BrainstormRecordRoom, 'id' | 'submissions'>), submissions }
-        }))
-        setRooms(loadedRooms)
-      } catch (caught) {
+    if (!db) return
+    setIsLoading(true)
+    setError('')
+    return onSnapshot(query(collection(db, 'brainstormResults'), orderBy('updatedAt', 'desc'), limit(50)), (snapshot) => {
+      setRooms(snapshot.docs.map((roomDoc) => {
+        const data = roomDoc.data() as Omit<BrainstormSavedResult, 'id'>
+        return { id: roomDoc.id, ...data, submissions: [...(data.submissions ?? [])].sort((left, right) => left.round - right.round || left.part.localeCompare(right.part, 'ko')) }
+      }))
+      setIsLoading(false)
+    }, (caught) => {
         console.error(caught)
         setError('브레인스토밍 기록을 불러오지 못했어요.')
-      } finally {
         setIsLoading(false)
-      }
-    }
-    void loadRecords()
+    })
   }, [])
 
-  return <section className="admin-result-panel"><div className="admin-result-panel-heading"><div><span>3회기</span><h3>핵심 역량 브레인스토밍 결과</h3><p>방별로 모인 수행 업무와 필요 역량 제출 기록을 확인합니다.</p></div><b>{rooms.length}개 방</b></div>{isLoading && <div className="empty-auction-records"><b>기록을 불러오는 중이에요.</b></div>}{error && <p className="entry-error" role="alert">{error}</p>}{!isLoading && !error && (rooms.length ? <div className="admin-brainstorm-records">{rooms.map((room) => <article key={room.id}><header><div><span>방 {room.id}</span><b>{room.hostName || '방장 미기록'}</b></div><small>{room.gameState} · {room.totalRounds}라운드 · {room.updatedAt?.toMillis ? new Date(room.updatedAt.toMillis()).toLocaleString('ko-KR') : '시간 미기록'}</small></header>{Array.from({ length: room.totalRounds || 1 }, (_, index) => index + 1).map((roundNumber) => { const roundItems = room.submissions.filter((item) => item.round === roundNumber); return <section key={roundNumber}><h4>{roundNumber}라운드</h4><div><div><b>수행 업무</b>{roundItems.filter((item) => item.part === 'tasks').map((item) => <p key={item.id}><span>{item.nickname}</span>{item.text}</p>)}</div><div><b>필요 역량</b>{roundItems.filter((item) => item.part === 'strengths').map((item) => <p key={item.id}><span>{item.nickname}</span>{item.text}</p>)}</div></div></section> })}</article>)}</div> : <div className="empty-auction-records"><b>아직 저장된 브레인스토밍 기록이 없어요.</b><p>3회기 브레인스토밍 방을 만들고 활동하면 이곳에 표시됩니다.</p></div>)}</section>
+  return <section className="admin-result-panel"><div className="admin-result-panel-heading"><div><span>3회기</span><h3>핵심 역량 브레인스토밍 결과</h3><p>방별로 모인 수행 업무와 필요 역량 제출 기록을 실시간으로 확인합니다.</p></div><b>{rooms.length}개 방</b></div>{isLoading && <div className="empty-auction-records"><b>기록을 불러오는 중이에요.</b></div>}{error && <p className="entry-error" role="alert">{error}</p>}{!isLoading && !error && (rooms.length ? <div className="admin-brainstorm-records">{rooms.map((room) => <article key={room.id}><header><div><span>{room.schoolName || '학교 미기록'} · 방 {room.id}</span><b>{room.hostName || '방장 미기록'}</b></div><small>{room.gameState} · {room.totalRounds}라운드 · 업무 {room.taskCount ?? 0}개 · 역량 {room.strengthCount ?? 0}개 · {room.updatedAt?.toMillis ? new Date(room.updatedAt.toMillis()).toLocaleString('ko-KR') : '시간 미기록'}</small></header>{Array.from({ length: room.totalRounds || 1 }, (_, index) => index + 1).map((roundNumber) => { const roundItems = room.submissions.filter((item) => item.round === roundNumber); return <section key={roundNumber}><h4>{roundNumber}라운드</h4><div><div><b>수행 업무</b>{roundItems.filter((item) => item.part === 'tasks').map((item) => <p key={item.id}><span>{item.nickname}</span>{item.text}</p>)}</div><div><b>필요 역량</b>{roundItems.filter((item) => item.part === 'strengths').map((item) => <p key={item.id}><span>{item.nickname}</span>{item.text}</p>)}</div></div></section> })}</article>)}</div> : <div className="empty-auction-records"><b>아직 저장된 브레인스토밍 기록이 없어요.</b><p>3회기 브레인스토밍 방을 만들고 활동하면 이곳에 실시간 저장본이 표시됩니다.</p></div>)}</section>
 }
 
 function AdminInterviewResultsPanel() {

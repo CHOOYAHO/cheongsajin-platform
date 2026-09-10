@@ -236,6 +236,23 @@ service cloud.firestore {
       }
     }
 
+    match /brainstormResults/{roomId} {
+      allow read: if signedIn();
+      allow create, update: if signedIn()
+        && exists(/databases/$(database)/documents/brainstormRooms/$(roomId)/participants/$(request.auth.uid))
+        && request.resource.data.roomId == roomId
+        && request.resource.data.hostId == get(/databases/$(database)/documents/brainstormRooms/$(roomId)).data.hostId
+        && request.resource.data.gameState in ['WAITING', 'COUNTDOWN', 'TASKS', 'STRENGTHS', 'ROUND_RESULT', 'RESULT', 'CLOSED']
+        && request.resource.data.round is int
+        && request.resource.data.totalRounds is int
+        && request.resource.data.timeLimit in [30, 60, 90, 120]
+        && request.resource.data.currentJob is string
+        && request.resource.data.currentJob.size() <= 24
+        && request.resource.data.submissions is list
+        && request.resource.data.submissions.size() <= 300;
+      allow delete: if false;
+    }
+
     match /{document=**} { allow read, write: if false; }
   }
 }
