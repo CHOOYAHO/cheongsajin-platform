@@ -228,11 +228,11 @@ const sanitizeInterviewApplication = (application = {}) => ({
   closingLine: sanitizeText(application.closingLine, 220),
 })
 const getDifficultyGuide = (difficulty = 'easy') => ({
-  veryEasy: '난이도: 매우쉬움. 초등 고학년도 답할 수 있을 만큼 짧고 친절하게 묻습니다. 한 번에 하나만 묻고, 예시를 질문 안에 넣어 주세요. 압박 질문은 하지 마세요.',
-  easy: '난이도: 쉬움. 중학생도 답할 수 있게 학교생활, 취미, 친구와 한 활동, 앞으로 해 보고 싶은 일을 중심으로 묻습니다.',
-  medium: '난이도: 중간. 고등학생 수준으로 이유와 간단한 예시를 함께 말하게 하되, 실제 경력이나 전문 프로젝트는 요구하지 않습니다.',
-  hard: '난이도: 어려움. 실제 면접 느낌을 조금 더 주되, 중고등학생이 답할 수 있는 범위 안에서 꼬리 질문을 합니다. 전문 경력, 포트폴리오, 기술 문제 해결 사례는 요구하지 않습니다.',
-}[difficulty] || '난이도: 쉬움. 중학생도 답할 수 있게 학교생활, 취미, 친구와 한 활동, 앞으로 해 보고 싶은 일을 중심으로 묻습니다.')
+  veryEasy: '난이도: 매우쉬움. 실제 면접의 정중한 말투를 유지하면서 질문을 짧고 명확하게 합니다. 한 번에 한 가지만 묻고 압박 질문은 하지 않습니다. 선택지나 예시는 힌트를 요청했을 때만 제공합니다.',
+  easy: '난이도: 쉬움. 실제 면접처럼 정중하고 진지하게 묻되, 직업 경험이 없는 중학생도 자신의 생각과 판단으로 답할 수 있게 합니다.',
+  medium: '난이도: 중간. 고등학생 수준으로 답변의 이유와 직무 연결을 확인하되, 실제 경력이나 전문 프로젝트를 요구하지 않습니다.',
+  hard: '난이도: 어려움. 실제 면접의 긴장감과 깊이를 조금 더 주되, 중고등학생이 답할 수 있는 상황 판단과 논리 중심으로 질문합니다. 전문 경력, 포트폴리오, 기술 문제 해결 사례는 요구하지 않습니다.',
+}[difficulty] || '난이도: 쉬움. 실제 면접처럼 정중하고 진지하게 묻되, 직업 경험이 없는 중학생도 자신의 생각과 판단으로 답할 수 있게 합니다.')
 const sanitizeInterviewTurns = (turns = []) => {
   if (!Array.isArray(turns)) throw new HttpsError('invalid-argument', '면접 기록 형식이 올바르지 않습니다.')
   return turns.slice(0, 20).map((turn) => ({
@@ -249,8 +249,9 @@ const interviewQuestionFlow = [
   { topic: 'motivation', label: '지원 동기', allowFollowUp: false },
   { topic: 'jobUnderstanding', label: '직무 이해', allowFollowUp: true },
   { topic: 'strength', label: '자기 강점', allowFollowUp: true },
-  { topic: 'experiencePlan', label: '경험·계획', allowFollowUp: true },
-  { topic: 'problemSolvingAttitude', label: '문제해결·협력 태도', allowFollowUp: true },
+  { topic: 'situationalJudgment', label: '상황 판단', allowFollowUp: true },
+  { topic: 'collaboration', label: '협업·책임 태도', allowFollowUp: true },
+  { topic: 'growthPlan', label: '성장 계획', allowFollowUp: false },
   { topic: 'closing', label: '마무리 표현', allowFollowUp: false },
 ]
 const getInterviewTopicCounts = (turns) => turns.reduce((counts, turn) => {
@@ -272,7 +273,7 @@ const getAnswerEffortScore = (answer, question = '') => {
   if (!text) return 0
   const normalized = text.replace(/\s/g, '')
   const questionText = sanitizeText(question, 500)
-  const hasBadSignal = /(개새|새끼|씨발|시발|병신|꺼져|싫어|귀찮|대충|몰라|없어|ㅋㅋ|ㅎㅎ|ㅋ{2,}|ㅎ{2,}|장난|집에|돈벌|까꿍|오줌|화장실|경배|들러리)/.test(normalized)
+  const hasBadSignal = /(개새|새끼|씨발|시발|병신|꺼져|귀찮|대충|ㅋㅋ|ㅎㅎ|ㅋ{2,}|ㅎ{2,}|장난|집에|돈벌|까꿍|오줌|화장실|경배|들러리)/.test(normalized)
   const hasRefusalSignal = /(왜.*같은질문|언제끝|면접.*끝|안한다고|안해요|못해요|싫어요|필요하지않|상관없|모르겠|몰라요|야$|^야$)/.test(normalized)
   const hasHostileSignal = /(개새|새끼|씨발|시발|병신|꺼져|야$|^야$)/.test(normalized)
   const hasBoundarySignal = /(화장실|경배|스토킹|사생활|몰래|들러리|고급인력)/.test(normalized)
@@ -334,9 +335,9 @@ const getInterviewDecision = (turns) => {
   return { decision: 'retry', score: average }
 }
 const getInterviewHintFallback = ({ role, currentQuestion }) => ({
-  hint: `질문이 무엇을 보려는지 먼저 생각한 뒤, 학교나 일상에서 꺼낼 수 있는 작은 예시로 답해 보세요.`,
+  hint: `질문의 핵심을 먼저 정리하고, 자신의 생각과 이유를 ${role} 업무에 연결해 보세요.`,
   hintIntent: `면접관은 ${role}에 관심을 가진 이유와 이 일에 필요한 태도를 스스로 생각해 봤는지 확인하려고 해요.`,
-  hintGuide: `1) 이 일이 왜 궁금한지 말하기 2) 학교, 집, 친구와 한 활동 중 비슷한 장면 떠올리기 3) 아직 경험이 없으면 앞으로 해 보고 싶은 일을 말하기. ${role}와 정확히 맞지 않아도 괜찮아요.`,
+  hintGuide: `1) 질문에서 묻는 핵심 정하기 2) 내 생각과 그 이유 말하기 3) ${role} 업무에서 어떻게 행동할지 연결하기. 과거 경험은 질문에서 요구할 때만 덧붙이면 됩니다.`,
   question: currentQuestion,
   feedback: '',
   closingSummary: '',
@@ -357,7 +358,7 @@ const getInterviewFallback = ({ company, role, application, turns, finished }) =
         : `${company}의 ${role} 면접은 재도전이 필요해요. 장난식 답변보다 내가 왜 관심 있는지와 무엇을 해 보고 싶은지 다시 말해 보세요.`
     return {
       question: '',
-      feedback: result.decision === 'retry' ? '답변이 너무 짧거나 장난스럽게 보여요. 면접에서는 짧아도 진짜 이유를 말하는 게 중요해요.' : '끝까지 답변을 이어 간 점은 좋아요. 다음에는 구체적인 예시를 하나 더 붙여 보세요.',
+      feedback: result.decision === 'retry' ? '답변이 너무 짧거나 질문과 관련이 적게 들립니다. 면접에서는 자신의 생각과 이유를 분명하게 말하는 것이 중요합니다.' : '답변에서 자신의 생각이 드러났습니다. 다음에는 그 생각이 지원 직무와 어떻게 연결되는지 조금 더 분명히 말해 보세요.',
       closingSummary: summary,
       suggestedStrengths: strengths.slice(0, 3),
       decision: result.decision,
@@ -369,17 +370,18 @@ const getInterviewFallback = ({ company, role, application, turns, finished }) =
   const previousScore = turns.length ? getAnswerEffortScore(turns.at(-1)?.answer, turns.at(-1)?.question) : 100
   const nextTopic = getNextInterviewTopic(turns) ?? interviewQuestionFlow.at(-1)
   const questions = {
-    motivation: application.difficulty === 'veryEasy' ? `${company}의 ${role} 일이 왜 조금이라도 궁금했나요? 짧게 말해 주세요.` : `${company}의 ${role}에 지원한 이유를 본인 말로 설명해 주세요.`,
-    jobUnderstanding: nextTopic?.isFollowUp ? `${role}이 실제로 어떤 일을 하는지 한 가지를 더 구체적으로 말해 줄 수 있나요? 학교나 일상에서 비슷하게 떠올릴 수 있는 장면과 연결해도 좋아요.` : `${role}은 실제로 어떤 일을 하는 사람일 것 같나요? 알고 있는 것과 상상한 것을 함께 말해 주세요.`,
-    strength: nextTopic?.isFollowUp ? `그 장점이 드러난 학교생활이나 일상 속 작은 장면을 하나만 더 말해 주세요.` : `다른 지원자보다 내가 조금 더 잘할 수 있는 점은 무엇이라고 생각하나요?`,
-    experiencePlan: nextTopic?.isFollowUp ? `비슷한 경험이 없다면 앞으로 어떤 경험을 해 보고 싶은지 조금 더 구체적으로 말해 주세요.` : `학교나 일상에서 ${role}와 조금이라도 연결해 볼 수 있는 경험이 있다면 말해 주세요. 없다면 앞으로 해 보고 싶은 경험을 말해도 좋아요.`,
-    problemSolvingAttitude: nextTopic?.isFollowUp ? `방금 말한 태도를 실제 상황에서 어떻게 보여 줄 수 있을지 한 문장만 더 설명해 주세요.` : `${role}로 일하다가 어려운 일이나 의견 차이가 생기면 어떻게 해결해 보고 싶나요?`,
+    motivation: `${company}의 ${role}에 지원한 이유를 말씀해 주세요.`,
+    jobUnderstanding: nextTopic?.isFollowUp ? `${role}의 여러 업무 중 가장 중요하다고 생각하는 업무는 무엇이며, 그 이유는 무엇인가요?` : `${role}이 어떤 일을 하는 직무라고 이해하고 있나요?`,
+    strength: nextTopic?.isFollowUp ? `말씀한 강점이 ${role} 업무에 어떻게 도움이 될 수 있는지 설명해 주세요.` : `본인의 강점 중 ${role} 업무에 도움이 될 수 있는 것은 무엇인가요?`,
+    situationalJudgment: nextTopic?.isFollowUp ? `그 상황에서 가장 먼저 해야 할 행동은 무엇이며, 그렇게 판단한 이유는 무엇인가요?` : `${role}로 일하면서 예상하지 못한 문제가 생긴다면 상황을 어떻게 파악하고 해결하겠습니까?`,
+    collaboration: nextTopic?.isFollowUp ? `상대방과 의견이 계속 다르다면 업무를 마무리하기 위해 어떻게 조율하겠습니까?` : `동료와 의견이 다를 때 본인의 의견을 전달하면서 함께 결론을 내리려면 어떻게 하겠습니까?`,
+    growthPlan: `${role}을 준비하기 위해 앞으로 더 키우고 싶은 역량과 실천 계획을 말씀해 주세요.`,
     closing: `마지막으로 ${company} 면접관에게 꼭 전하고 싶은 말을 해 주세요.`,
   }
   return {
     question: questions[nextTopic?.topic] ?? questions.closing,
     questionTopic: nextTopic?.topic ?? 'closing',
-    feedback: turns.length ? previousScore < 40 ? '방금 답변은 너무 짧거나 장난스럽게 들릴 수 있어요. 다음 답변은 진짜 이유나 예시를 한 문장만 더 붙여 보세요.' : '방금 답변에서 방향은 보였어요. 다음 답변에는 구체적인 예시를 하나 붙이면 더 좋아요.' : '',
+    feedback: turns.length ? previousScore < 40 ? '방금 답변은 질문과의 연결이 충분히 드러나지 않았습니다. 다음 답변에서는 자신의 생각과 이유를 분명히 말해 주세요.' : '답변의 방향이 잘 드러났습니다. 다음에는 그 판단이 지원 직무와 어떻게 연결되는지 조금 더 분명히 설명해 주세요.' : '',
     closingSummary: '',
     suggestedStrengths: application.strengths ? strengths.slice(0, 3) : strengths.slice(0, 2),
     decision: 'hold',
@@ -400,7 +402,7 @@ const callInterviewAi = async ({ company, role, application, turns, finished, mo
 const prompt = mode === 'hint' ? `청소년 진로 프로그램의 AI 채용면접 도우미로 행동하세요.
 지원자는 중학생 또는 고등학생입니다. 답을 대신 써 주지 마세요. 현재 면접관 질문의 의도와 답변 가이드만 한국어로 알려 주세요.
 ${getDifficultyGuide(application.difficulty)}
-힌트는 학교 수업, 동아리, 친구와 한 활동, 집에서 해 본 일, 좋아하는 활동, 앞으로 해 보고 싶은 경험에서 찾도록 안내하세요.
+힌트는 완성 답안을 대신 쓰지 말고, 질문의 핵심·생각의 이유·직무 연결 순서로 안내하세요. 과거 경험은 현재 질문이 경험을 직접 요구할 때만 보조 근거로 안내하세요.
 hintIntent에는 면접관이 이 질문으로 확인하려는 것을 1~2문장으로 적으세요.
 hintGuide에는 학생이 답변을 만들 때 따라갈 순서를 2~3단계로 적으세요. 완성 답안 문장은 쓰지 마세요.
 질문: ${currentQuestion}
@@ -413,26 +415,28 @@ ${transcript || '아직 답변 없음'}
 지원자는 실제 채용면접에 지원했다고 가정합니다. 직업정보 Q&A, 직업인 역할극, 업무상황 체험이 아니라 채용면접입니다.
 대상은 중학생 또는 고등학생입니다. 실제 회사 경력, 전문 프로젝트 수행 경험, 포트폴리오, 연구·개발 실적, 기술적 문제 해결 사례가 있다고 전제하지 마세요.
 ${getDifficultyGuide(application.difficulty)}
-질문은 학생이 답할 수 있는 수준으로 만드세요. 학교 수업, 동아리, 친구와 한 활동, 집에서 해 본 일, 좋아하는 활동, 앞으로 해 보고 싶은 경험, 왜 관심이 생겼는지를 중심으로 물어보세요.
+말투는 실제 채용면접처럼 정중하고 진지하게 유지하세요. 지원자를 어린아이처럼 달래거나 과도하게 칭찬하지 말고, 질문 안에 선택지나 답변 예시를 먼저 제시하지 마세요.
+질문은 과거 경험을 증명하는 데 편중하지 말고 지원 동기, 직무 이해, 자기 강점, 상황 판단, 협업·책임 태도, 성장 계획을 균형 있게 확인하세요.
+과거 경험을 직접 묻는 질문은 전체 면접에서 최대 1회만 허용합니다. 지원자가 경험이 없다고 답하면 경험을 다시 캐묻지 말고 즉시 가상의 직무 상황, 판단 이유 또는 앞으로의 준비 계획으로 전환하세요. 경험의 부족 자체를 감점하지 마세요.
 이번 질문 영역은 "${nextTopic?.label ?? '마무리 표현'}"입니다. 이 영역에서만 질문하고 다른 영역으로 새지 마세요.
-질문 흐름은 지원 동기 → 직무 이해 → 자기 강점 → 경험·계획 → 문제해결·협력 태도 → 마무리 표현입니다. 지원 동기와 마무리 표현은 꼬리질문을 하지 않습니다. 나머지 영역은 부족할 때만 꼬리질문을 1회까지 합니다.
+질문 흐름은 지원 동기 → 직무 이해 → 자기 강점 → 상황 판단 → 협업·책임 태도 → 성장 계획 → 마무리 표현입니다. 지원 동기, 성장 계획, 마무리 표현은 꼬리질문을 하지 않습니다. 나머지 영역은 부족할 때만 꼬리질문을 1회까지 합니다.
 각 답변은 내용 75점, 태도 25점 기준으로 평가한다고 생각하세요. 내용은 질문 적합성, 구체성, 직업 연결을 보고, 태도는 성실성, 존중, 면접 상황에 맞는 표현을 봅니다.
 금지 질문 예시: "수행했던 프로젝트를 설명하세요", "가장 도전적이었던 프로젝트는?", "기술적 문제를 어떻게 해결했나요?", "전문성을 어떻게 개발하고 있나요?", "연구나 개발 분야가 있나요?"
-직무가 전문적이어도 질문은 "이 일을 한다면 어떤 점이 재미있을 것 같나요?", "비슷하게 해 본 작은 경험이 있나요? 없다면 해 보고 싶은 일은 무엇인가요?", "이 직업에 필요한 태도는 무엇이라고 생각하나요?"처럼 바꾸세요.
-평가처럼 겁주지는 말되, 답변이 너무 짧거나 장난스럽거나 질문과 무관하면 "좋아요"로 시작하지 말고 분명히 다시 답하라고 안내하세요. 개인정보, 연락처, 주민번호, 실제 주소는 요구하지 마세요.
+직무가 전문적이어도 직무 이해, 실제로 마주칠 법한 상황에서의 판단, 필요한 태도, 앞으로의 준비를 중심으로 질문하세요.
+피드백은 매번 경험이나 사례를 더 말하라고 요구하지 마세요. 답변의 생각, 이유, 판단 과정, 직무 연결 중 실제로 부족한 부분 하나만 짚으세요. 답변이 너무 짧거나 장난스럽거나 질문과 무관하면 "좋아요"로 시작하지 말고 분명히 다시 답하라고 안내하세요. 개인정보, 연락처, 주민번호, 실제 주소는 요구하지 마세요.
 면접은 고정 5문항이 아니라 라이브 채팅처럼 이어지지만 보통 6~8문항 안에서 마무리합니다. 이전 답변을 바탕으로 자연스럽게 후속 질문을 하되, 같은 주제를 반복하지 마세요. 8문항 이후에는 반드시 마무리를 유도하고, 10문항을 넘기지 마세요.
 지원자가 "언제 끝나나요", "그만", "왜 같은 질문을 하냐"처럼 종료 의사를 보이면 다음 질문을 만들지 말고 면접을 종료하세요.
-답변이 부족하거나 장난스럽더라도 같은 주제의 재질문 또는 꼬리질문은 한 번까지만 하세요. 한 번 더 물었는데도 충분히 답하지 않으면 그 주제는 더 반복하지 말고 다른 평가 축(지원 이유, 강점, 태도, 경험·계획, 마무리)으로 넘어가세요.
+답변이 부족하거나 장난스럽더라도 같은 주제의 재질문 또는 꼬리질문은 한 번까지만 하세요. 한 번 더 물었는데도 충분히 답하지 않으면 그 주제는 더 반복하지 말고 다른 평가 축(지원 이유, 직무 이해, 강점, 상황 판단, 협업 태도, 성장 계획, 마무리)으로 넘어가세요.
 면접 종료 시 decision은 pass, hold, retry 중 하나로 판정하세요. pass는 답변이 구체적이고 진지할 때, hold는 방향은 있으나 보완이 필요할 때, retry는 장난·무성의·무관한 답변이 많을 때입니다. score는 0~100 정수입니다.
 feedbackTone은 직전 답변 피드백의 색상입니다. 좋은 답변이면 good, 보완이 필요하면 neutral, 장난·무성의·질문과 무관한 답변이면 bad로 주세요.
-점수는 지원 이유 25점, 내 강점 표현 25점, 학교·일상 경험이나 앞으로의 계획 25점, 질문에 맞춘 성실한 태도 25점으로 계산하세요. 답변이 장난스럽거나 지나치게 짧거나 질문과 무관하면 해당 항목을 낮게 주세요.
+점수는 지원 이유와 직무 이해 25점, 자기 강점과 직무 연결 20점, 상황 판단 20점, 협업·책임 태도 15점, 성장 계획 10점, 질문에 맞춘 성실한 태도 10점으로 계산하세요. 경험 유무는 독립적인 평가 항목으로 삼지 마세요.
 score는 예시값을 따라 쓰지 말고 전체 답변을 실제로 평가해 산정하세요. 장난·무성의·무관한 답변이 절반 이상이면 40점 이하와 retry가 원칙입니다.
 회사: ${company}
 지원 직무: ${role}
 간단 지원서: ${JSON.stringify(application)}
 지금까지의 면접:
 ${transcript || '아직 답변 없음'}
-${finished ? '면접을 종료하고 최종 피드백을 작성하세요.' : '다음 면접 질문 1개를 작성하세요. 이전 답변이 있다면 짧은 피드백도 함께 주세요. 다음 질문은 반드시 중고등학생이 자신의 학교생활·일상·관심·앞으로의 계획으로 답할 수 있어야 합니다.'}
+${finished ? '면접을 종료하고 최종 피드백을 작성하세요. 경험의 양이 아니라 답변에서 드러난 관심, 판단, 직무 이해, 성장 가능성을 중심으로 정리하세요.' : '다음 면접 질문 1개를 작성하세요. 이전 답변이 있다면 짧은 피드백도 함께 주세요. 질문은 경력을 요구하지 않으면서도 실제 면접의 진지함을 유지해야 합니다.'}
 반드시 JSON만 출력하세요. 형식: {"question":"", "feedback":"", "feedbackTone":"neutral", "closingSummary":"", "suggestedStrengths":[""], "decision":"hold", "score":0}`
   const response = await fetch('https://api.openai.com/v1/responses', {
     method: 'POST',
