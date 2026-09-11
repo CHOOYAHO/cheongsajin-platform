@@ -781,6 +781,24 @@ export const backupAuctionData = onCall(async (request) => {
   return { backupId: backupRef.id, roomCount: backup.roomCount, participantCount: backup.participantCount, resultCount: backup.resultCount }
 })
 
+export const backupAiInterviewData = onCall(async (request) => {
+  await requireActiveAdminSession(request)
+  const logSnapshot = await db.collection('aiInterviewLogs').get()
+  const documents = logSnapshot.docs.map((document) => ({ id: document.id, data: document.data() }))
+  const backupRef = db.collection('aiInterviewBackups').doc()
+  const backup = {
+    createdAt: FieldValue.serverTimestamp(),
+    createdBy: request.auth.uid,
+    documentCount: documents.length,
+    documents,
+  }
+  if (Buffer.byteLength(JSON.stringify(backup), 'utf8') > 900000) {
+    throw new HttpsError('resource-exhausted', '면접 백업 자료가 너무 커서 한 번에 저장할 수 없습니다.')
+  }
+  await backupRef.create(backup)
+  return { backupId: backupRef.id, documentCount: documents.length }
+})
+
 export const recoverAuctionResults = onCall(async (request) => {
   await requireActiveAdminSession(request)
   const backupId = String(request.data?.backupId ?? '').trim()
