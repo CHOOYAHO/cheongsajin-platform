@@ -45,7 +45,7 @@ type BrainstormRoom = { id?: string; hostId: string; hostName?: string; gameStat
 type BrainstormScore = { id: string; nickname: string; score: number; submissions: number }
 type BrainstormRecordRoom = BrainstormRoom & { id: string; createdAt?: { toMillis: () => number }; updatedAt?: { toMillis: () => number }; submissions: BrainstormSubmission[]; deletedSubmissions?: BrainstormDeletedSubmission[]; scores?: BrainstormScore[] }
 type BrainstormSavedResult = BrainstormRecordRoom & { schoolName?: string; participantCount?: number; taskCount?: number; strengthCount?: number }
-type InterviewLogRecord = { id: string; userId?: string; userRole?: string; displayName?: string; loginDisplayName?: string; participantDisplayName?: string; schoolName?: string; participantSchoolName?: string; company?: string; application?: InterviewApplication; turns?: InterviewTurn[]; answerCount?: number; status?: 'inProgress' | 'completed'; decision?: InterviewDecision; score?: number; updatedAt?: { toMillis: () => number } }
+type InterviewLogRecord = { id: string; userId?: string; userRole?: string; displayName?: string; loginDisplayName?: string; participantDisplayName?: string; schoolName?: string; participantSchoolName?: string; company?: string; application?: InterviewApplication; turns?: InterviewTurn[]; answerCount?: number; status?: 'inProgress' | 'completed'; lastQuestion?: string; closingSummary?: string; suggestedStrengths?: string[]; interviewVersion?: 'gwangsi-middle' | 'yesan-high'; decision?: InterviewDecision; score?: number; updatedAt?: { toMillis: () => number } }
 type InterviewRecordFilter = 'all' | 'gwangsi' | 'yesan' | 'staff' | 'admin'
 type BrainstormTestRole = 'host' | 'participant'
 const defaultSessionLockMap: SessionLockMap = { 1: true, 2: true, 3: false, 4: false, 5: false }
@@ -1624,6 +1624,30 @@ function AdminBrainstormResultsPanel() {
 
 type MentorThirdResultTab = 'gwangsi' | 'yesan' | 'mine'
 
+function MentorInterviewResult({ record }: { record: InterviewLogRecord }) {
+  const completed = record.status === 'completed'
+  return <article className="mentor-interview-record">
+    <header><div><small>{record.participantSchoolName || record.schoolName || '학교 미기록'}</small><h3>{record.participantDisplayName || record.displayName || '이름 미기록'}</h3><p>{record.company || '회사 미기록'} · {record.application?.role || '직무 미기록'}</p></div>
+      <div><b>{completed ? record.decision === 'pass' ? '합격' : record.decision === 'retry' ? '재도전' : record.decision === 'hold' ? '보류' : '완료' : '진행 중'}</b><p>{completed && typeof record.score === 'number' ? `${record.score}점` : `${record.answerCount ?? record.turns?.length ?? 0}번 답변`}</p></div></header>
+    <details><summary>지원서·면접 상세 보기</summary><div className="mentor-interview-detail">
+      <section><h4>지원서</h4>{record.application ? <dl>
+        <dt>지원 직무 · 난이도</dt><dd>{record.application.role} · {interviewDifficultyLabels[record.application.difficulty] || '미기록'}</dd>
+        <dt>지원 이유</dt><dd>{record.application.interestReason || '미작성'}</dd>
+        <dt>내 강점</dt><dd>{record.application.strengths || '미작성'}</dd>
+        <dt>경험·앞으로의 준비</dt><dd>{record.application.experience || '미작성'}</dd>
+        <dt>마지막으로 하고 싶은 말</dt><dd>{record.application.closingLine || '미작성'}</dd>
+      </dl> : <p>저장된 지원서가 없어요.</p>}</section>
+      <section><h4>질문·답변·피드백</h4>{record.turns?.length ? record.turns.map((turn, index) => <section className="mentor-interview-turn" key={index}>
+        <b>Q{index + 1}. {turn.question}</b><p><strong>답변</strong> {turn.answer}</p><p><strong>피드백</strong> {turn.feedback || '아직 저장되지 않았어요.'}</p>
+        {typeof turn.answerScore === 'number' && <span className="turn-score-badge">답변 {turn.answerScore}점{typeof turn.cumulativeScore === 'number' ? ` / 평균 ${turn.cumulativeScore}점` : ''}</span>}
+      </section>) : <p>아직 저장된 답변이 없어요.</p>}</section>
+      {!completed && <section><h4>현재 질문</h4><p>{record.lastQuestion || '아직 저장된 질문이 없어요.'}</p></section>}
+      {completed && <section><h4>완료 요약</h4><p>{record.closingSummary || '저장된 요약이 없어요.'}</p></section>}
+      {!!record.suggestedStrengths?.length && <section><h4>추천 강점</h4><div className="result-strengths">{record.suggestedStrengths.map((strength, index) => <b key={index}>{strength}</b>)}</div></section>}
+    </div></details>
+  </article>
+}
+
 function MentorThirdResultsPage({ displayName, masterViewLabel, onLeave }: { displayName: string; masterViewLabel?: string; onLeave: () => void }) {
   const [activeTab, setActiveTab] = useState<MentorThirdResultTab>('gwangsi')
   const [brainstormRooms, setBrainstormRooms] = useState<BrainstormSavedResult[]>([])
@@ -1640,11 +1664,11 @@ function MentorThirdResultsPage({ displayName, masterViewLabel, onLeave }: { dis
     const unsubscribe = onSnapshot(query(collection(firestore, 'brainstormResults'), orderBy('updatedAt', 'desc'), limit(100)), (snapshot) => {
       setBrainstormRooms(snapshot.docs.map((item) => ({ id: item.id, ...(item.data() as Omit<BrainstormSavedResult, 'id'>) })))
     }, (caught) => { console.error(caught); setError('브레인스토밍 결과를 불러오지 못했어요.') })
-    getDocs(query(collection(firestore, 'aiInterviewLogs'), orderBy('updatedAt', 'desc'), limit(100)))
-      .then((snapshot) => setInterviews(snapshot.docs.map((item) => ({ id: item.id, ...(item.data() as Omit<InterviewLogRecord, 'id'>) }))))
-      .catch((caught) => { console.error(caught); setError('AI 면접 결과를 불러오지 못했어요.') })
-      .finally(() => setIsLoading(false))
-    return unsubscribe
+    const unsubscribeInterviews = onSnapshot(query(collection(firestore, 'aiInterviewLogs'), orderBy('updatedAt', 'desc'), limit(100)), (snapshot) => {
+      setInterviews(snapshot.docs.map((item) => ({ id: item.id, ...(item.data() as Omit<InterviewLogRecord, 'id'>) })))
+      setIsLoading(false)
+    }, (caught) => { console.error(caught); setError('AI 면접 결과를 불러오지 못했어요.'); setIsLoading(false) })
+    return () => { unsubscribe(); unsubscribeInterviews() }
   }, [])
 
   const schoolKeyword = activeTab === 'gwangsi' ? '광시' : activeTab === 'yesan' ? '예산' : ''
@@ -1656,7 +1680,7 @@ function MentorThirdResultsPage({ displayName, masterViewLabel, onLeave }: { dis
     : (record.participantSchoolName || record.schoolName || '').includes(schoolKeyword))
   const tabLabel = activeTab === 'gwangsi' ? '광시중학교' : activeTab === 'yesan' ? '예산고등학교' : '내'
 
-  return <div className="app-shell"><header className="topbar"><div className="brand"><span className="brand-mark">청</span><span>청·사·진</span></div><div className="student-chip"><span>멘토</span><b>{displayName}</b><button className="logout-button" onClick={onLeave}>로그아웃</button></div></header>{masterViewLabel && <MasterViewBanner label={masterViewLabel} />}<main className="session-review mentor-third-results"><button className="back-button" type="button" onClick={() => window.history.back()}>← 3회기 활동으로</button><section className="review-hero third-session-hero"><div><span className="activity-badge">3회기 · 지도자용 결과</span><p className="eyebrow">학생 활동 결과 보기</p><h1>진로 역량 갖추기 결과</h1><p>학교별 브레인스토밍과 AI 가상면접 기록을 확인해요.</p></div><div className="review-icon" aria-hidden="true">📊</div></section><div className="mentor-third-result-tabs"><button type="button" className={activeTab === 'gwangsi' ? 'active' : ''} onClick={() => setActiveTab('gwangsi')}>광시중</button><button type="button" className={activeTab === 'yesan' ? 'active' : ''} onClick={() => setActiveTab('yesan')}>예산고</button><button type="button" className={activeTab === 'mine' ? 'active' : ''} onClick={() => setActiveTab('mine')}>내 결과</button></div>{isLoading && <div className="empty-auction-records"><b>활동 결과를 불러오는 중이에요.</b></div>}{error && <p className="entry-error" role="alert">{error}</p>}{!isLoading && !error && <><section className="mentor-third-result-section"><div className="mentor-third-result-heading"><div><span>핵심 역량 브레인스토밍</span><h2>{tabLabel} 브레인스토밍 결과</h2></div><b>{visibleRooms.length}개 방</b></div>{visibleRooms.length ? <div className="mentor-brainstorm-result-list">{visibleRooms.map((room) => <article key={room.id}><header><div><small>{room.schoolName || '학교 미기록'} · 방 {room.id}</small><h3>{room.currentJob || '직업 미기록'}</h3></div><b>{room.gameState === 'RESULT' ? '완료' : '진행 기록'}</b></header><p>수행 업무 {room.taskCount ?? room.submissions?.filter((item) => item.part === 'tasks').length ?? 0}개 · 필요 역량 {room.strengthCount ?? room.submissions?.filter((item) => item.part === 'strengths').length ?? 0}개</p>{(room.scores ?? []).length > 0 && <div>{(room.scores ?? []).map((score, index) => <span className={activeTab === 'mine' && score.id === currentUserId ? 'mine' : ''} key={score.id}>{index + 1}위 {score.nickname} <b>{score.score}점</b></span>)}</div>}</article>)}</div> : <div className="empty-auction-records"><b>표시할 브레인스토밍 결과가 없어요.</b></div>}</section><section className="mentor-third-result-section"><div className="mentor-third-result-heading"><div><span>AI 가상면접</span><h2>{tabLabel} 면접 결과</h2></div><b>{visibleInterviews.length}건</b></div>{visibleInterviews.length ? <div className="mentor-interview-result-list">{visibleInterviews.map((record) => <article key={record.id}><div><small>{record.participantSchoolName || record.schoolName || '학교 미기록'}</small><h3>{record.participantDisplayName || record.displayName || '이름 미기록'}</h3><p>{record.company || '회사 미기록'} · {record.application?.role || '직무 미기록'}</p></div><div><b>{record.decision === 'pass' ? '합격' : record.decision === 'retry' ? '재도전' : record.decision === 'hold' ? '보류' : '진행 중'}</b><strong>{record.score ? `${record.score}점` : `${record.answerCount ?? record.turns?.length ?? 0}번 답변`}</strong></div></article>)}</div> : <div className="empty-auction-records"><b>표시할 AI 면접 결과가 없어요.</b></div>}</section></>}</main><PartnerFooter /></div>
+  return <div className="app-shell"><header className="topbar"><div className="brand"><span className="brand-mark">청</span><span>청·사·진</span></div><div className="student-chip"><span>멘토</span><b>{displayName}</b><button className="logout-button" onClick={onLeave}>로그아웃</button></div></header>{masterViewLabel && <MasterViewBanner label={masterViewLabel} />}<main className="session-review mentor-third-results"><button className="back-button" type="button" onClick={() => window.history.back()}>← 3회기 활동으로</button><section className="review-hero third-session-hero"><div><span className="activity-badge">3회기 · 지도자용 결과</span><p className="eyebrow">학생 활동 결과 보기</p><h1>진로 역량 갖추기 결과</h1><p>학교별 브레인스토밍과 AI 가상면접 기록을 확인해요.</p></div><div className="review-icon" aria-hidden="true">📊</div></section><div className="mentor-third-result-tabs"><button type="button" className={activeTab === 'gwangsi' ? 'active' : ''} onClick={() => setActiveTab('gwangsi')}>광시중</button><button type="button" className={activeTab === 'yesan' ? 'active' : ''} onClick={() => setActiveTab('yesan')}>예산고</button><button type="button" className={activeTab === 'mine' ? 'active' : ''} onClick={() => setActiveTab('mine')}>내 결과</button></div>{isLoading && <div className="empty-auction-records"><b>활동 결과를 불러오는 중이에요.</b></div>}{error && <p className="entry-error" role="alert">{error}</p>}{!isLoading && !error && <><section className="mentor-third-result-section"><div className="mentor-third-result-heading"><div><span>핵심 역량 브레인스토밍</span><h2>{tabLabel} 브레인스토밍 결과</h2></div><b>{visibleRooms.length}개 방</b></div>{visibleRooms.length ? <div className="mentor-brainstorm-result-list">{visibleRooms.map((room) => <article key={room.id}><header><div><small>{room.schoolName || '학교 미기록'} · 방 {room.id}</small><h3>{room.currentJob || '직업 미기록'}</h3></div><b>{room.gameState === 'RESULT' ? '완료' : '진행 기록'}</b></header><p>수행 업무 {room.taskCount ?? room.submissions?.filter((item) => item.part === 'tasks').length ?? 0}개 · 필요 역량 {room.strengthCount ?? room.submissions?.filter((item) => item.part === 'strengths').length ?? 0}개</p>{(room.scores ?? []).length > 0 && <div>{(room.scores ?? []).map((score, index) => <span className={activeTab === 'mine' && score.id === currentUserId ? 'mine' : ''} key={score.id}>{index + 1}위 {score.nickname} <b>{score.score}점</b></span>)}</div>}</article>)}</div> : <div className="empty-auction-records"><b>표시할 브레인스토밍 결과가 없어요.</b></div>}</section><section className="mentor-third-result-section"><div className="mentor-third-result-heading"><div><span>AI 가상면접</span><h2>{tabLabel} 면접 결과</h2></div><b>{visibleInterviews.length}건</b></div><p className="interview-live-note">최근 100건의 면접 기록에서 학교·내 결과를 보여 줘요. 서버에 답변이 저장되면 자동 반영됩니다. ‘진행 중’은 면접이 아직 끝나지 않았다는 뜻이며, 현재 접속 여부를 뜻하지 않아요.</p>{visibleInterviews.length ? <div className="mentor-interview-result-list">{visibleInterviews.map((record) => <MentorInterviewResult key={record.id} record={record} />)}</div> : <div className="empty-auction-records"><b>표시할 AI 면접 결과가 없어요.</b></div>}</section></>}</main><PartnerFooter /></div>
 }
 
 function AdminInterviewResultsPanel() {
