@@ -1362,6 +1362,7 @@ function CareerBrainstormGame({ schoolName, studentName }: { schoolName: string;
 }
 
 function AiInterviewActivity({ schoolName, displayName }: { schoolName: string; displayName: string }) {
+  const isGwangsi = schoolName.includes('광시')
   const defaultInterviewApplication = getDefaultInterviewApplication(schoolName)
   const [phase, setPhase] = useState<'intro' | 'company' | 'application' | 'interview' | 'result'>('intro')
   const [selectedCompany, setSelectedCompany] = useState<InterviewCompany | null>(null)
