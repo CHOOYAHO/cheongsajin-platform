@@ -1,6 +1,35 @@
 # 청·사·진 플랫폼 인수인계
 
-마지막 정리일: 2026-09-11
+마지막 정리일: 2026-09-17
+
+
+## 9월 17일 학교별 면접·멘토 실시간 상세 복원
+
+- 원격 main `81837eb`를 fetch하여 확인한 뒤 기존 로컬 문서 커밋 `4c4aa67`을 보존하고 작업했다.
+- 전달받은 `02d4e77`, `dd55663`, `a6003cf` 객체는 이 환경에 없고 패치도 없어 사용자 사양을 기준으로 재구현했다. 아래 백업 이름에 들어간 `02d4e77`은 전달된 이름을 보존한 것이며, 해당 원본 커밋을 복구했다는 뜻이 아니다.
+- 멘토 3회기 결과의 AI 면접을 최근 100건 `onSnapshot`으로 구독한다. 학교·내 결과에서 지원서, 문항별 질문·답변·피드백·점수, 현재 질문, 완료 요약, 추천 강점을 펼쳐 본다. 진행 중은 미완료 상태이며 접속 여부가 아니다. 미완료 기록은 최종 판정·총점을 숨기고, 완료 0점은 그대로 표시한다.
+- 실제 멘토와 관리자 멘토 역할은 기존 `MentorThirdResultsPage`와 같은 `MentorInterviewResult`를 사용한다. 학생과 관리자 학교 역할도 기존 `AiInterviewActivity`와 같은 `schoolName` 분기를 쓴다.
+- 광시중학교는 `광시중 버전`, 기본 난이도 `매우쉬움`이며 회사 선택·다시 시작 시에도 유지한다. 접이식 `어려운 면접 용어` 해설을 제공한다. 서버 질문·힌트·피드백·요약과 fallback은 짧고 쉬운 중학생 표현으로 분기한다.
+- 나머지는 `예산고 버전`, 기본 난이도 `쉬움`이다. 기존 예산고 질문·힌트 지침과 fallback 원문, 점수 계산, 판정 기준, 질문 흐름, 자동 종료 조건은 회귀 검사로 보존을 확인했다.
+- 서버 기록에 `interviewVersion`을 저장한다. 광시중학교는 `gwangsi-middle`, 그 외는 `yesan-high`이다.
+- API 키 없음, HTTP 실패, 네트워크 예외에서도 학교별 fallback을 사용한다. Firestore 규칙 및 협력기관 로고는 변경하지 않았다.
+
+### 소스 백업
+
+- `backups/mentor-results-before-live-81837eb.tsx.txt`: 원격 main의 변경 전 소스.
+- `backups/interview-school-before-split-02d4e77.tsx.txt`: 이번 환경에서 재구현한 멘토 실시간 상세 단계의 소스.
+- `backups/interview-school-before-split-02d4e77.js.txt`: 학교 분기 전 서버 소스.
+- `backup/mentor-results-before-live-81837eb`: 실제 `81837eb`를 가리킨다.
+- `backup/interview-school-before-split-02d4e77`: 이번에 만든 재구성 체크포인트 `ce89022`를 가리킨다. 모바일의 누락 커밋과 다른 객체다.
+
+### 검증·배포 상태
+
+- `pnpm build`, `pnpm lint`, `node --test functions/interview-school.test.js`(7개), `pnpm --dir functions lint`, `git diff --check` 통과.
+- 테스트는 학교 기본값, 예산고 원문 보존, 모든 광시중 fallback 영역·꼬리질문, 힌트·종료 0점, API 실패 경로, 실제 멘토 컴포넌트 렌더링을 포함한다.
+- 기존 큰 Vite 청크 경고, lint 경고 4개, 로컬 Node 24/Functions Node 22 차이 경고가 남아 있다. 배포 런타임은 Node 22다.
+- Firebase CLI 기존 로그인 및 대상 프로젝트 확인 후 `runAiInterviewStep`만 배포 완료했다. Firestore 규칙은 배포하지 않았다.
+- 실제 사이트와 로컬 사이트는 브라우저 로그인 화면까지 확인했다. 실제 예산고·광시중 계정 및 관리자 역할의 PC/모바일 면접 시작·힌트·답변·다음 질문·종료·멘토 실시간 동시 조회는 로그인 협조가 필요해 아직 완료하지 못했다. 자동 테스트 통과를 실제 계정 검증 완료로 간주하면 안 된다.
+- 이 기록을 포함한 main 푸시와 Pages 자동 배포·배포 자산 문자열 확인은 이 문서 작성 직후 진행하며, 최종 결과는 청사진 담당 인수인계서와 총괄 보고에 기록한다.
 
 ## 프로젝트 개요
 
