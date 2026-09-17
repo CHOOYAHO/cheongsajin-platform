@@ -45,7 +45,7 @@ type BrainstormRoom = { id?: string; hostId: string; hostName?: string; gameStat
 type BrainstormScore = { id: string; nickname: string; score: number; submissions: number }
 type BrainstormRecordRoom = BrainstormRoom & { id: string; createdAt?: { toMillis: () => number }; updatedAt?: { toMillis: () => number }; submissions: BrainstormSubmission[]; deletedSubmissions?: BrainstormDeletedSubmission[]; scores?: BrainstormScore[] }
 type BrainstormSavedResult = BrainstormRecordRoom & { schoolName?: string; participantCount?: number; taskCount?: number; strengthCount?: number }
-type InterviewLogRecord = { id: string; userId?: string; userRole?: string; displayName?: string; loginDisplayName?: string; participantDisplayName?: string; schoolName?: string; participantSchoolName?: string; company?: string; application?: InterviewApplication; turns?: InterviewTurn[]; answerCount?: number; status?: 'inProgress' | 'completed'; lastQuestion?: string; closingSummary?: string; suggestedStrengths?: string[]; interviewVersion?: 'gwangsi-middle' | 'yesan-high'; decision?: InterviewDecision; score?: number; updatedAt?: { toMillis: () => number } }
+type InterviewLogRecord = { id: string; userId?: string; userRole?: string; displayName?: string; loginDisplayName?: string; participantDisplayName?: string; schoolName?: string; participantSchoolName?: string; company?: string; application?: InterviewApplication; turns?: InterviewTurn[]; answerCount?: number; status?: 'inProgress' | 'completed'; lastQuestion?: string; lastFeedback?: string; closingSummary?: string; suggestedStrengths?: string[]; interviewVersion?: 'gwangsi-middle' | 'yesan-high'; decision?: InterviewDecision; score?: number; updatedAt?: { toMillis: () => number } }
 type InterviewRecordFilter = 'all' | 'gwangsi' | 'yesan' | 'staff' | 'admin'
 type BrainstormTestRole = 'host' | 'participant'
 const defaultSessionLockMap: SessionLockMap = { 1: true, 2: true, 3: false, 4: false, 5: false }
@@ -214,6 +214,10 @@ const interviewCompanies: InterviewCompany[] = [
 
 const interviewDifficultyLabels: Record<InterviewDifficulty, string> = { veryEasy: '매우쉬움', easy: '쉬움', medium: '중간', hard: '어려움' }
 const blankInterviewApplication: InterviewApplication = { role: '', difficulty: 'easy', interestReason: '', strengths: '', experience: '', closingLine: '' }
+const getDefaultInterviewApplication = (schoolName: string): InterviewApplication => ({
+  ...blankInterviewApplication,
+  difficulty: schoolName.includes('광시') ? 'veryEasy' : 'easy',
+})
 const getInterviewFeedbackLevel = (tone: InterviewFeedbackTone = 'neutral', score?: number): InterviewFeedbackLevel => {
   if (typeof score === 'number') {
     if (score >= 85) return 'excellent'
@@ -1358,14 +1362,13 @@ function CareerBrainstormGame({ schoolName, studentName }: { schoolName: string;
 }
 
 function AiInterviewActivity({ schoolName, displayName }: { schoolName: string; displayName: string }) {
-  const isGwangsi = schoolName === '광시중학교'
-  const newApplication = (): InterviewApplication => ({ ...blankInterviewApplication, difficulty: isGwangsi ? 'veryEasy' : 'easy' })
+  const defaultInterviewApplication = getDefaultInterviewApplication(schoolName)
   const [phase, setPhase] = useState<'intro' | 'company' | 'application' | 'interview' | 'result'>('intro')
   const [selectedCompany, setSelectedCompany] = useState<InterviewCompany | null>(null)
   const [detailCompany, setDetailCompany] = useState<InterviewCompany | null>(null)
   const [showCustomCompany, setShowCustomCompany] = useState(false)
   const [customCompany, setCustomCompany] = useState({ name: '', fields: '', description: '', roles: '', strengths: '' })
-  const [application, setApplication] = useState<InterviewApplication>(newApplication)
+  const [application, setApplication] = useState<InterviewApplication>(defaultInterviewApplication)
   const [customRole, setCustomRole] = useState('')
   const [interviewId, setInterviewId] = useState('')
   const [turns, setTurns] = useState<InterviewTurn[]>([])
@@ -1403,7 +1406,7 @@ function AiInterviewActivity({ schoolName, displayName }: { schoolName: string; 
 
   const selectCompany = (company: InterviewCompany) => {
     setSelectedCompany(company)
-    setApplication({ ...newApplication(), role: company.roles[0] })
+    setApplication({ ...defaultInterviewApplication, role: company.roles[0] })
     setCustomRole('')
     setDetailCompany(null)
     setShowCustomCompany(false)
@@ -1515,7 +1518,7 @@ function AiInterviewActivity({ schoolName, displayName }: { schoolName: string; 
     setPhase('intro')
     setSelectedCompany(null)
     setDetailCompany(null)
-    setApplication(newApplication())
+    setApplication(defaultInterviewApplication)
     setCustomRole('')
     setInterviewId('')
     setTurns([])
@@ -1653,6 +1656,7 @@ function MentorInterviewResult({ record }: { record: InterviewLogRecord }) {
         {typeof turn.answerScore === 'number' && <span className="turn-score-badge">답변 {turn.answerScore}점{typeof turn.cumulativeScore === 'number' ? ` / 평균 ${turn.cumulativeScore}점` : ''}</span>}
       </section>) : <p>아직 저장된 답변이 없어요.</p>}</section>
       {!completed && <section><h4>현재 질문</h4><p>{record.lastQuestion || '아직 저장된 질문이 없어요.'}</p></section>}
+      {!completed && record.lastFeedback && <section><h4>최근 피드백</h4><p>{record.lastFeedback}</p></section>}
       {completed && <section><h4>완료 요약</h4><p>{record.closingSummary || '저장된 요약이 없어요.'}</p></section>}
       {!!record.suggestedStrengths?.length && <section><h4>추천 강점</h4><div className="result-strengths">{record.suggestedStrengths.map((strength, index) => <b key={index}>{strength}</b>)}</div></section>}
     </div></details>
@@ -1672,14 +1676,35 @@ function MentorThirdResultsPage({ displayName, masterViewLabel, onLeave }: { dis
     const firestore = db
     setIsLoading(true)
     setError('')
-    const unsubscribe = onSnapshot(query(collection(firestore, 'brainstormResults'), orderBy('updatedAt', 'desc'), limit(100)), (snapshot) => {
+    let loadedBrainstorm = false
+    let loadedInterviews = false
+    const finishLoading = () => {
+      if (loadedBrainstorm && loadedInterviews) setIsLoading(false)
+    }
+    const unsubscribeBrainstorm = onSnapshot(query(collection(firestore, 'brainstormResults'), orderBy('updatedAt', 'desc'), limit(100)), (snapshot) => {
       setBrainstormRooms(snapshot.docs.map((item) => ({ id: item.id, ...(item.data() as Omit<BrainstormSavedResult, 'id'>) })))
-    }, (caught) => { console.error(caught); setError('브레인스토밍 결과를 불러오지 못했어요.') })
+      loadedBrainstorm = true
+      finishLoading()
+    }, (caught) => {
+      console.error(caught)
+      setError('브레인스토밍 결과를 불러오지 못했어요.')
+      loadedBrainstorm = true
+      finishLoading()
+    })
     const unsubscribeInterviews = onSnapshot(query(collection(firestore, 'aiInterviewLogs'), orderBy('updatedAt', 'desc'), limit(100)), (snapshot) => {
       setInterviews(snapshot.docs.map((item) => ({ id: item.id, ...(item.data() as Omit<InterviewLogRecord, 'id'>) })))
-      setIsLoading(false)
-    }, (caught) => { console.error(caught); setError('AI 면접 결과를 불러오지 못했어요.'); setIsLoading(false) })
-    return () => { unsubscribe(); unsubscribeInterviews() }
+      loadedInterviews = true
+      finishLoading()
+    }, (caught) => {
+      console.error(caught)
+      setError('AI 면접 결과를 불러오지 못했어요.')
+      loadedInterviews = true
+      finishLoading()
+    })
+    return () => {
+      unsubscribeBrainstorm()
+      unsubscribeInterviews()
+    }
   }, [])
 
   const schoolKeyword = activeTab === 'gwangsi' ? '광시' : activeTab === 'yesan' ? '예산' : ''
