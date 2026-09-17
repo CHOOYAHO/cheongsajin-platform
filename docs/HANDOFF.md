@@ -16,6 +16,8 @@
 
 ### 소스 백업
 
+기존 소스의 테스트용 PIN 리터럴은 텍스트 백업에서 `[REDACTED_TEST_PIN]`으로 마스킹했다. 실행 중인 앱의 인증 로직은 이번 작업에서 변경하지 않았다.
+
 - `backups/mentor-results-before-live-81837eb.tsx.txt`: 원격 main의 변경 전 소스.
 - `backups/interview-school-before-split-02d4e77.tsx.txt`: 이번 환경에서 재구현한 멘토 실시간 상세 단계의 소스.
 - `backups/interview-school-before-split-02d4e77.js.txt`: 학교 분기 전 서버 소스.

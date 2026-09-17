@@ -118,8 +118,8 @@ const staffSessionPlans: Record<number, StaffSessionPlan> = {
 }
 
 const testParticipants = [
-  { school: 'yesan-high', name: '1', pin: '1' },
-  { school: 'gwangsi-middle', name: '1', pin: '1' },
+  { school: 'yesan-high', name: '1', pin: '[REDACTED_TEST_PIN]' },
+  { school: 'gwangsi-middle', name: '1', pin: '[REDACTED_TEST_PIN]' },
 ]
 
 const preferenceAreas: PreferenceArea[] = [
@@ -2123,7 +2123,7 @@ function App() {
     const staffLoginName = school === 'yesan-teacher' ? '예산고' : school === 'gwangsi-teacher' ? '광시중' : name.trim()
     const isStaff = isTeacherMode || isMentorMode || isAdminMode
     const isRegistered = testParticipants.some((participant) => participant.school === school && participant.name === name.trim() && participant.pin === pin.trim())
-    const isPinTestLogin = isPinStudentMode && pin.trim() === '1'
+    const isPinTestLogin = isPinStudentMode && pin.trim() === '[REDACTED_TEST_PIN]'
     if (!isStaff && !isRegistered && !isPinStudentMode) {
       setEntryError('등록된 정보와 일치하지 않습니다. 학교, 이름, PIN 번호를 확인해 주세요.')
       return
