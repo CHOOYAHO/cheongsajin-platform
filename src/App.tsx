@@ -1010,6 +1010,66 @@ function StaffSessionDetail({ sessionNumber, schoolName, displayName, masterView
   const plan = staffSessionPlans[sessionNumber]
   const summaryTime = sessionNumber === 5 ? '전문강사 협의 후 확정' : '총 100분'
   const flowLabel = sessionNumber === 5 ? `${plan.activities.length}개 운영 방향 · 세부 활동 협의 중` : `${plan.activities.length}개 활동 · 100분`
+  const [portfolioUrl, setPortfolioUrl] = useState('')
+  const [savedPortfolioUrl, setSavedPortfolioUrl] = useState('')
+  const [portfolioState, setPortfolioState] = useState<'idle' | 'loading' | 'saving' | 'saved' | 'error'>('idle')
+  const [portfolioMessage, setPortfolioMessage] = useState('')
+
+  useEffect(() => {
+    if (sessionNumber !== 4 || !auth?.currentUser || !db) return
+    const currentUser = auth.currentUser
+    const currentDb = db
+    setPortfolioState('loading')
+    void getDoc(doc(currentDb, 'studentProfiles', currentUser.uid)).then((snapshot) => {
+      const savedUrl = snapshot.data()?.portfolioUrl
+      if (typeof savedUrl === 'string') {
+        setPortfolioUrl(savedUrl)
+        setSavedPortfolioUrl(savedUrl)
+      }
+      setPortfolioState('idle')
+    }).catch(() => {
+      setPortfolioState('error')
+      setPortfolioMessage('저장된 링크를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.')
+    })
+  }, [sessionNumber])
+
+  const savePortfolioUrl = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const candidate = portfolioUrl.trim()
+    try {
+      const parsed = new URL(candidate)
+      if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error('invalid protocol')
+    } catch {
+      setPortfolioState('error')
+      setPortfolioMessage('https://로 시작하는 올바른 포트폴리오 링크를 입력해 주세요.')
+      return
+    }
+    if (!auth?.currentUser || !db) {
+      setPortfolioState('error')
+      setPortfolioMessage('로그인 상태를 확인한 뒤 다시 시도해 주세요.')
+      return
+    }
+    const currentUser = auth.currentUser
+    const currentDb = db
+    setPortfolioState('saving')
+    setPortfolioMessage('')
+    try {
+      await setDoc(doc(currentDb, 'studentProfiles', currentUser.uid), {
+        userId: currentUser.uid,
+        displayName,
+        school: schoolName,
+        portfolioUrl: candidate,
+        portfolioUpdatedAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      }, { merge: true })
+      setSavedPortfolioUrl(candidate)
+      setPortfolioState('saved')
+      setPortfolioMessage('포트폴리오 링크가 저장됐어요.')
+    } catch {
+      setPortfolioState('error')
+      setPortfolioMessage('링크를 저장하지 못했어요. 잠시 후 다시 시도해 주세요.')
+    }
+  }
   return (
     <div className="app-shell">
       <header className="topbar"><div className="brand"><span className="brand-mark">청</span><span>청·사·진</span></div><div className="student-chip"><span>{schoolName}</span><b>{displayName}</b><button className="logout-button" onClick={onLeave}>로그아웃</button></div></header>
@@ -1022,12 +1082,20 @@ function StaffSessionDetail({ sessionNumber, schoolName, displayName, masterView
         </section>
         <section className="staff-session-summary"><div><small>회기</small><b>{sessionNumber}회기</b></div><div><small>활동 주제</small><b>{plan.subtitle}</b></div><div><small>예상 시간</small><b>{summaryTime}</b></div></section>
         <section className="activity-notice staff-notice"><span aria-hidden="true">📌</span><div><h2>멘토 진행 안내</h2><p>{sessionNumber === 3 ? 'AI 가상면접은 희망 직업에 지원한 지원자와 AI 면접관의 채용면접 시뮬레이션으로 운영합니다.' : sessionNumber === 4 ? '4회기는 1~3회기 기록을 종합해 Notion 진로 포트폴리오로 정리하는 흐름입니다.' : '5회기 세부 활동은 전문강사와 협의해 확정되며, 웹페이지에서는 확인된 운영 방향만 안내합니다.'}</p></div></section>
-        <section className="review-section">
+        {sessionNumber === 4 ? <section className="notion-portfolio-panel">
+          <div className="notion-portfolio-copy"><span>NOTION</span><h2>나만의 청사진 만들기</h2><p>나만의 청사진 만들기는 NOTION으로 진행돼요. NOTION에 가입한 후 진행해 주세요.</p><a href="https://www.notion.com/ko" target="_blank" rel="noreferrer">노션 바로가기 →</a></div>
+          <form className="portfolio-link-form" onSubmit={savePortfolioUrl}>
+            <label htmlFor="portfolio-url">나의 포트폴리오 링크 입력</label>
+            <div><input id="portfolio-url" type="url" inputMode="url" value={portfolioUrl} onChange={(event) => { setPortfolioUrl(event.target.value); setPortfolioState('idle'); setPortfolioMessage('') }} placeholder="https://www.notion.so/..." disabled={portfolioState === 'loading' || portfolioState === 'saving'} /><button type="submit" disabled={portfolioState === 'loading' || portfolioState === 'saving' || !portfolioUrl.trim()}>{portfolioState === 'saving' ? '확인 중…' : '확인'}</button></div>
+            {portfolioMessage && <p className={portfolioState === 'saved' ? 'success' : 'error'} role="status">{portfolioMessage}</p>}
+            {savedPortfolioUrl && <a className="saved-portfolio-link" href={savedPortfolioUrl} target="_blank" rel="noreferrer">저장된 포트폴리오 열기 →</a>}
+          </form>
+        </section> : <section className="review-section">
           <div className="review-section-heading"><div><p className="eyebrow">활동 흐름</p><h2>{sessionNumber === 5 ? '이 방향으로 운영해요' : '이 순서대로 진행해요'}</h2></div><span>{flowLabel}</span></div>
           <div className="staff-activity-list">{plan.activities.map((activity, index) => <article key={activity.title}><div className="staff-activity-number">{index + 1}</div><div className="staff-activity-body"><div><h3>{activity.title}</h3><span>{activity.duration}</span></div><p>{activity.description}</p><aside><b>멘토 포인트</b><span>{activity.mentorTip}</span></aside></div></article>)}</div>
-        </section>
+        </section>}
         {sessionNumber === 3 && <AiInterviewActivity schoolName={schoolName} displayName={displayName} />}
-        <section className="activity-help"><div><p>활동 설계 확인</p><h2>세부 기능을 만들기 전 전체 진행 흐름을 먼저 확인해 주세요.</h2></div><button type="button" onClick={() => window.history.back()}>활동실로 돌아가기 →</button></section>
+        {sessionNumber !== 4 && <section className="activity-help"><div><p>활동 설계 확인</p><h2>세부 기능을 만들기 전 전체 진행 흐름을 먼저 확인해 주세요.</h2></div><button type="button" onClick={() => window.history.back()}>활동실로 돌아가기 →</button></section>}
       </main>
       <PartnerFooter />
     </div>
