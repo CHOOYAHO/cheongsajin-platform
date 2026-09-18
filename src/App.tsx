@@ -1945,9 +1945,9 @@ function App() {
   const [adminSessionPreview, setAdminSessionPreview] = useState<number | null>(null)
   const schoolName = school === 'yesan-high' ? '예산고등학교' : school === 'gwangsi-middle' ? '광시중학교' : school === 'yesan-teacher' ? '예산고등학교' : school === 'gwangsi-teacher' ? '광시중학교' : school === 'mentor' ? '멘토' : school === 'admin' ? '관리자(마스터)' : school === 'staff' ? '멘토/관리자' : ''
   const isPinStudentMode = (school === 'yesan-high' || school === 'gwangsi-middle') && !useTeacherLogin
-  const isTeacherMode = school === 'yesan-teacher' || school === 'gwangsi-teacher'
-  const isMentorMode = school === 'mentor'
-  const isAdminMode = school === 'admin' || school === 'staff'
+  const isTeacherMode = staffRole === 'teacher' || school === 'yesan-teacher' || school === 'gwangsi-teacher'
+  const isMentorMode = staffRole === 'mentor' || school === 'mentor'
+  const isAdminMode = staffRole === 'admin' || school === 'admin'
   const isStaffAccount = isTeacherMode || isMentorMode || isAdminMode
   const isMasterAccount = staffRole === 'admin'
   const isMentorView = isMentorMode || (isMasterAccount && masterViewMode === 'mentor')
@@ -2104,9 +2104,17 @@ function App() {
             const expiresAt = sessionData?.expiresAt?.toMillis?.() ?? 0
             if (sessionSnapshot.exists() && expiresAt > Date.now() && sessionData?.role === saved.role) verifiedRole = saved.role
           }
-          setSchool(saved.school)
+          const restoredSchool = verifiedRole === 'mentor'
+            ? 'mentor'
+            : verifiedRole === 'admin'
+              ? 'admin'
+              : verifiedRole === 'teacher'
+                ? saved.school.includes('gwangsi') || saved.name.includes('광시') ? 'gwangsi-teacher' : 'yesan-teacher'
+                : saved.school
+          setSchool(restoredSchool)
           setName(saved.name)
           setStaffRole(verifiedRole)
+          if (restoredSchool !== saved.school) window.localStorage.setItem(savedSessionKey, JSON.stringify({ school: restoredSchool, name: saved.name, role: verifiedRole }))
           setPin('')
           setEntered(true)
           setActiveSession(null)
