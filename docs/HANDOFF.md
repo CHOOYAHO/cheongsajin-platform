@@ -79,7 +79,8 @@
 - GitHub 저장소: https://github.com/CHOOYAHO/cheongsajin-platform
 - 배포 사이트: https://chooyaho.github.io/cheongsajin-platform/
 - 기본 브랜치: `main`
-- 현재 최신 main 커밋: `1488480 Add brainstorm practice mode`
+- 4·5회기 구조 변경 및 배포 확인 커밋: `1a8982d Swap portfolio and instructor sessions`
+- 실제 최신 `main`은 작업을 이어받을 때 `git pull --ff-only`와 `git log -1`로 다시 확인한다.
 - 배포 방식: `.github/workflows/deploy-pages.yml`의 GitHub Actions
 - `main`에 푸시하면 자동 빌드 및 GitHub Pages 배포
 
