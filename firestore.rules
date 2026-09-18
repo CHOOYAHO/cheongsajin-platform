@@ -90,6 +90,22 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    match /portfolioLinks/{userId} {
+      allow read: if isOwner(userId)
+        || (hasActiveStaffSession()
+          && get(/databases/$(database)/documents/staffSessions/$(request.auth.uid)).data.role in ['mentor', 'admin']);
+      allow create, update: if isOwner(userId)
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.displayName is string
+        && request.resource.data.displayName.size() > 0
+        && request.resource.data.displayName.size() <= 50
+        && request.resource.data.schoolName in ['예산고등학교', '광시중학교']
+        && request.resource.data.portfolioUrl is string
+        && request.resource.data.portfolioUrl.size() > 0
+        && request.resource.data.portfolioUrl.size() <= 1000;
+      allow delete: if false;
+    }
+
     match /auctionResults/{resultId} {
       allow read: if signedIn() && (resource.data.userId == request.auth.uid
         || (hasActiveStaffSession()

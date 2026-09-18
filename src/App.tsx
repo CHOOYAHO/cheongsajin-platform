@@ -25,6 +25,7 @@ type StaffRole = 'mentor' | 'teacher' | 'admin'
 type IssuedStudentPin = { accountNumber: string; displayName?: string; pin: string }
 type ManagedStudentAccount = { id: string; accountNumber: string; displayName: string; currentPin: string; active: boolean }
 type StaffSessionPlan = { title: string; subtitle: string; description: string; icon: string; theme: string; activities: { duration: string; title: string; description: string; mentorTip: string }[] }
+type PortfolioLinkRecord = { id: string; displayName: string; schoolName: string; portfolioUrl: string }
 type AdminSectionId = 'accounts' | 'activities' | 'records' | 'library'
 type SessionLockMap = Record<number, boolean>
 type SessionLockTarget = 'yesan' | 'gwangsi' | 'mentor'
@@ -1006,7 +1007,7 @@ function SecondActivityDetail({ step, schoolName, studentName, viewerMode, maste
   )
 }
 
-function StaffSessionDetail({ sessionNumber, schoolName, displayName, masterViewLabel, onLeave }: { sessionNumber: number; schoolName: string; displayName: string; masterViewLabel?: string; onLeave: () => void }) {
+function StaffSessionDetail({ sessionNumber, schoolName, displayName, masterViewLabel, canViewPortfolioLinks = false, onLeave }: { sessionNumber: number; schoolName: string; displayName: string; masterViewLabel?: string; canViewPortfolioLinks?: boolean; onLeave: () => void }) {
   const plan = staffSessionPlans[sessionNumber]
   const summaryTime = sessionNumber === 5 ? '전문강사 협의 후 확정' : '총 100분'
   const flowLabel = sessionNumber === 5 ? `${plan.activities.length}개 운영 방향 · 세부 활동 협의 중` : `${plan.activities.length}개 활동 · 100분`
@@ -1014,13 +1015,16 @@ function StaffSessionDetail({ sessionNumber, schoolName, displayName, masterView
   const [savedPortfolioUrl, setSavedPortfolioUrl] = useState('')
   const [portfolioState, setPortfolioState] = useState<'idle' | 'loading' | 'saving' | 'saved' | 'error'>('idle')
   const [portfolioMessage, setPortfolioMessage] = useState('')
+  const [portfolioRecords, setPortfolioRecords] = useState<PortfolioLinkRecord[]>([])
+  const [portfolioRecordsLoading, setPortfolioRecordsLoading] = useState(false)
+  const [portfolioRecordsError, setPortfolioRecordsError] = useState('')
 
   useEffect(() => {
-    if (sessionNumber !== 4 || !auth?.currentUser || !db) return
+    if (sessionNumber !== 4 || canViewPortfolioLinks || !auth?.currentUser || !db) return
     const currentUser = auth.currentUser
     const currentDb = db
     setPortfolioState('loading')
-    void getDoc(doc(currentDb, 'studentProfiles', currentUser.uid)).then((snapshot) => {
+    void getDoc(doc(currentDb, 'portfolioLinks', currentUser.uid)).then((snapshot) => {
       const savedUrl = snapshot.data()?.portfolioUrl
       if (typeof savedUrl === 'string') {
         setPortfolioUrl(savedUrl)
@@ -1031,7 +1035,32 @@ function StaffSessionDetail({ sessionNumber, schoolName, displayName, masterView
       setPortfolioState('error')
       setPortfolioMessage('저장된 링크를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.')
     })
-  }, [sessionNumber])
+  }, [canViewPortfolioLinks, sessionNumber])
+
+  useEffect(() => {
+    if (sessionNumber !== 4 || !canViewPortfolioLinks || !db) return
+    setPortfolioRecordsLoading(true)
+    setPortfolioRecordsError('')
+    const unsubscribe = onSnapshot(collection(db, 'portfolioLinks'), (snapshot) => {
+      const records = snapshot.docs.map((profile) => {
+        const data = profile.data()
+        const rawSchool = String(data.schoolName ?? data.school ?? '')
+        const normalizedSchool = rawSchool === 'yesan-high' ? '예산고등학교' : rawSchool === 'gwangsi-middle' ? '광시중학교' : rawSchool
+        return {
+          id: profile.id,
+          displayName: String(data.displayName ?? '이름 미등록'),
+          schoolName: normalizedSchool || '학교 미등록',
+          portfolioUrl: typeof data.portfolioUrl === 'string' ? data.portfolioUrl : '',
+        }
+      }).filter((record) => record.portfolioUrl).sort((a, b) => a.schoolName.localeCompare(b.schoolName, 'ko') || a.displayName.localeCompare(b.displayName, 'ko'))
+      setPortfolioRecords(records)
+      setPortfolioRecordsLoading(false)
+    }, () => {
+      setPortfolioRecordsError('포트폴리오 링크를 불러오지 못했어요. 로그인 권한을 확인해 주세요.')
+      setPortfolioRecordsLoading(false)
+    })
+    return unsubscribe
+  }, [canViewPortfolioLinks, sessionNumber])
 
   const savePortfolioUrl = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -1054,14 +1083,13 @@ function StaffSessionDetail({ sessionNumber, schoolName, displayName, masterView
     setPortfolioState('saving')
     setPortfolioMessage('')
     try {
-      await setDoc(doc(currentDb, 'studentProfiles', currentUser.uid), {
+      await setDoc(doc(currentDb, 'portfolioLinks', currentUser.uid), {
         userId: currentUser.uid,
         displayName,
-        school: schoolName,
+        schoolName,
         portfolioUrl: candidate,
-        portfolioUpdatedAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
-      }, { merge: true })
+      })
       setSavedPortfolioUrl(candidate)
       setPortfolioState('saved')
       setPortfolioMessage('포트폴리오 링크가 저장됐어요.')
@@ -1084,12 +1112,12 @@ function StaffSessionDetail({ sessionNumber, schoolName, displayName, masterView
         <section className="activity-notice staff-notice"><span aria-hidden="true">📌</span><div><h2>멘토 진행 안내</h2><p>{sessionNumber === 3 ? 'AI 가상면접은 희망 직업에 지원한 지원자와 AI 면접관의 채용면접 시뮬레이션으로 운영합니다.' : sessionNumber === 4 ? '4회기는 1~3회기 기록을 종합해 Notion 진로 포트폴리오로 정리하는 흐름입니다.' : '5회기 세부 활동은 전문강사와 협의해 확정되며, 웹페이지에서는 확인된 운영 방향만 안내합니다.'}</p></div></section>
         {sessionNumber === 4 ? <section className="notion-portfolio-panel">
           <div className="notion-portfolio-copy"><span>NOTION</span><h2>나만의 청사진 만들기</h2><p>나만의 청사진 만들기는 NOTION으로 진행돼요. NOTION에 가입한 후 진행해 주세요.</p><a href="https://www.notion.com/ko" target="_blank" rel="noreferrer">노션 바로가기 →</a></div>
-          <form className="portfolio-link-form" onSubmit={savePortfolioUrl}>
+          {canViewPortfolioLinks ? <section className="portfolio-link-viewer"><div><small>학생 제출 현황</small><h3>포트폴리오 링크 확인</h3><p>학생이 확인 버튼을 눌러 저장한 링크가 실시간으로 표시돼요.</p></div>{portfolioRecordsLoading ? <p className="portfolio-list-state">링크를 불러오는 중이에요.</p> : portfolioRecordsError ? <p className="portfolio-list-state error">{portfolioRecordsError}</p> : portfolioRecords.length ? <div className="portfolio-link-list">{portfolioRecords.map((record) => <article key={record.id}><div><small>{record.schoolName}</small><b>{record.displayName}</b></div><a href={record.portfolioUrl} target="_blank" rel="noreferrer">포트폴리오 열기 →</a></article>)}</div> : <p className="portfolio-list-state">아직 저장된 포트폴리오 링크가 없어요.</p>}</section> : <form className="portfolio-link-form" onSubmit={savePortfolioUrl}>
             <label htmlFor="portfolio-url">나의 포트폴리오 링크 입력</label>
             <div><input id="portfolio-url" type="url" inputMode="url" value={portfolioUrl} onChange={(event) => { setPortfolioUrl(event.target.value); setPortfolioState('idle'); setPortfolioMessage('') }} placeholder="https://www.notion.so/..." disabled={portfolioState === 'loading' || portfolioState === 'saving'} /><button type="submit" disabled={portfolioState === 'loading' || portfolioState === 'saving' || !portfolioUrl.trim()}>{portfolioState === 'saving' ? '확인 중…' : '확인'}</button></div>
             {portfolioMessage && <p className={portfolioState === 'saved' ? 'success' : 'error'} role="status">{portfolioMessage}</p>}
             {savedPortfolioUrl && <a className="saved-portfolio-link" href={savedPortfolioUrl} target="_blank" rel="noreferrer">저장된 포트폴리오 열기 →</a>}
-          </form>
+          </form>}
         </section> : <section className="review-section">
           <div className="review-section-heading"><div><p className="eyebrow">활동 흐름</p><h2>{sessionNumber === 5 ? '이 방향으로 운영해요' : '이 순서대로 진행해요'}</h2></div><span>{flowLabel}</span></div>
           <div className="staff-activity-list">{plan.activities.map((activity, index) => <article key={activity.title}><div className="staff-activity-number">{index + 1}</div><div className="staff-activity-body"><div><h3>{activity.title}</h3><span>{activity.duration}</span></div><p>{activity.description}</p><aside><b>멘토 포인트</b><span>{activity.mentorTip}</span></aside></div></article>)}</div>
@@ -2645,7 +2673,7 @@ function App() {
   }
 
   if (activeSession && activeSession >= 3 && activeSession <= 5 && sessionPageMode === 'activity' && (canPreviewFutureSessions || activeSessionLocks[activeSession] === true)) {
-    return <StaffSessionDetail sessionNumber={activeSession} schoolName={viewSchoolName} displayName={viewDisplayName} masterViewLabel={masterViewLabel} onLeave={leave} />
+    return <StaffSessionDetail sessionNumber={activeSession} schoolName={viewSchoolName} displayName={viewDisplayName} masterViewLabel={masterViewLabel} canViewPortfolioLinks={isMentorView} onLeave={leave} />
   }
 
   if (activeSession === 1 && sessionPageMode === 'activity') {
