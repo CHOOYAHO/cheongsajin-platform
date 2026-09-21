@@ -14,5 +14,7 @@ src/assets/*
 !src/assets/chungnam-education-office.png
 !src/assets/chungnam-social-service.png
 !src/assets/yesan-youth-center.png
+!src/assets/notion-guide/
+!src/assets/notion-guide/*.png
 public/favicon.svg
 public/icons.svg

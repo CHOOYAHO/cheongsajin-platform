@@ -11,6 +11,20 @@ import educationOfficeLogo from './assets/chungnam-education-office.png'
 import socialServiceLogo from './assets/chungnam-social-service.png'
 import youthCenterLogo from './assets/yesan-youth-center.png'
 import accessQrImage from './assets/access-qr.jpg'
+import notionGuide01 from './assets/notion-guide/step-01.png'
+import notionGuide02 from './assets/notion-guide/step-02.png'
+import notionGuide03a from './assets/notion-guide/step-03a.png'
+import notionGuide03b from './assets/notion-guide/step-03b.png'
+import notionGuide04 from './assets/notion-guide/step-04.png'
+import notionGuide05 from './assets/notion-guide/step-05.png'
+import notionGuide06 from './assets/notion-guide/step-06.png'
+import notionGuide07 from './assets/notion-guide/step-07.png'
+import notionGuide08 from './assets/notion-guide/step-08.png'
+import notionGuide09 from './assets/notion-guide/step-09.png'
+import notionGuide10 from './assets/notion-guide/step-10.png'
+import notionGuide11 from './assets/notion-guide/step-11.png'
+import notionGuide12 from './assets/notion-guide/step-12.png'
+import notionGuide13 from './assets/notion-guide/step-13.png'
 
 type Session = { number: number; title: string; subtitle: string; status: 'done' | 'open' | 'locked'; icon: string }
 type SessionTemplate = Omit<Session, 'status'>
@@ -26,6 +40,7 @@ type IssuedStudentPin = { accountNumber: string; displayName?: string; pin: stri
 type ManagedStudentAccount = { id: string; accountNumber: string; displayName: string; currentPin: string; active: boolean }
 type StaffSessionPlan = { title: string; subtitle: string; description: string; icon: string; theme: string; activities: { duration: string; title: string; description: string; mentorTip: string }[] }
 type PortfolioLinkRecord = { id: string; displayName: string; schoolName: string; portfolioUrl: string }
+type NotionGuideStep = { title: string; description: ReactNode; images: { src: string; alt: string }[]; notice?: string }
 type AdminSectionId = 'accounts' | 'activities' | 'records' | 'library'
 type SessionLockMap = Record<number, boolean>
 type SessionLockTarget = 'yesan' | 'gwangsi' | 'mentor'
@@ -55,6 +70,22 @@ const defaultSessionLocks: SessionLocksByTarget = {
   gwangsi: { ...defaultSessionLockMap },
   mentor: { ...defaultSessionLockMap },
 }
+
+const notionGuideSteps: NotionGuideStep[] = [
+  { title: '노션 홈페이지에서 로그인하기', description: <>노션 홈페이지 오른쪽 위의 <strong>로그인</strong> 버튼을 눌러 주세요.</>, images: [{ src: notionGuide01, alt: '노션 홈페이지 오른쪽 위 로그인 버튼 위치' }] },
+  { title: '편한 방법으로 로그인하기', description: <>이메일이나 <strong>Google, ChatGPT, Apple, Microsoft, 패스키</strong> 중 편한 방법을 선택해 로그인해 주세요.</>, images: [{ src: notionGuide02, alt: '노션 로그인 방법 선택 화면' }] },
+  { title: '처음 화면 아래에서 더 살펴보기 누르기', description: <>로그인을 마치면 노션 홈페이지 처음 화면으로 돌아온 뒤 맨 아래까지 내려가서, <strong>제품 목록의 ‘더 살펴보기 →’</strong>를 눌러 주세요.</>, images: [{ src: notionGuide03a, alt: '로그인한 노션 홈페이지 처음 화면' }, { src: notionGuide03b, alt: '노션 홈페이지 맨 아래 더 살펴보기 버튼 위치' }] },
+  { title: '템플릿 갤러리 열기', description: <>‘더 살펴보기’ 화면 아래쪽에 있는 <strong>템플릿 갤러리</strong>를 클릭해 주세요.</>, images: [{ src: notionGuide04, alt: '더 살펴보기 화면의 템플릿 갤러리 위치' }] },
+  { title: '포트폴리오 검색하기', description: <>화면 오른쪽 위 검색창에 <strong>포트폴리오</strong>를 입력해 검색해 주세요.</>, images: [{ src: notionGuide05, alt: '노션 템플릿 갤러리 검색창 위치' }] },
+  { title: '마음에 드는 무료 템플릿 고르기', description: <>검색 결과를 살펴보고 가격이 <strong>무료</strong>로 표시된 템플릿 중 마음에 드는 것을 선택해 주세요.</>, images: [{ src: notionGuide06, alt: '포트폴리오 무료 템플릿 검색 결과' }] },
+  { title: '템플릿 사용하기', description: <>선택한 템플릿의 상세 화면 오른쪽 위에 있는 <strong>템플릿 사용하기</strong> 버튼을 눌러 주세요.</>, images: [{ src: notionGuide07, alt: '템플릿 상세 화면의 템플릿 사용하기 버튼 위치' }] },
+  { title: '개인 페이지에 추가하기', description: <>본인의 워크스페이스가 선택되어 있는지 확인한 뒤 <strong>개인 페이지에 추가</strong> 버튼을 눌러 주세요.</>, images: [{ src: notionGuide08, alt: '템플릿을 개인 페이지에 추가하는 창' }] },
+  { title: '템플릿이 열릴 때까지 기다리기', description: <>화면에 <strong>템플릿 추가 중입니다</strong>라는 안내가 나타나면 페이지가 열릴 때까지 잠시 기다려 주세요.</>, notice: '로딩 중에는 창을 닫거나 다른 버튼을 누르지 마세요.', images: [{ src: notionGuide09, alt: '템플릿 추가 중 안내 메시지' }] },
+  { title: '공유 메뉴 열기', description: <>템플릿이 열리면 화면 오른쪽 위의 <strong>공유</strong> 버튼을 눌러 주세요.</>, images: [{ src: notionGuide10, alt: '노션 편집 화면 오른쪽 위 공유 버튼 위치' }] },
+  { title: '포트폴리오 게시하기', description: <>공유 창의 <strong>게시</strong> 탭에서 파란색 <strong>게시</strong> 버튼을 눌러 주세요.</>, notice: '게시하면 링크를 가진 사람이 페이지를 볼 수 있어요. 활동이 끝난 뒤에는 필요에 따라 게시를 취소해도 괜찮아요.', images: [{ src: notionGuide11, alt: '노션 공유 창의 게시 버튼' }] },
+  { title: '사이트 링크 복사하기', description: <>주소 표시줄의 <strong>‘플러스’ 오른쪽 링크 복사 아이콘</strong>을 눌러 사이트 주소를 복사해 주세요.</>, images: [{ src: notionGuide12, alt: '게시된 노션 사이트의 링크 복사 아이콘 위치' }] },
+  { title: '청사진 홈페이지에 링크 제출하기', description: <>청사진 홈페이지로 돌아와 <strong>나의 포트폴리오 링크 입력</strong> 칸을 클릭하고 <strong>Ctrl+V</strong>로 주소를 붙여 넣은 뒤, <strong>확인</strong> 버튼을 눌러 주세요.</>, images: [{ src: notionGuide13, alt: '청사진 홈페이지의 포트폴리오 링크 입력란' }] },
+]
 
 function topicParticle(text: string, withFinal: string, withoutFinal: string) {
   const last = text.trim().at(-1)
@@ -1007,6 +1038,22 @@ function SecondActivityDetail({ step, schoolName, studentName, viewerMode, maste
   )
 }
 
+function NotionEntryGuide() {
+  return <section className="notion-entry-guide" aria-labelledby="notion-entry-guide-title">
+    <div className="notion-guide-heading">
+      <div><p className="eyebrow">처음 사용하는 학생을 위한 안내</p><h2 id="notion-entry-guide-title">노션 포트폴리오 시작하기</h2><p>사진과 같은 화면을 찾아 1단계부터 차례대로 따라 해 보세요.</p></div>
+      <span>총 {notionGuideSteps.length}단계</span>
+    </div>
+    <div className="notion-guide-steps">
+      {notionGuideSteps.map((step, index) => <article className="notion-guide-step" key={step.title}>
+        <div className="notion-guide-step-copy"><span>{index + 1}</span><div><small>STEP {index + 1}</small><h3>{step.title}</h3><p>{step.description}</p>{step.notice && <aside>💡 {step.notice}</aside>}</div></div>
+        <div className={`notion-guide-images ${step.images.length > 1 ? 'multiple' : ''}`}>{step.images.map((image) => <figure key={image.src}><img src={image.src} alt={image.alt} loading="lazy" /></figure>)}</div>
+      </article>)}
+    </div>
+    <div className="notion-guide-complete"><span aria-hidden="true">🎉</span><div><small>여기까지 완료했다면</small><h2>본격적으로 포트폴리오를 만들어 보아요!</h2></div></div>
+  </section>
+}
+
 function StaffSessionDetail({ sessionNumber, schoolName, displayName, masterViewLabel, canViewPortfolioLinks = false, onLeave }: { sessionNumber: number; schoolName: string; displayName: string; masterViewLabel?: string; canViewPortfolioLinks?: boolean; onLeave: () => void }) {
   const plan = staffSessionPlans[sessionNumber]
   const summaryTime = sessionNumber === 5 ? '전문강사 협의 후 확정' : '총 100분'
@@ -1110,7 +1157,7 @@ function StaffSessionDetail({ sessionNumber, schoolName, displayName, masterView
         </section>
         <section className="staff-session-summary"><div><small>회기</small><b>{sessionNumber}회기</b></div><div><small>활동 주제</small><b>{plan.subtitle}</b></div><div><small>예상 시간</small><b>{summaryTime}</b></div></section>
         <section className="activity-notice staff-notice"><span aria-hidden="true">📌</span><div><h2>멘토 진행 안내</h2><p>{sessionNumber === 3 ? 'AI 가상면접은 희망 직업에 지원한 지원자와 AI 면접관의 채용면접 시뮬레이션으로 운영합니다.' : sessionNumber === 4 ? '4회기는 1~3회기 기록을 종합해 Notion 진로 포트폴리오로 정리하는 흐름입니다.' : '5회기 세부 활동은 전문강사와 협의해 확정되며, 웹페이지에서는 확인된 운영 방향만 안내합니다.'}</p></div></section>
-        {sessionNumber === 4 ? <section className="notion-portfolio-panel">
+        {sessionNumber === 4 ? <><section className="notion-portfolio-panel">
           <div className="notion-portfolio-copy"><span>NOTION</span><h2>나만의 청사진 만들기</h2><p>나만의 청사진 만들기는 NOTION으로 진행돼요. NOTION에 가입한 후 진행해 주세요.</p><div className="notion-portfolio-actions"><a href="https://www.notion.com/ko" target="_blank" rel="noreferrer">노션 바로가기 →</a><a href="https://childish-vision-fb2.notion.site/3dfba93c8f6180dab68ee2dc6d7938bc?source=copy_link" target="_blank" rel="noreferrer">선생님의 포트폴리오 보러가기 →</a></div></div>
           {canViewPortfolioLinks ? <section className="portfolio-link-viewer"><div><small>학생 제출 현황</small><h3>포트폴리오 링크 확인</h3><p>학생이 확인 버튼을 눌러 저장한 링크가 실시간으로 표시돼요.</p></div>{portfolioRecordsLoading ? <p className="portfolio-list-state">링크를 불러오는 중이에요.</p> : portfolioRecordsError ? <p className="portfolio-list-state error">{portfolioRecordsError}</p> : portfolioRecords.length ? <div className="portfolio-link-list">{portfolioRecords.map((record) => <article key={record.id}><div><small>{record.schoolName}</small><b>{record.displayName}</b></div><a href={record.portfolioUrl} target="_blank" rel="noreferrer">포트폴리오 열기 →</a></article>)}</div> : <p className="portfolio-list-state">아직 저장된 포트폴리오 링크가 없어요.</p>}</section> : <form className="portfolio-link-form" onSubmit={savePortfolioUrl}>
             <label htmlFor="portfolio-url">나의 포트폴리오 링크 입력</label>
@@ -1118,7 +1165,7 @@ function StaffSessionDetail({ sessionNumber, schoolName, displayName, masterView
             {portfolioMessage && <p className={portfolioState === 'saved' ? 'success' : 'error'} role="status">{portfolioMessage}</p>}
             {savedPortfolioUrl && <a className="saved-portfolio-link" href={savedPortfolioUrl} target="_blank" rel="noreferrer">저장된 포트폴리오 열기 →</a>}
           </form>}
-        </section> : <section className="review-section">
+        </section><NotionEntryGuide /></> : <section className="review-section">
           <div className="review-section-heading"><div><p className="eyebrow">활동 흐름</p><h2>{sessionNumber === 5 ? '이 방향으로 운영해요' : '이 순서대로 진행해요'}</h2></div><span>{flowLabel}</span></div>
           <div className="staff-activity-list">{plan.activities.map((activity, index) => <article key={activity.title}><div className="staff-activity-number">{index + 1}</div><div className="staff-activity-body"><div><h3>{activity.title}</h3><span>{activity.duration}</span></div><p>{activity.description}</p><aside><b>멘토 포인트</b><span>{activity.mentorTip}</span></aside></div></article>)}</div>
         </section>}
