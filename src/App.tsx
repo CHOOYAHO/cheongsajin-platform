@@ -40,6 +40,7 @@ type IssuedStudentPin = { accountNumber: string; displayName?: string; pin: stri
 type ManagedStudentAccount = { id: string; accountNumber: string; displayName: string; currentPin: string; active: boolean }
 type StaffSessionPlan = { title: string; subtitle: string; description: string; icon: string; theme: string; activities: { duration: string; title: string; description: string; mentorTip: string }[] }
 type PortfolioLinkRecord = { id: string; displayName: string; schoolName: string; portfolioUrl: string }
+type PortfolioSchoolFilter = '예산고등학교' | '광시중학교'
 type NotionGuideStep = { title: string; description: ReactNode; images: { src: string; alt: string }[]; notice?: string }
 type AdminSectionId = 'accounts' | 'activities' | 'records' | 'library'
 type SessionLockMap = Record<number, boolean>
@@ -1065,6 +1066,12 @@ function StaffSessionDetail({ sessionNumber, schoolName, displayName, masterView
   const [portfolioRecords, setPortfolioRecords] = useState<PortfolioLinkRecord[]>([])
   const [portfolioRecordsLoading, setPortfolioRecordsLoading] = useState(false)
   const [portfolioRecordsError, setPortfolioRecordsError] = useState('')
+  const [portfolioSchoolFilter, setPortfolioSchoolFilter] = useState<PortfolioSchoolFilter>('예산고등학교')
+  const filteredPortfolioRecords = portfolioRecords.filter((record) => record.schoolName === portfolioSchoolFilter)
+  const portfolioSchoolCounts = {
+    예산고등학교: portfolioRecords.filter((record) => record.schoolName === '예산고등학교').length,
+    광시중학교: portfolioRecords.filter((record) => record.schoolName === '광시중학교').length,
+  }
 
   useEffect(() => {
     if (sessionNumber !== 4 || canViewPortfolioLinks || !auth?.currentUser || !db) return
@@ -1159,7 +1166,7 @@ function StaffSessionDetail({ sessionNumber, schoolName, displayName, masterView
         <section className="activity-notice staff-notice"><span aria-hidden="true">📌</span><div><h2>멘토 진행 안내</h2><p>{sessionNumber === 3 ? 'AI 가상면접은 희망 직업에 지원한 지원자와 AI 면접관의 채용면접 시뮬레이션으로 운영합니다.' : sessionNumber === 4 ? '4회기는 1~3회기 기록을 종합해 Notion 진로 포트폴리오로 정리하는 흐름입니다.' : '5회기 세부 활동은 전문강사와 협의해 확정되며, 웹페이지에서는 확인된 운영 방향만 안내합니다.'}</p></div></section>
         {sessionNumber === 4 ? <><section className="notion-portfolio-panel">
           <div className="notion-portfolio-copy"><span>NOTION</span><h2>나만의 청사진 만들기</h2><p>나만의 청사진 만들기는 NOTION으로 진행돼요. NOTION에 가입한 후 진행해 주세요.</p><div className="notion-portfolio-actions"><a href="https://www.notion.com/ko" target="_blank" rel="noreferrer">노션 바로가기 →</a><a href="https://childish-vision-fb2.notion.site/3dfba93c8f6180dab68ee2dc6d7938bc?source=copy_link" target="_blank" rel="noreferrer">선생님의 포트폴리오 보러가기 →</a></div></div>
-          {canViewPortfolioLinks ? <section className="portfolio-link-viewer"><div><small>학생 제출 현황</small><h3>포트폴리오 링크 확인</h3><p>학생이 확인 버튼을 눌러 저장한 링크가 실시간으로 표시돼요.</p></div>{portfolioRecordsLoading ? <p className="portfolio-list-state">링크를 불러오는 중이에요.</p> : portfolioRecordsError ? <p className="portfolio-list-state error">{portfolioRecordsError}</p> : portfolioRecords.length ? <div className="portfolio-link-list">{portfolioRecords.map((record) => <article key={record.id}><div><small>{record.schoolName}</small><b>{record.displayName}</b></div><a href={record.portfolioUrl} target="_blank" rel="noreferrer">포트폴리오 열기 →</a></article>)}</div> : <p className="portfolio-list-state">아직 저장된 포트폴리오 링크가 없어요.</p>}</section> : <form className="portfolio-link-form" onSubmit={savePortfolioUrl}>
+          {canViewPortfolioLinks ? <section className="portfolio-link-viewer"><div><small>학생 제출 현황</small><h3>포트폴리오 링크 확인</h3><p>학생이 확인 버튼을 눌러 저장한 링크가 실시간으로 표시돼요.</p></div><div className="portfolio-school-tabs" role="tablist" aria-label="학교별 포트폴리오"><button type="button" role="tab" aria-selected={portfolioSchoolFilter === '예산고등학교'} className={portfolioSchoolFilter === '예산고등학교' ? 'active' : ''} onClick={() => setPortfolioSchoolFilter('예산고등학교')}>예산고 <span>{portfolioSchoolCounts.예산고등학교}</span></button><button type="button" role="tab" aria-selected={portfolioSchoolFilter === '광시중학교'} className={portfolioSchoolFilter === '광시중학교' ? 'active' : ''} onClick={() => setPortfolioSchoolFilter('광시중학교')}>광시중 <span>{portfolioSchoolCounts.광시중학교}</span></button></div>{portfolioRecordsLoading ? <p className="portfolio-list-state">링크를 불러오는 중이에요.</p> : portfolioRecordsError ? <p className="portfolio-list-state error">{portfolioRecordsError}</p> : filteredPortfolioRecords.length ? <div className="portfolio-link-list">{filteredPortfolioRecords.map((record) => <article key={record.id}><div><small>{record.schoolName}</small><b>{record.displayName}</b></div><a href={record.portfolioUrl} target="_blank" rel="noreferrer">포트폴리오 열기 →</a></article>)}</div> : <p className="portfolio-list-state">{portfolioSchoolFilter}에서 아직 저장한 포트폴리오 링크가 없어요.</p>}</section> : <form className="portfolio-link-form" onSubmit={savePortfolioUrl}>
             <label htmlFor="portfolio-url">나의 포트폴리오 링크 입력</label>
             <div><input id="portfolio-url" type="url" inputMode="url" value={portfolioUrl} onChange={(event) => { setPortfolioUrl(event.target.value); setPortfolioState('idle'); setPortfolioMessage('') }} placeholder="https://www.notion.so/..." disabled={portfolioState === 'loading' || portfolioState === 'saving'} /><button type="submit" disabled={portfolioState === 'loading' || portfolioState === 'saving' || !portfolioUrl.trim()}>{portfolioState === 'saving' ? '확인 중…' : '확인'}</button></div>
             {portfolioMessage && <p className={portfolioState === 'saved' ? 'success' : 'error'} role="status">{portfolioMessage}</p>}
