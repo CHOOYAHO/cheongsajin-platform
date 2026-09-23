@@ -2301,7 +2301,11 @@ function App() {
   useEffect(() => {
     if (!entered || !db) return
     return onSnapshot(collection(db, 'mentorProfiles'), (snapshot) => {
-      setMentorProfiles(snapshot.docs.map((profile) => ({ id: profile.id, ...profile.data() } as MentorProfile)).sort((a, b) => a.displayName.localeCompare(b.displayName, 'ko')))
+      setMentorProfiles(snapshot.docs.map((profile) => ({ id: profile.id, ...profile.data() } as MentorProfile)).sort((a, b) => {
+        const aIsLast = a.displayName.replace(/\s/g, '') === '이영우'
+        const bIsLast = b.displayName.replace(/\s/g, '') === '이영우'
+        return Number(aIsLast) - Number(bIsLast) || a.displayName.localeCompare(b.displayName, 'ko')
+      }))
     }, (error) => console.error(error))
   }, [entered])
 
