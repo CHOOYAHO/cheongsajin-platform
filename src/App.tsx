@@ -41,6 +41,7 @@ type ManagedStudentAccount = { id: string; accountNumber: string; displayName: s
 type StaffSessionPlan = { title: string; subtitle: string; description: string; icon: string; theme: string; activities: { duration: string; title: string; description: string; mentorTip: string }[] }
 type PortfolioLinkRecord = { id: string; displayName: string; schoolName: string; portfolioUrl: string }
 type PortfolioSchoolFilter = '예산고등학교' | '광시중학교'
+type ProgramGuideSession = { number: number; title: string; question: string; description: string; activities: string[]; takeaway: string }
 type NotionGuideStep = { title: string; description: ReactNode; images: { src: string; alt: string }[]; notice?: string }
 type AdminSectionId = 'accounts' | 'activities' | 'records' | 'library'
 type SessionLockMap = Record<number, boolean>
@@ -106,6 +107,14 @@ const sessionTemplates: SessionTemplate[] = [
   { number: 3, title: '진로 역량 갖추기', subtitle: '관심 직업의 실제 업무와 AI 채용면접을 경험해요', icon: '🧩' },
   { number: 4, title: '진로 포트폴리오', subtitle: 'Notion 진로 포트폴리오로 나의 미래를 정리해요', icon: '🗺️' },
   { number: 5, title: '강사 프로그램', subtitle: '전문강사와 함께 진로와 직업을 넓게 탐색해요', icon: '💬' },
+]
+
+const programGuideSessions: ProgramGuideSession[] = [
+  { number: 1, title: '첫 만남과 진로·직업 이해', question: '진로는 어떻게 시작할까요?', description: '멘토와 서로 알아가고, 진로와 직업의 의미를 이야기해요. 멘토가 들려주는 진로 선택과 대학생활 이야기도 함께 들어요.', activities: ['멘토 만나기', '진로·직업 알아보기', '멘토의 경험 듣기'], takeaway: '함께할 사람을 만나고, 앞으로 탐색할 진로의 출발점을 만들어요.' },
+  { number: 2, title: '선호와 강점 탐색', question: '나는 무엇을 좋아하고, 직업에는 어떤 힘이 필요할까요?', description: '‘좋아! 싫어!’에서 여러 활동에 대한 내 생각을 고르고, 그 이유를 살펴봐요. ‘강점 경매장’에서는 직업에 필요하다고 생각하는 역량을 골라 실제 직업정보와 비교해요.', activities: ['좋아! 싫어!', '강점 경매장', '직업과 역량 연결하기'], takeaway: '나의 선호를 발견하고, 직업마다 필요한 역량이 다를 수 있음을 알아봐요.' },
+  { number: 3, title: '진로 역량 갖추기', question: '관심 직업은 실제로 무슨 일을 할까요?', description: '모둠과 함께 관심 직업의 업무와 필요한 역량을 떠올린 뒤 실제 정보를 찾아 비교해요. 이어 희망 직업에 지원한 사람처럼 AI 면접관의 질문에 답해 봐요.', activities: ['업무 브레인스토밍', '실제 직업정보 비교', 'AI 채용면접'], takeaway: '관심 직업을 더 구체적으로 이해하고, 면접 답변을 통해 내 생각을 돌아봐요.' },
+  { number: 4, title: '진로 포트폴리오', question: '지금까지 발견한 나를 어떻게 표현할까요?', description: '앞선 활동의 기록에서 중요한 내용을 골라 미래의 내 모습을 그려 봐요. 발견한 흥미와 관심 직업, 새롭게 알게 된 점을 내 말로 정리해 Notion 포트폴리오를 만들어요.', activities: ['활동 기록 돌아보기', '미래의 나 그려 보기', 'Notion 포트폴리오 만들기'], takeaway: '나의 진로 탐색 과정을 한곳에 모은 개인 포트폴리오를 남겨요.' },
+  { number: 5, title: '강사 프로그램', question: '새로운 이야기를 만나면 생각이 어떻게 넓어질까요?', description: '전문강사와 함께 참여형 진로 활동을 해요. 활동에서 새롭게 알게 된 내용과 관심이 생긴 분야를 돌아보며 여정을 마무리해요.', activities: ['전문강사와 함께하는 활동', '새롭게 알게 된 점 정리하기'], takeaway: '새로운 관점을 만나고 다음에 더 알아보고 싶은 것을 생각해 봐요.' },
 ]
 
 const firstSessionActivities = [
@@ -1053,6 +1062,15 @@ function NotionEntryGuide() {
     </div>
     <div className="notion-guide-complete"><span aria-hidden="true">🎉</span><div><small>여기까지 완료했다면</small><h2>본격적으로 포트폴리오를 만들어 보아요!</h2></div></div>
   </section>
+}
+
+function ProgramGuide() {
+  return <>
+    <section className="guide-detail-hero blue program-guide-hero"><span aria-hidden="true">🗺️</span><div><small>프로그램 안내 · 청·사·진</small><h1>청사진이란?</h1><p>좋아하는 것을 발견하는 데서 시작해, 관심 직업을 알아보고 미래의 나를 그려 보는 다섯 번의 진로 탐색이에요.</p></div></section>
+    <section className="guide-content-card program-guide-intro"><p className="eyebrow">청·사·진의 뜻</p><h2>청소년의 사기진작 진로멘토링</h2><p>내가 무엇을 좋아하는지, 어떤 직업에 관심이 있는지 멘토와 함께 알아가요. 활동하면서 떠올린 생각과 결과를 기록하고, 그중 나에게 중요한 내용을 골라 나만의 진로 포트폴리오로 정리해요.</p><div className="program-guide-path" aria-label="청사진 활동 흐름"><span>나 알아가기</span><i aria-hidden="true">→</i><span>직업 탐색하기</span><i aria-hidden="true">→</i><span>미래의 나 그리기</span></div></section>
+    <section className="program-guide-journey" aria-labelledby="program-guide-journey-title"><div className="program-guide-heading"><p className="eyebrow">다섯 번의 만남</p><h2 id="program-guide-journey-title">이런 활동을 함께해요</h2><p>앞 회기에서 발견한 내용을 다음 회기의 탐색과 연결해요.</p></div><div className="program-guide-session-list">{programGuideSessions.map((session) => <article className="program-guide-session" key={session.number}><div className="program-guide-session-number"><b>{session.number}</b><span>회기</span></div><div className="program-guide-session-body"><small>{session.title}</small><h3>{session.question}</h3><p>{session.description}</p><div className="program-guide-activities">{session.activities.map((activity) => <span key={activity}>{activity}</span>)}</div><div className="program-guide-takeaway"><b>이 시간에 남기는 것</b><span>{session.takeaway}</span></div></div></article>)}</div></section>
+    <section className="program-guide-finish"><span aria-hidden="true">📖</span><div><p className="eyebrow">여정의 끝에서</p><h2>나만의 청사진이 남아요</h2><p>다섯 번의 활동은 정답을 고르는 과정이 아니에요. 내가 좋아하는 것, 더 알아보고 싶은 직업, 새롭게 생긴 질문을 모아 앞으로의 방향을 스스로 그려 봐요.</p></div></section>
+  </>
 }
 
 function StaffSessionDetail({ sessionNumber, schoolName, displayName, masterViewLabel, canViewPortfolioLinks = false, onLeave }: { sessionNumber: number; schoolName: string; displayName: string; masterViewLabel?: string; canViewPortfolioLinks?: boolean; onLeave: () => void }) {
@@ -2666,7 +2684,7 @@ function App() {
       {masterViewLabel && <MasterViewBanner label={masterViewLabel} />}
       <main className="guide-detail-page">
         <button className="back-button" type="button" onClick={() => window.history.back()}>← 나의 활동실로</button>
-        {activeGuide === 'program' && <><section className="guide-detail-hero blue"><span>🗺️</span><div><small>프로그램 안내</small><h1>청사진이란?</h1><p>청소년의 가능성을 발견하고 미래의 모습을 구체적으로 그려 가는 진로 멘토링 여정이에요.</p></div></section><section className="guide-content-card"><h2>청·사·진의 의미</h2><p><b>청소년의 사기진작 진로멘토링</b>의 줄임말로, 내가 좋아하는 것과 잘하는 것을 찾고 다양한 직업과 진로를 탐색하는 프로그램이에요.</p><div className="program-journey"><article><b>1</b><h3>서로 만나기</h3><p>멘토와 인사하고 진로와 직업의 의미를 알아봐요.</p></article><article><b>2</b><h3>나를 발견하기</h3><p>선호와 강점을 탐색하고 직업과 역량의 관계를 살펴봐요.</p></article><article><b>3</b><h3>진로 역량 갖추기</h3><p>관심 직업의 실제 업무를 비교하고 AI 채용면접을 경험해요.</p></article><article><b>4</b><h3>진로 포트폴리오</h3><p>Notion 진로 포트폴리오로 나의 미래를 정리해요.</p></article><article><b>5</b><h3>강사 프로그램</h3><p>전문강사와 함께 다양한 진로와 직업 관점을 넓혀요.</p></article></div></section></>}
+        {activeGuide === 'program' && <ProgramGuide />}
         {activeGuide === 'profile' && <>{isMasterStudentView || (!isMentorMode && !isAdminMode) ? <><section className="guide-detail-hero green"><span>📚</span><div><small>나의 정보와 활동</small><h1>나의 기록</h1><p>프로필을 작성하고 1회기부터 5회기까지 나의 활동 결과를 모아 봐요.</p></div></section><section className="guide-content-card"><div className="student-profile-heading"><small>나의 정보</small><h2>프로필 작성</h2><p>나를 소개하고 관심 분야와 희망 진로를 기록해요.</p></div><ProfileEditor kind="student" displayName={viewDisplayName} schoolName={viewSchoolName} onSave={saveProfile} /></section><StudentActivityRecords /></> : <><section className="guide-detail-hero green"><span>👤</span><div><small>멘토 정보</small><h1>멘토 프로필 작성</h1><p>작성한 내용은 멘토 소개 화면에 표시돼요.</p></div></section><section className="guide-content-card"><ProfileEditor kind="mentor" displayName={viewDisplayName} schoolName={viewSchoolName} existing={ownMentorProfile} onSave={saveProfile} /></section></>}</>}
         {activeGuide === 'questions' && isMentorView && <MentorQuestionPage questions={mentorQuestions} isAdmin={staffRole === 'admin'} onRead={(question) => void markMentorQuestionRead(question)} onAnswer={answerMentorQuestion} />}
         {activeGuide === 'mentors' && <><section className="guide-detail-hero orange mentor-guide-hero"><span>🤝</span><div><small>함께하는 사람</small><h1>멘토 소개</h1><p>청·사·진의 여정을 함께할 멘토들의 전공과 진로 이야기를 만나 보세요.</p></div>{(!isStaffAccount || isMasterStudentView) && <button type="button" className="mentor-question-open" onClick={() => setShowMentorQuestion((current) => !current)}>💬 멘토에게 질문하기</button>}</section>{showMentorQuestion && (!isStaffAccount || isMasterStudentView) && <MentorQuestionPanel profiles={visibleMentorProfiles} studentName={viewDisplayName} schoolName={viewSchoolName} onClose={() => setShowMentorQuestion(false)} />}<section className="guide-content-card"><div className="mentor-page-heading"><div><h2>우리의 멘토</h2><p>멘토가 프로필을 저장하면 이곳에 바로 표시돼요.</p></div>{!isMasterStudentView && (isMentorMode || isAdminMode) && <button type="button" onClick={() => openGuide('profile')}>내 멘토 프로필 작성 →</button>}</div>{visibleMentorProfiles.length ? <div className="mentor-profile-grid">{visibleMentorProfiles.map((profile) => { const schoolMajor = profile.schoolMajor || [profile.university, profile.major].filter(Boolean).join(' / '); const message = profile.message || profile.introduction; return <article key={profile.id}><small>{schoolMajor || '학교와 전공을 준비 중이에요'}</small><h2>{profile.displayName} 멘토</h2><p className="mentor-one-line">{profile.oneLineIntro || '한 줄 소개를 준비하고 있어요.'}</p><dl className="mentor-profile-details">{profile.interests && <><dt>관심 분야</dt><dd>{profile.interests}</dd></>}{profile.majorReason && <><dt>전공 선택 이유</dt><dd>{profile.majorReason}</dd></>}{profile.careerInterests && <><dt>관심 진로·직업</dt><dd>{profile.careerInterests}</dd></>}{profile.campusLife && <><dt>대학생활</dt><dd>{profile.campusLife}</dd></>}{profile.strengths && <><dt>나의 강점</dt><dd>{profile.strengths}</dd></>}{!profile.campusLife && profile.careerStory && <><dt>나의 진로 이야기</dt><dd>{profile.careerStory}</dd></>}{message && <><dt>전하고 싶은 말</dt><dd>{message}</dd></>}</dl></article> })}</div> : <div className="empty-mentor-list"><span>🤝</span><h2>멘토 소개를 준비하고 있어요</h2><p>멘토가 프로필을 작성하면 이곳에서 확인할 수 있어요.</p></div>}</section></>}
