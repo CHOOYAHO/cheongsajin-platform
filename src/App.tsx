@@ -10,6 +10,7 @@ import chungcheongnamdoLogo from './assets/chungcheongnamdo.png'
 import educationOfficeLogo from './assets/chungnam-education-office.png'
 import socialServiceLogo from './assets/chungnam-social-service.png'
 import youthCenterLogo from './assets/yesan-youth-center.png'
+import youthCenterExterior from './assets/yesan-youth-center-exterior.jpg'
 import accessQrImage from './assets/access-qr.jpg'
 import notionGuide01 from './assets/notion-guide/step-01.png'
 import notionGuide02 from './assets/notion-guide/step-02.png'
@@ -1076,6 +1077,7 @@ function ProgramGuide() {
 function CenterGuide() {
   return <>
     <section className="guide-detail-hero purple center-guide-hero"><span aria-hidden="true">🏫</span><div><small>청·사·진을 함께 만드는 곳</small><h1>예산군청소년수련관</h1><p>새로운 것을 해 보고, 친구와 만나고, 내 생각을 직접 펼칠 수 있는 청소년의 공간이에요.</p></div></section>
+    <figure className="center-guide-exterior"><img src={youthCenterExterior} alt="예산군청소년수련관 건물 전경" /><figcaption>예산군청소년수련관 전경</figcaption></figure>
     <section className="guide-content-card center-guide-intro"><p className="eyebrow">이곳은 어떤 곳일까요?</p><h2>청소년이 주인공이 되는 공간</h2><p>예산군청소년수련관은 청소년이 관심 있는 활동을 경험하고, 스스로 선택하고 기획하며 성장할 수 있도록 돕는 곳이에요. 청·사·진도 이곳에서 청소년의 진로 탐색을 함께합니다.</p><div className="center-guide-highlight"><span aria-hidden="true">💬</span><p>“무엇을 잘해야 하지?”보다 <strong>“무엇이 궁금하고, 무엇을 해 보고 싶지?”</strong>에서 시작해도 좋아요.</p></div></section>
     <section className="guide-content-card center-guide-activities"><div className="center-guide-heading"><p className="eyebrow">수련관에서 만나는 경험</p><h2>내 관심사에서 시작해 보세요</h2><p>프로그램은 시기마다 달라질 수 있어요. 지금 참여할 수 있는 활동은 수련관 홈페이지에서 확인해 주세요.</p></div><div className="center-guide-grid"><article><span aria-hidden="true">🎨</span><h3>문화·체험 활동</h3><p>다양한 분야를 직접 경험하며 새로운 취미와 관심사를 발견해요.</p></article><article><span aria-hidden="true">🧭</span><h3>진로 탐색</h3><p>나의 흥미와 강점을 알아보고, 앞으로 해 보고 싶은 일을 생각해 봐요.</p></article><article><span aria-hidden="true">🤝</span><h3>동아리·자치 활동</h3><p>친구들과 관심사를 나누고, 활동을 함께 만들어 가요.</p></article></div></section>
     <section className="guide-content-card center-guide-participation"><div><p className="eyebrow">참여하는 방법</p><h2>참여자에서 기획자로</h2><p>수련관은 청소년이 활동을 경험하는 데서 그치지 않고 자신의 의견을 낼 수 있도록 함께해요.</p></div><ol><li><b>찾아보기</b><span>관심 있는 프로그램이나 동아리를 살펴봐요.</span></li><li><b>함께하기</b><span>직접 참여하며 내가 좋아하는 것을 찾아봐요.</span></li><li><b>의견 내기</b><span>청소년운영위원회·참여위원회 등에서 청소년의 목소리를 전해요.</span></li></ol></section>
