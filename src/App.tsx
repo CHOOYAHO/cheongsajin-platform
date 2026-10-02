@@ -26,6 +26,7 @@ import notionGuide10 from './assets/notion-guide/step-10.png'
 import notionGuide11 from './assets/notion-guide/step-11.png'
 import notionGuide12 from './assets/notion-guide/step-12.png'
 import notionGuide13 from './assets/notion-guide/step-13.png'
+import postSurveyQrImage from './assets/post-survey-qr.png'
 
 type Session = { number: number; title: string; subtitle: string; status: 'done' | 'open' | 'locked'; icon: string }
 type SessionTemplate = Omit<Session, 'status'>
@@ -1208,6 +1209,7 @@ function StaffSessionDetail({ sessionNumber, schoolName, displayName, masterView
         </section>}
         {sessionNumber === 3 && <AiInterviewActivity schoolName={schoolName} displayName={displayName} />}
         {sessionNumber !== 4 && <section className="activity-help"><div><p>활동 설계 확인</p><h2>세부 기능을 만들기 전 전체 진행 흐름을 먼저 확인해 주세요.</h2></div><button type="button" onClick={() => window.history.back()}>활동실로 돌아가기 →</button></section>}
+        {sessionNumber === 5 && <section className="post-survey-section"><div><p className="eyebrow">5회기 마무리</p><h2>사후 설문조사</h2><p>QR코드를 스캔해 설문조사에 참여해 주세요.</p></div><img src={postSurveyQrImage} alt="사후 설문조사 QR코드" width="150" height="150" /></section>}
       </main>
       <PartnerFooter />
     </div>
